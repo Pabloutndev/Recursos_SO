@@ -10,6 +10,9 @@
 #include<string.h>
 #include<commons/log.h>
 
+/// NOTE: VARIABLES GLOBALES DEL PROYECTO
+extern t_log* logger;
+
 typedef enum
 {
 	MENSAJE,

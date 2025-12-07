@@ -8,5 +8,6 @@
 #include "utils.h"
 
 void iterator(char* value);
+void* atender_cliente(void* arg);
 
 #endif /* SERVER_H_ */

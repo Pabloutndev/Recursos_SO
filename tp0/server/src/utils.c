@@ -1,15 +1,10 @@
 #include"utils.h"
 
-t_log* logger;
-
 int iniciar_servidor(void)
 {
-	// Quitar esta línea cuando hayamos terminado de implementar la funcion
-	assert(!"no implementado!");
-
 	int socket_servidor;
 
-	struct addrinfo hints, *servinfo, *p;
+	struct addrinfo hints, *servinfo;
 
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_INET;
@@ -18,27 +13,44 @@ int iniciar_servidor(void)
 
 	getaddrinfo(NULL, PUERTO, &hints, &servinfo);
 
-	// Creamos el socket de escucha del servidor
+    socket_servidor = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+    if (socket_servidor == -1) {
+        log_error(logger, "Error creando socket");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
 
-	// Asociamos el socket a un puerto
+    int opt = 1;
+    setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-	// Escuchamos las conexiones entrantes
+    if (bind(socket_servidor, servinfo->ai_addr, servinfo->ai_addrlen) != 0) {
+        log_error(logger, "Error en bind()");
+        freeaddrinfo(servinfo);
+        close(socket_servidor);
+        return -1;
+    }
+
+	if (listen(socket_servidor, SOMAXCONN) != 0) {
+        log_error(logger, "Error en listen()");
+        close(socket_servidor);
+        return -1;
+    }
 
 	freeaddrinfo(servinfo);
-	log_trace(logger, "Listo para escuchar a mi cliente");
+
+	log_info(logger, "Servidor listo. Esperando conexiones...");
 
 	return socket_servidor;
 }
 
 int esperar_cliente(int socket_servidor)
 {
-	// Quitar esta línea cuando hayamos terminado de implementar la funcion
-	assert(!"no implementado!");
-
-	// Aceptamos un nuevo cliente
-	int socket_cliente;
+	int socket_cliente = accept(socket_servidor, NULL, NULL);
+    if (socket_cliente == -1) {
+        log_error(logger, "Error en accept()");
+        return -1;
+    }
 	log_info(logger, "Se conecto un cliente!");
-
 	return socket_cliente;
 }
 
@@ -56,11 +68,16 @@ int recibir_operacion(int socket_cliente)
 
 void* recibir_buffer(int* size, int socket_cliente)
 {
-	void * buffer;
+	int ret = recv(socket_cliente, size, sizeof(int), MSG_WAITALL);
+	if (ret <= 0) return NULL;
 
-	recv(socket_cliente, size, sizeof(int), MSG_WAITALL);
-	buffer = malloc(*size);
-	recv(socket_cliente, buffer, *size, MSG_WAITALL);
+	void* buffer = malloc(*size);
+
+	ret = recv(socket_cliente, buffer, *size, MSG_WAITALL);
+	if (ret <= 0) {
+		free(buffer);
+		return NULL;
+	}
 
 	return buffer;
 }
@@ -69,6 +86,10 @@ void recibir_mensaje(int socket_cliente)
 {
 	int size;
 	char* buffer = recibir_buffer(&size, socket_cliente);
+	if (!buffer) {
+        log_warning(logger, "Cliente desconectado mientras recibía mensaje");
+        return;
+    }
 	log_info(logger, "Me llego el mensaje %s", buffer);
 	free(buffer);
 }

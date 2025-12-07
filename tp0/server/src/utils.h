@@ -13,6 +13,9 @@
 
 #define PUERTO "4444"
 
+/// NOTE: VARIABLES GLOBALES DEL PROYECTO
+extern t_log* logger;
+
 typedef enum
 {
 	MENSAJE,
