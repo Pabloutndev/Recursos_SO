@@ -1,0 +1,45 @@
+// kernel.c
+#include <mod_kernel.h>
+#include <consola/consola.h>
+#include <config/kernel_config.h>
+#include <planificacion/planificacion.h>
+#include <conexiones/cpu.h>
+#include <conexiones/memoria.h>
+#include <stdlib.h>
+
+#define PUERTO "8005"
+
+/// NOTE: VARIABLES GLOBALES
+t_log* logger;
+t_log* loggerError;
+t_kernel_config KCONF;
+
+void terminar(int sig) {
+    log_info(logger,"Recibida señal %d. Terminando kernel...", sig);
+    kernel_shutdown();
+    exit(EXIT_SUCCESS);
+}
+
+int kernel_init(const char* config_path) {
+    // iniciar logs (usá tus utils)
+    logger = log_create("kernel.log", "KERNEL", 1, LOG_LEVEL_INFO);
+    loggerError = log_create("kernel_error.log", "KERNEL_ERR", 1, LOG_LEVEL_ERROR);
+
+    // cargar config (usá tu utils)
+    // ejemplo de asignación:
+    KCONF = kernel_cargar_config(config_path);
+
+    /// TODO: colocar en consola posiblemente
+    planificacion_init();
+
+    iniciar_consola();
+    
+    return EXIT_SUCCESS;
+}
+
+void kernel_shutdown(void) {
+    log_info(logger,"Shutdown kernel...");
+    planificacion_destroy();
+    if (logger) log_destroy(logger);
+    if (loggerError) log_destroy(loggerError);
+}
