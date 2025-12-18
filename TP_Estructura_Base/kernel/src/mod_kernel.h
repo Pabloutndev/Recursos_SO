@@ -2,6 +2,7 @@
 #define MOD_KERNEL_H
 
 #include <commons/log.h>
+#include <loggers/logger.h>
 #include <config/kernel_config.h>
 
 extern t_log* logger;

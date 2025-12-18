@@ -1,6 +1,7 @@
 #ifndef LOGGER_H
 #define LOGGER_H
 #include <commons/log.h>
+#include <commons/collections/list.h>
 
 extern t_log* logger;
 extern t_log* loggerError;

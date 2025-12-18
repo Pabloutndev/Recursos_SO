@@ -14,7 +14,7 @@ void iniciar_consola(void)
         add_history(linea);
 
         if (strncmp(linea, "RUN", 3) == 0) {
-            ejercutar_proceso(linea + 4);
+            ejecutar_proceso(linea + 4);
         } 
         else if (strncmp(linea, "KILL", 4) == 0) {
             matar_proceso(atoi(linea + 5));
