@@ -13,7 +13,19 @@
 
 int main(int argc, char** argv) 
 {
-    printf("Hola mundo");
+    /// NOTE: argv[1| = path?
+
+    char* path = "kernel.config";
+
+    if(kernel_init(path) != EXIT_SUCCESS) {
+        fprintf(stderr, "[ERROR] inicializacion de kernel");
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
+
+    ///TODO: DELETE?
+    //printf("Hola mundo");
     
     /// TODO:
     //conexiones_init();

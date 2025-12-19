@@ -21,6 +21,7 @@ t_pcb* pcb_crear(int skt)
     
     pcb->program_counter = 0;
     
+    pcb->instrucciones = list_create();
     pcb->registros = list_create();
 
     pcb->tabla_segmentos = list_create();
@@ -32,6 +33,8 @@ t_pcb* pcb_crear(int skt)
     pcb->estimacion_rafaga = 0;
     pcb->tiempo_ready = temporal_create();
     
+    pcb->socket_consola = skt;
+
     return pcb;
 }
 

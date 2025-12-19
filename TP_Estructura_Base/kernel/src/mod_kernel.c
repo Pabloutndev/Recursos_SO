@@ -19,6 +19,14 @@ int socket_cpu_dispatch = -1;
 int socket_cpu_interrupt = -1;
 int socket_fs = -1;
 
+void conexiones_init()
+{
+    ///TODO: Conectarme a memoria
+    ///TODO: Conectarme a CPU
+    ///TODO: Conectarme a fs
+    ///TODO: Generar un server que se conecten a mi
+}
+
 void terminar(int sig) {
     log_info(logger,"Recibida señal %d. Terminando kernel...", sig);
     kernel_shutdown();
@@ -34,7 +42,6 @@ int kernel_init(const char* config_path) {
     // ejemplo de asignación:
     KCONF = kernel_cargar_config(config_path);
 
-    /// TODO: colocar en consola posiblemente
     planificacion_init();
 
     iniciar_consola();
@@ -43,6 +50,7 @@ int kernel_init(const char* config_path) {
 }
 
 void kernel_shutdown(void) {
+    
     log_info(logger,"Shutdown kernel...");
     planificacion_destroy();
     if (logger) log_destroy(logger);
