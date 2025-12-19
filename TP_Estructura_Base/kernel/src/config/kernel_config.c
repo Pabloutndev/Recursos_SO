@@ -29,3 +29,36 @@ t_kernel_config kernel_cargar_config(const char* ruta)
 
     return kernel;
 }
+
+void kernel_imprimir_config(t_kernel_config kernel)
+{
+    printf("========== CONFIG KERNEL ==========\n");
+
+    printf("PUERTO_ESCUCHA           : %s\n", kernel.puerto_escucha);
+    printf("IP_MEMORIA               : %s\n", kernel.ip_memoria);
+    printf("PUERTO_MEMORIA           : %s\n", kernel.puerto_memoria);
+    printf("IP_CPU                   : %s\n", kernel.ip_cpu);
+    printf("PUERTO_CPU_DISPATCH      : %s\n", kernel.puerto_cpu_dispatch);
+    printf("PUERTO_CPU_INTERRUPT     : %s\n", kernel.puerto_cpu_interrupt);
+    printf("ALGORITMO_PLANIFICACION  : %s\n", kernel.algoritmo_planificacion);
+    printf("QUANTUM                  : %d\n", kernel.quantum);
+    printf("GRADO_MULTIPROGRAMACION  : %d\n", kernel.grado_multiprogramacion);
+
+    printf("RECURSOS                 : ");
+    if (kernel.recursos != NULL) {
+        for (int i = 0; kernel.recursos[i] != NULL; i++) {
+            printf("%s ", kernel.recursos[i]);
+        }
+    }
+    printf("\n");
+
+    printf("INSTANCIAS_RECURSOS      : ");
+    if (kernel.instancias_recursos != NULL) {
+        for (int i = 0; kernel.instancias_recursos[i] != NULL; i++) {
+            printf("%s ", kernel.instancias_recursos[i]);
+        }
+    }
+    printf("\n");
+
+    printf("===================================\n");
+}

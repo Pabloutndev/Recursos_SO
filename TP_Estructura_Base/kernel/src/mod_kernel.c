@@ -33,7 +33,8 @@ void terminar(int sig) {
     exit(EXIT_SUCCESS);
 }
 
-int kernel_init(const char* config_path) {
+int kernel_init(const char* config_path) 
+{
     // iniciar logs (usá tus utils)
     logger = log_create("kernel.log", "KERNEL", 1, LOG_LEVEL_INFO);
     loggerError = log_create("kernel_error.log", "KERNEL_ERR", 1, LOG_LEVEL_ERROR);
@@ -41,6 +42,8 @@ int kernel_init(const char* config_path) {
     // cargar config (usá tu utils)
     // ejemplo de asignación:
     KCONF = kernel_cargar_config(config_path);
+    
+    kernel_imprimir_config(KCONF);
 
     planificacion_init();
 
@@ -50,7 +53,7 @@ int kernel_init(const char* config_path) {
 }
 
 void kernel_shutdown(void) {
-    
+
     log_info(logger,"Shutdown kernel...");
     planificacion_destroy();
     if (logger) log_destroy(logger);

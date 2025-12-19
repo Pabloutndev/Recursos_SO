@@ -17,5 +17,6 @@ typedef struct
 } t_kernel_config;
 
 t_kernel_config kernel_cargar_config(const char* ruta);
+void kernel_imprimir_config(t_kernel_config kernel);
 
 #endif /* KERNEL_CONFIG_H_ */
