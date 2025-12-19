@@ -7,7 +7,7 @@
 #include <pcb/pcb.h>
 #include <mod_kernel.h>
 
-extern t_log* logger;
+//extern t_log* logger;
 
 ///NOTE: Logs obligatorios
 

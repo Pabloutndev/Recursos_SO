@@ -5,9 +5,17 @@
 #include <loggers/logger.h>
 #include <config/kernel_config.h>
 
+#include <conexiones/cpu.h>
+#include <conexiones/memoria.h>
+#include <conexiones/fs.h>
+
 extern t_log* logger;
 extern t_log* loggerError;
 extern t_kernel_config KCONF;
+
+///TODO: utiliza utils/conexiones y conexiones/
+// server_kernel
+// cliente fs mem cpu...
 
 /**
  * @brief Apaga el modulo kernel

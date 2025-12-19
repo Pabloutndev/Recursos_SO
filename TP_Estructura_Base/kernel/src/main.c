@@ -7,10 +7,6 @@
 #include <planificacion/planificacion.h>
 #include <consola/consola.h>
 
-#include <conexiones/cpu.h>
-#include <conexiones/memoria.h>
-#include <conexiones/fs.h>
-
 #include <commons/log.h>
 #include <signal.h>
 #include <stdlib.h>
