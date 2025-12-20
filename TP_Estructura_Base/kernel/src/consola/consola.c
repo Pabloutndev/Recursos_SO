@@ -166,7 +166,7 @@ void mensaje_inicial(void)
     printf("========================\n");
 }
 
-static comando_t obtener_comando(const char* palabra)
+comando_t obtener_comando(const char* palabra)
 {
     char* cmd = string_duplicate(palabra);
     string_to_upper(cmd);
@@ -180,11 +180,15 @@ static comando_t obtener_comando(const char* palabra)
     return resultado;
 }
 
-static int obtener_pid(char* token)
+int obtener_pid(char* token)
 {
     if (!token)
         return -1;
 
     int pid = atoi(token);
     return pid > 0 ? pid : -1;
+}
+
+void comandos_destroy(void) {
+    dictionary_destroy(comandos_dict);
 }

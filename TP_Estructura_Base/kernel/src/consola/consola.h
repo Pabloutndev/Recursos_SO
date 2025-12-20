@@ -19,7 +19,8 @@ void init_comandos(void);
 void mensaje_inicial(void);
 bool procesar_linea(char* linea);
 void iniciar_consola(void);
-static comando_t obtener_comando(const char* palabra);
-static int obtener_pid(char* token);
+comando_t obtener_comando(const char* palabra);
+int obtener_pid(char* token);
+void comandos_destroy(void);
 
 #endif /* CONSOLA_H */

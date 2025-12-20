@@ -38,7 +38,8 @@ extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
 
 /* Hilos */
-static pthread_t hilo_largo, hilo_corto;
+static pthread_t hilo_largo;
+static pthread_t hilo_corto;
 
 /* Estado de planificacion */
 planif_state_t estado_planificacion = PLANIF_STOPPED;
@@ -46,9 +47,9 @@ algoritmo_t algoritmo_actual = ALG_FIFO;
 t_pcb* (*proximoAEjecutar)(void) = NULL;
 pthread_mutex_t mutex_estado_planif = PTHREAD_MUTEX_INITIALIZER;
 
-static uint32_t pcb_search_pid = 0;
+uint32_t pcb_search_pid = 0;
 
-static bool pcb_equals_pid(void* elem) {
+bool pcb_equals_pid(void* elem) {
     t_pcb* pcb = (t_pcb*) elem;
     return pcb && pcb->pid == pcb_search_pid;
 }

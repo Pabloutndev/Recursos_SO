@@ -46,7 +46,8 @@ extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
 
 /* Hilos */
-static pthread_t hilo_largo, hilo_corto;
+static pthread_t hilo_largo;
+static pthread_t hilo_corto;
 
 /* Estado de planificacion */
 extern algoritmo_t algoritmo_actual;
