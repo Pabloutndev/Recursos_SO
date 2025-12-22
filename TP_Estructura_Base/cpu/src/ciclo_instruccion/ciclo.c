@@ -20,7 +20,7 @@ void ciclo_instruccion_ejecutar(contexto_t* ctx) {
         
         execute_instruccion(&inst, ctx);
 
-        sleep(2);  printf(" %s ", linea);
+        sleep(2);
 
         if ((--ctx->quantum) <= 0) {
             log_info(logger, "Fin quantum PID %d", ctx->pid);
