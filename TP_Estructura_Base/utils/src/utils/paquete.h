@@ -10,7 +10,7 @@
 #include <commons/log.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include "cpu.h"
+#include <utils/ex_cpu.h>
 #include <stddef.h>
 
 extern pthread_mutex_t* mutexOk;
