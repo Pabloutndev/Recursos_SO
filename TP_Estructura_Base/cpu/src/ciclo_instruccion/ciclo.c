@@ -7,11 +7,13 @@
 #include <unistd.h>
 
 void ciclo_instruccion_ejecutar(contexto_t* ctx) {    
-    
-    log_info(logger, "CPU ejecutando PID %d", ctx->pid);
 
     mmu_set_contexto(ctx);
 
+    if (!(ctx->finalizado || ctx->bloqueado)) {
+        log_info(logger, "CPU ejecutando PID %d", ctx->pid);
+    }
+    
     while (!(ctx->finalizado || ctx->bloqueado)) {
 
         char* linea = fetch_instruccion(ctx);
