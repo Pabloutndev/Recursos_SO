@@ -11,23 +11,7 @@
    Como no tengo el shared.h a mano con los enums exactos, usaré ints genéricos 
    o macros locales que DEBEN coincidir con los de Kernel/CPU.
 */
-// OP CODES (Ajustar según shared.h real)
-typedef enum {
-    MENSAJE = 0,
-    PAQUETE,
-    HANDSHAKE_CPU = 100,
-    HANDSHAKE_KERNEL = 101,
-    
-    // Kernel -> Memoria
-    INIT_PROCESO = 200,
-    FIN_PROCESO = 201,
-
-    // CPU -> Memoria
-    FETCH_INSTRUCCION = 300,
-    ACCESO_TABLA = 301,
-    READ_MEM = 302,
-    WRITE_MEM = 303
-} op_code_mem;
+/* Usamos op_code de utils/paquete.h */
 
 static int server_socket = -1;
 

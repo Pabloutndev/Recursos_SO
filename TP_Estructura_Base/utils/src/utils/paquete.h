@@ -13,44 +13,49 @@
 #include <utils/ex_cpu.h>
 #include <stddef.h>
 
-extern pthread_mutex_t* mutexOk;
-
+/* CÓDIGOS DE OPERACIÓN (Protocolo) */
 typedef enum
-{ // packet type
-    PCKT_NONE = -1,
-    MSG=0,
-    OK,
-    FAIL,
-    PCKT_HANDSHAKE = 100,
-    PCKT_MESSAGE = 101,
-    PCKT_ACK = 102,
-    PCKT_EJECUTAR_SCRIPT=103,
-    PCKT_START_PROCESS = 104,
-    PCKT_FINISH_PROCESS = 105,
-    PCKT_START_PLANIFICACION=106,
-    PCKT_STOP_PLANIFICACION=107,
-    PCKT_PROCESO,
-    PCKT_PROCESO_KERNEL,
-    PCKT_INSTRUCTION,
-    PCKT_INSTRUCTION_MEM,
-    INTERRUPT,
-    PCKT_FIN_QUANTUM,
-    PCKT_ERROR = 400,
-} T_PACKET;
-/*
-typedef struct {
-    int64_t op;
-    int64_t size;
-    void* buffer;
-    int offset;
-} T_PCKT;
-*/
+{ 
+    // Genericos
+    MENSAJE = 0,
+    PAQUETE,
+    OK = 10,
+    FAIL = 11,
 
-typedef enum{
-	PAGINACION,
-	SEGMENTACION
-}esquema;
+    // Conexiones / Handshakes
+    HANDSHAKE_KERNEL = 100,
+    HANDSHAKE_CPU = 101,
+    HANDSHAKE_MEMORIA = 102,
+    HANDSHAKE_IO = 103,
 
+    // Kernel <-> CPU
+    PROCESO_EXEC = 200,      // Kernel envía contexto a CPU para ejecutar
+    INTERRUPCION_CPU = 201,  // Kernel envía interrupción
+    FIN_DE_QUANTUM = 202,    // CPU devuelve contexto por fin de Q
+    FIN_DE_PROCESO = 203,    // CPU devuelve por Exit
+    BLOQUEO_IO = 204,        // CPU devuelve por IO
+    WAIT_RECURSO = 205,      // CPU devuelve por Wait
+    SIGNAL_RECURSO = 206,    // CPU devuelve por Signal
+    ERROR_MEMORIA = 207,     // CPU devuelve por fallo de memoria incurable
+
+    // Kernel/CPU <-> Memoria
+    INIT_PROCESO = 300,      // Kernel -> Memoria: Crear estructuras
+    FIN_PROCESO = 301,       // Kernel -> Memoria: Liberar estructuras
+    ACCESO_TABLA = 302,      // CPU -> Memoria: Traducir Pagina a Frame
+    LEER_MEMORIA = 303,      // CPU -> Memoria: Leer bytes
+    ESCRIBIR_MEMORIA = 304,  // CPU -> Memoria: Escribir bytes
+    FETCH_INSTRUCCION = 305, // CPU -> Memoria: Pedir instrucción (PC)
+    AJUSTAR_TAMANIO = 306,   // Kernel -> Memoria: Resize
+
+    // IO
+    IO_STDIN = 400,
+    IO_STDOUT = 401,
+    IO_FS_CREATE = 402,
+    // ... completar segun requerimientos IO
+    
+} op_code;
+
+/* Estructuras de Serialización */
 typedef struct
 {
 	int size;
@@ -59,55 +64,30 @@ typedef struct
 
 typedef struct
 {
-	T_PACKET codigo_operacion;
+	op_code codigo_operacion;
 	t_buffer* buffer;
 } t_paquete;
 
-t_paquete* crear_paquete_con_codigo_op(T_PACKET codigo_op);
-void agregar_entero_a_paquete(t_paquete* paquete, int x);
+/* Primitivas de Paquetes */
+t_paquete* crear_paquete(op_code codigo_op);
 void agregar_a_paquete(t_paquete* paquete, void* valor, int tamanio);
+void agregar_entero_a_paquete(t_paquete* paquete, int x);
 void enviar_paquete(t_paquete* paquete, int socket_cliente);
-void crear_buffer(t_paquete* paquete);
-
-T_PACKET recibir_operacion(int socket_cliente);
-//int recibir_operacion(int socket_cliente);
-void* recibir_buffer(int* size, int socket_cliente);
-void recibir_mensaje(int socket_cliente);
-
-void* serializar_paquete(t_paquete* paquete, int bytes);
-
 void eliminar_paquete(t_paquete* paquete);
 
-int leer_entero(char*buffer, int* desplazamiento);
-char* leer_string(char* buffer, int* desplazamiento);
+/* Recepción */
+int recibir_operacion(int socket_cliente);
+void* recibir_buffer(int* size, int socket_cliente);
+t_list* recibir_paquete(int socket_cliente);
 
-/*
-    * @NAME: enviar_proceso
-    * @DESC: Envia proceso serializado a un socket cliente
-    * @PARAMS:
-    *  - socket_cliente: int
-    *  - proceso: t_process*
-*/
-void enviar_proceso(int socket_client, t_process* proceso);
+/* Serialización Auxiliar */
+void* serializar_paquete(t_paquete* paquete, int bytes);
+void enviar_mensaje(char* mensaje, int socket_cliente);
+void enviar_codigo(int socket, int op_code);
 
-/*
-    * @NAME: enviar_proceso
-    * @DESC: Recibe proceso de un socket y lo deserializa
-    * @PARAMS:
-    *  - socket_cliente: int
-    *  - proceso: t_process*
-    * @RETURN: 
-*/
-void recibir_proceso(int socket_client, t_process* proceso);
-
-void recibir_interrupcion(int skt_client, int* interrupt_pid);
-
-void enviarOK(int socket);
-void enviarOK_PID(int socket, int pid);
-int get_pid(int socket);
-void enviarFail(int socket);
-
-
-
+/* Funciones especificas de Proceso (Legacy/Specific) */
+// Se mantienen firmas pero sugiero usar paquetes genéricos
+void enviar_contexto(int socket_client, void* ctx, int size_ctx); // Generic void* wrapper
+// void recibir_contexto(...);
 
 #endif /*UTILS_PCK_H_*/
