@@ -5,19 +5,20 @@
 #include <planificacion/corto_plazo.h>
 #include <planificacion/largo_plazo.h>
 #include <pthread.h>
-#include <stdbool.h>
 #include <semaphore.h>
 #include <commons/log.h>
 #include <commons/temporal.h>
 #include <string.h>
-#include <mod_kernel.h>
-#include <stdlib.h>
+#include <config/kernel_config.h>
 #include <loggers/logger.h>
+
+extern t_log* logger;
+extern t_kernel_config KCONF;
 
 /* Colas */
 t_list* cola_new;
 t_list* cola_ready;
-t_list* cola_exec;
+t_list* cola_exec;   // existe pero la gestion de exec la hace dispatch
 t_list* cola_blocked;
 t_list* cola_exit;
 
@@ -38,18 +39,21 @@ extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
 
 /* Hilos */
-static pthread_t hilo_largo;
-static pthread_t hilo_corto;
+static pthread_t hilo_largo, hilo_corto;
 
-/* Estado de planificacion */
-planif_state_t estado_planificacion = PLANIF_STOPPED;
-algoritmo_t algoritmo_actual = ALG_FIFO;
+/* Estado de planificación */
+static planif_state_t estado_planificacion = PLANIF_STOPPED;
+pthread_mutex_t mutex_estado_planif;
+
+/* Algoritmo */
+static algoritmo_t algoritmo_actual = ALG_FIFO;
 t_pcb* (*proximoAEjecutar)(void) = NULL;
-pthread_mutex_t mutex_estado_planif = PTHREAD_MUTEX_INITIALIZER;
 
-uint32_t pcb_search_pid = 0;
+/* Variable estática temporal para búsqueda de PCB por PID */
+static uint32_t pcb_search_pid = 0;
 
-bool pcb_equals_pid(void* elem) {
+/* Función auxiliar para buscar PCB por PID (usada con list_find) */
+static bool pcb_equals_pid(void* elem) {
     t_pcb* pcb = (t_pcb*) elem;
     return pcb && pcb->pid == pcb_search_pid;
 }
@@ -138,18 +142,18 @@ void listar_procesos_por_estado(void)
     char* pids_exec = lista_pids(cola_exec);
     char* pids_blocked = lista_pids(cola_blocked);
     char* pids_exit = lista_pids(cola_exit);
-
-    log_info(logger, "Estado: NEW - Procesos: %s", pids_new);
-    log_info(logger, "Estado: READY - Procesos: %s", pids_ready);
-    log_info(logger, "Estado: EXEC - Procesos: %s", pids_exec);
-    log_info(logger, "Estado: BLOCKED - Procesos: %s", pids_blocked);
-    log_info(logger, "Estado: EXIT - Procesos: %s", pids_exit);
-
-    if (pids_new!=NULL) free(pids_new);
-    if (pids_ready!=NULL) free(pids_ready);
-    if (pids_exec!=NULL) free(pids_exec);
-    if (pids_blocked!=NULL) free(pids_blocked);
-    if (pids_exit!=NULL) free(pids_exit);
+    
+    log_info(logger, "Estado: NEW - Procesos: [%s]", pids_new ? pids_new : "");
+    log_info(logger, "Estado: READY - Procesos: [%s]", pids_ready ? pids_ready : "");
+    log_info(logger, "Estado: EXEC - Procesos: [%s]", pids_exec ? pids_exec : "");
+    log_info(logger, "Estado: BLOCKED - Procesos: [%s]", pids_blocked ? pids_blocked : "");
+    log_info(logger, "Estado: EXIT - Procesos: [%s]", pids_exit ? pids_exit : "");
+    
+    if (pids_new) free(pids_new);
+    if (pids_ready) free(pids_ready);
+    if (pids_exec) free(pids_exec);
+    if (pids_blocked) free(pids_blocked);
+    if (pids_exit) free(pids_exit);
 }
 
 /* Iniciar planificación */
@@ -181,7 +185,7 @@ void planificacion_matar_proceso(t_pcb* pcb)
 {
     if (!pcb) return;
     
-    int pcb_search_pid = pcb->pid;
+    pcb_search_pid = pcb->pid;
     
     pthread_mutex_lock(&mutex_new);
     t_pcb* encontrado = list_find(cola_new, pcb_equals_pid);
