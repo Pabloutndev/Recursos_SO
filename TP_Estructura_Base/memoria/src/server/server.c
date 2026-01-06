@@ -1,24 +1,18 @@
-#include "../mod_memoria.h"
+#include <mod_memoria.h>
 #include <utils/conexion.h>
 #include <utils/paquete.h>
 #include <pthread.h>
 #include <sys/socket.h>
-#include "../gestion/paginas.h"
-#include "../gestion/memoria_core.h"
-#include "../frames/frames.h"
-
-/* Asumimos op_code definidos en utils/shared.h o similar. 
-   Como no tengo el shared.h a mano con los enums exactos, usaré ints genéricos 
-   o macros locales que DEBEN coincidir con los de Kernel/CPU.
-*/
-/* Usamos op_code de utils/paquete.h */
+#include <gestion/paginas.h>
+#include <gestion/memoria_core.h>
+#include <frames/frames.h>
 
 static int server_socket = -1;
 
 void* atender_cliente(void* arg);
 
 int server_init(const char* port) {
-    server_socket = iniciar_servidor(port);
+    server_socket = iniciar_servidor((char*)port);
     if (server_socket < 0) return -1;
     log_info(logger, "Servidor Memoria iniciado en puerto %s", port);
     return 0;
@@ -43,7 +37,7 @@ void server_listen_loop(void) {
 }
 
 void server_shutdown(void) {
-    //close(server_socket); // release port
+    close(server_socket);
 }
 
 /* Helpers de serialización rápida (Asumiendo utils) */
