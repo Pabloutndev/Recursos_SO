@@ -8,6 +8,7 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <commons/log.h>
+#include <commons/collections/list.h>
 #include <pthread.h>
 #include <semaphore.h>
 #include <common/ex_cpu.h>
@@ -80,6 +81,7 @@ t_paquete* crear_paquete(op_code codigo_op);
 void agregar_a_paquete(t_paquete* paquete, void* valor, int tamanio);
 void agregar_entero_a_paquete(t_paquete* paquete, int x);
 void enviar_paquete(t_paquete* paquete, int socket_cliente);
+void crear_buffer(t_paquete* paquete);
 void eliminar_paquete(t_paquete* paquete);
 
 /* Recepción */
