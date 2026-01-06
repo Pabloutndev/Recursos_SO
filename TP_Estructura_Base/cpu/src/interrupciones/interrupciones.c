@@ -12,7 +12,8 @@ bool interrupcion_pendiente(void) {
 
 void interrupcion_disparar(int tipo) {
     flag_interrupcion = true;
-    kernel_enviar_interrupcion(tipo);
+    //TODO:
+    //kernel_enviar_interrupcion(tipo);
 }
 
 void interrupciones_init(void)

@@ -26,7 +26,8 @@ void ciclo_instruccion_ejecutar(contexto_t* ctx) {
 
         if ((--ctx->quantum) <= 0) {
             log_info(logger, "Fin quantum PID %d", ctx->pid);
-            kernel_enviar_interrupcion(FIN_QUANTUM);
+            //TODO:
+            //kernel_enviar_interrupcion(FIN_QUANTUM);
             break;
         }
     }

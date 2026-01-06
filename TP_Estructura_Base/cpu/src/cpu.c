@@ -40,7 +40,7 @@ void cpu_run(void) {
 
         ciclo_instruccion_ejecutar(&ctx);
 
-        kernel_enviar_contexto(&ctx);
+        //kernel_enviar_contexto(&ctx);
     }
 }
 
