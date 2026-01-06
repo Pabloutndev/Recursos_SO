@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <commons/log.h>
 #include <pthread.h>
-#include <utils/paquete.h> // Include paquete for op_code if needed, or forward declare
+#include <paquete/paquete.h> // Include paquete for op_code if needed, or forward declare
 
 /* Puertos Default */
 #define PUERTO_KERNEL "8003"

@@ -1,15 +1,16 @@
+
+#include "server.h"
 #include <mod_memoria.h>
-#include <utils/conexion.h>
-#include <utils/paquete.h>
-#include <pthread.h>
-#include <sys/socket.h>
+#include <paquete/paquete.h>
 #include <gestion/paginas.h>
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
+#include <server/server.h> // Generic server
 
 static int server_socket = -1;
 
-void* atender_cliente(void* arg);
+// Forward declaration of the handler
+void* memoria_client_handler(void* arg);
 
 int server_init(const char* port) {
     server_socket = iniciar_servidor((char*)port);
@@ -19,34 +20,21 @@ int server_init(const char* port) {
 }
 
 void server_listen_loop(void) {
-    while (1) {
-        int cliente_fd = esperar_cliente(server_socket);
-        if (cliente_fd < 0) {
-            log_error(logger, "Error al aceptar cliente");
-            continue;
-        } 
-        
-        log_info(logger, "Cliente conectado FD %d", cliente_fd);
-        
-        pthread_t hilo;
-        int* fd_ptr = malloc(sizeof(int));
-        *fd_ptr = cliente_fd;
-        pthread_create(&hilo, NULL, atender_cliente, fd_ptr);
-        pthread_detach(hilo);
-    }
+    // Calls generic server loop with specific handler
+    server_escuchar(logger, "MEMORIA", server_socket, memoria_client_handler);
 }
 
 void server_shutdown(void) {
     close(server_socket);
 }
 
-/* Helpers de serialización rápida (Asumiendo utils) */
+// Helper to send OK
 static void send_ok(int fd) {
-    int ok = 1;
+    int ok = 1; // OK
     send(fd, &ok, sizeof(int), 0);
 }
 
-void* atender_cliente(void* arg) {
+void* memoria_client_handler(void* arg) {
     int fd = *(int*)arg;
     free(arg);
 
@@ -64,7 +52,6 @@ void* atender_cliente(void* arg) {
         switch (cod_op) {
             case HANDSHAKE_CPU:
                 log_info(logger, "Handshake CPU recibido");
-                // Enviar tamaño pagina y entradas por tabla (si aplica)
                 int tam_pag = get_tamanio_pagina();
                 send(fd, &tam_pag, sizeof(int), 0);
                 break;
@@ -73,9 +60,19 @@ void* atender_cliente(void* arg) {
                 log_info(logger, "Handshake KERNEL recibido");
                 send_ok(fd);
                 break;
+            case HANDSHAKE_IO:
+                 // Consume payload (Name)
+                 lista = recibir_paquete(fd);
+                 char* io_name = (char*)list_get(lista, 0); // Assuming first item is string
+                 log_info(logger, "Handshake IO recibido: %s", io_name);
+                 
+                 // If IO module logic requires storing connection, do it here.
+                 // For now just ack.
+                 send_ok(fd);
+                 list_destroy_and_destroy_elements(lista, free);
+                 break;
 
             case INIT_PROCESO:
-                // Recibir PID y Size
                 lista = recibir_paquete(fd);
                 pid = *(uint32_t*)list_get(lista, 0);
                 size = *(int*)list_get(lista, 1);
@@ -84,13 +81,13 @@ void* atender_cliente(void* arg) {
                 
                 if (paginacion_crear_proceso(pid, size)) {
                     log_info(logger, "Proceso creado OK");
-                    // Responder OK? Kernel suele esperar OK
-                    // Usar logica de utils si existe enviar_mensaje("OK")
-                    // Hack rápido:
-                    char* msg = "OK"; 
-                    send(fd, msg, strlen(msg)+1, 0); // O enviar codigo
+                    // Assuming kernel waits for int code or msg
+                    int resp = OK; 
+                    send(fd, &resp, sizeof(int), 0);
                 } else {
                     log_error(logger, "Fallo creacion proceso");
+                     int resp = FAIL; 
+                    send(fd, &resp, sizeof(int), 0);
                 }
                 list_destroy_and_destroy_elements(lista, free);
                 break;
@@ -104,26 +101,20 @@ void* atender_cliente(void* arg) {
                 break;
 
             case FETCH_INSTRUCCION:
-                // Recibir PID y PC
                 lista = recibir_paquete(fd);
                 pid = *(uint32_t*)list_get(lista, 0);
                 uint32_t pc = *(uint32_t*)list_get(lista, 1);
+                (void)pc; // Fix unused variable warning
                 
-                // Simular retardo
                 if (memoria_config->retardo_respuesta > 0)
                     usleep(memoria_config->retardo_respuesta * 1000);
 
-                // lógica real: Ir al buffer de memoria o archivo.
-                // Como aun no cargamos instrucciones a memoria, MOCK response:
-                char* instruccion = "EXIT"; 
-                // TODO: Implementar carga real de instrucciones en proceso_crear
-                
+                char* instruccion = "EXIT"; // Mock
                 enviar_mensaje(instruccion, fd);
                 list_destroy_and_destroy_elements(lista, free);
                 break;
             
             case ACCESO_TABLA:
-                // Recibir PID y Pagina -> Devolver Frame
                 lista = recibir_paquete(fd);
                 pid = *(uint32_t*)list_get(lista, 0);
                 int pagina = *(int*)list_get(lista, 1);
@@ -138,23 +129,27 @@ void* atender_cliente(void* arg) {
                         frame = entry->frame;
                         entry->uso = true;
                     } else {
-                        // PAGE FAULT logic
-                        int nuevo_frame = obtener_frame_libre();
-                        if (nuevo_frame != -1) {
-                            entry->frame = nuevo_frame;
-                            entry->presente = true;
-                            frame = nuevo_frame;
-                            log_info(logger, "Page Fault resuelto PID %d Pag %d -> Frame %d", pid, pagina, frame);
-                        } else {
-                            // TODO: Reemplazo (Swap)
-                            log_error(logger, "Memoria LLENA. Fallo asignar frame.");
-                        }
+                        // Page Fault
+                         frame = -1; // Indicate Page Fault to requester logic? 
+                         // Or handle loading here? Usually Memory replies frame index.
+                         // If -1, CPU/Kernel handles page fault logic or Memory blocks.
+                         // Simple approach: Return -1.
                     }
                 }
                 
                 send(fd, &frame, sizeof(int), 0);
                 list_destroy_and_destroy_elements(lista, free);
                 break;
+            
+            // IO Handlers (Leer/Escribir)
+            case LEER_MEMORIA:
+                 // [PID, ADDR, SIZE]
+                 // ... implementation
+                 break;
+            case ESCRIBIR_MEMORIA:
+                 // [PID, ADDR, CONTENT]
+                 // ... implementation
+                 break;
 
             default:
                 log_warning(logger, "Operacion desconocida: %d", cod_op);

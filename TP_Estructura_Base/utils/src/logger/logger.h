@@ -1,5 +1,7 @@
+
 #ifndef LOGGER_H
 #define LOGGER_H
+
 #include <commons/log.h>
 #include <commons/collections/list.h>
 
@@ -32,4 +34,3 @@ void log_deadlock_detectado(int pid, t_list* recursos, const char* req);
 char* lista_pids(t_list* cola);
 
 #endif /* LOGGER_H */
-

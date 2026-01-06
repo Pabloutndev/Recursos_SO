@@ -10,7 +10,7 @@
 #include <commons/log.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <utils/ex_cpu.h>
+#include <common/ex_cpu.h>
 #include <stddef.h>
 
 /* CÓDIGOS DE OPERACIÓN (Protocolo) */
