@@ -22,7 +22,10 @@ t_pcb* pcb_crear(int skt)
     pcb->program_counter = 0;
     
     pcb->instrucciones = list_create();
-    pcb->registros = list_create();
+    pcb->instrucciones = list_create();
+    
+    // Registros inicializados en 0
+    memset(&(pcb->registros), 0, sizeof(registros_t));
 
     pcb->tabla_segmentos = list_create();
     pcb->tam_proceso = 0;
@@ -48,7 +51,8 @@ void pcb_destruir(t_pcb* pcb)
     if (!pcb) return;
 
     list_destroy(pcb->instrucciones);
-    list_destroy(pcb->registros);
+    list_destroy(pcb->instrucciones);
+    //list_destroy(pcb->registros); Estatica
     list_destroy(pcb->tabla_archivos);
     list_destroy(pcb->tabla_segmentos);
 

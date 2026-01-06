@@ -21,10 +21,17 @@ int socket_fs = -1;
 
 void conexiones_init()
 {
-    ///TODO: Conectarme a memoria
-    ///TODO: Conectarme a CPU
-    ///TODO: Conectarme a fs
-    ///TODO: Generar un server que se conecten a mi
+    // Conectar a Memoria
+    conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
+
+    // Conectar a CPU
+    conectar_cpu(KCONF.ip_cpu, KCONF.puerto_cpu_dispatch, KCONF.puerto_cpu_interrupt);
+
+    // TODO: Conectar a fs (SI APLICA)
+    // socket_fs = ...
+    
+    // Iniciar Server para IO (SI APLICA)
+    // server_kernel_init(...);
 }
 
 void terminar(int sig) {

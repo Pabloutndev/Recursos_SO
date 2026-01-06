@@ -5,6 +5,8 @@
 #include <commons/collections/list.h>
 #include <commons/temporal.h>
 
+#include <common/registros.h>
+
 typedef enum {
     NEW, 
     READY,
@@ -19,8 +21,8 @@ typedef struct {
     uint32_t program_counter;
     t_estado estado;
     int quantum;
-    /// NOTE: puede ser diccionario...
-    t_list* registros;// registros generales del proceso
+    
+    registros_t registros;// registros generales del proceso
     
     // administracion de memoria
     t_list* tabla_segmentos; // tabla de segmentos (id, base, size) o paginas

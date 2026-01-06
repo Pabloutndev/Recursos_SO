@@ -17,7 +17,7 @@ void cpu_init(const char* path_config)
 
     cpu_imprimir_config(CPU_CONF);
 
-    //conexiones_cpu_init(); server
+    cpu_servidores_kernel_init(CPU_CONF.puerto_dispatch, CPU_CONF.puerto_interrupt);
 
     interrupciones_init();
     //registros_init();
