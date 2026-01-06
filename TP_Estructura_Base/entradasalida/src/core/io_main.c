@@ -1,9 +1,8 @@
 
 #include "io_main.h"
-#include "../interfaces/generic.h"
-#include "../interfaces/stdin.h"
-#include "../interfaces/stdout.h"
-#include "../interfaces/dialfs.h"
+#include <interfaces/generic.h>
+#include <interfaces/stdin.h>
+#include <interfaces/dialfs.h>
 
 t_log* logger;
 t_io_config* config;
@@ -26,7 +25,7 @@ void conectar_modulos() {
     eliminar_paquete(p);
     
     // Conectar Memoria (si es necesario por tipo de interfaz, pero lo hacemos siempre para simplificar por ahora)
-    if (config->tipo_interfaz != IO_GENERICA) {
+    if (config->tipo_interfaz != IO_TYPE_GENERICA) {
         socket_memoria = crear_conexion(config->ip_memoria, config->puerto_memoria);
         if (socket_memoria == -1) {
             log_error(logger, "Error conectando a Memoria");
@@ -96,7 +95,7 @@ void io_init(const char* config_path, char* name) {
     }
     
     // Initialize specific interface systems
-    if (config->tipo_interfaz == IO_DIALFS) {
+    if (config->tipo_interfaz == IO_TYPE_DIALFS) {
         io_dialfs_init(config, logger);
     }
 

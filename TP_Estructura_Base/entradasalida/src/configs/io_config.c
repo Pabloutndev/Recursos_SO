@@ -49,9 +49,9 @@ void io_config_destroy(t_io_config* config) {
 }
 
 t_io_type io_config_get_type(const char* type_str) {
-    if (strcmp(type_str, "GENERICA") == 0) return IO_GENERICA;
-    if (strcmp(type_str, "STDIN") == 0) return IO_STDIN;
-    if (strcmp(type_str, "STDOUT") == 0) return IO_STDOUT;
-    if (strcmp(type_str, "DIALFS") == 0) return IO_DIALFS;
-    return IO_GENERICA; // Default
+    if (strcmp(type_str, "GENERICA") == 0) return IO_TYPE_GENERICA;
+    if (strcmp(type_str, "STDIN") == 0) return IO_TYPE_STDIN;
+    if (strcmp(type_str, "STDOUT") == 0) return IO_TYPE_STDOUT;
+    if (strcmp(type_str, "DIALFS") == 0) return IO_TYPE_DIALFS;
+    return IO_TYPE_GENERICA;
 }

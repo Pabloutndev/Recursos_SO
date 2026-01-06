@@ -8,10 +8,10 @@
 #include <stdlib.h>
 
 typedef enum {
-    IO_GENERICA,
-    IO_STDIN,
-    IO_STDOUT,
-    IO_DIALFS
+    IO_TYPE_GENERICA,
+    IO_TYPE_STDIN,
+    IO_TYPE_STDOUT,
+    IO_TYPE_DIALFS
 } t_io_type;
 
 typedef struct {

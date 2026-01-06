@@ -4,8 +4,8 @@
 
 #include "../configs/io_config.h"
 #include <commons/log.h>
-#include <utils/conexion.h>
-#include <utils/paquete.h>
+#include <conexion/conexion.h>
+#include <paquete/paquete.h>
 
 void io_init(const char* config_path, char* name);
 

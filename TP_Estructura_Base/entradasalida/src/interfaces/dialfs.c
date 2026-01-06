@@ -8,7 +8,7 @@ void* bloques_mapper;
 int bloques_fd;
 
 void io_dialfs_init(t_io_config* cfg, t_log* logger) {
-    if (cfg->tipo_interfaz != IO_DIALFS) return;
+    if (cfg->tipo_interfaz != IO_TYPE_DIALFS) return;
     
     log_info(logger, "Iniciando Systema de Archivos DialFS en: %s", cfg->path_base_dialfs);
     
