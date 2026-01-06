@@ -11,8 +11,10 @@ extern t_log* logger;
 extern t_memoria_config* memoria_config;
 
 /* Funciones de ciclo de vida */
+
 int memoria_init(const char* path_config);
 void memoria_run(void);
 void memoria_shutdown(void);
+int get_tamanio_pagina(void);
 
 #endif

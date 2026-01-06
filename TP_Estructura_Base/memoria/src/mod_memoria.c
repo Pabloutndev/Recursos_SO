@@ -48,10 +48,15 @@ void memoria_run(void) {
     server_listen_loop();
 }
 
+
 void memoria_shutdown(void) {
     server_shutdown();
     memoria_ram_destroy();
     frames_destroy();
     memoria_liberar_config(memoria_config);
     log_destroy(logger);
+}
+
+int get_tamanio_pagina(void) {
+    return memoria_config->tam_pagina;
 }

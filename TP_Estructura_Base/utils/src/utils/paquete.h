@@ -48,9 +48,16 @@ typedef enum
     AJUSTAR_TAMANIO = 306,   // Kernel -> Memoria: Resize
 
     // IO
+
     IO_STDIN = 400,
     IO_STDOUT = 401,
     IO_FS_CREATE = 402,
+    IO_FS_DELETE = 403,
+    IO_FS_TRUNCATE = 404,
+    IO_FS_WRITE = 405,
+    IO_FS_READ = 406,
+    IO_GENERIC_SLEEP = 407,
+    
     // ... completar segun requerimientos IO
     
 } op_code;
