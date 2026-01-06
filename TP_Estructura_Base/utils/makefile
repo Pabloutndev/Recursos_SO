@@ -20,7 +20,8 @@ LIBDIRS = $(addsuffix /bin,$(STATIC_LIBPATHS))
 OBJS = $(patsubst src/%.c,obj/%.o,$(SRCS_C))
 
 # Set binary targets
-BIN = bin/lib$(shell cd . && pwd | xargs basename).a
+#BIN = bin/lib$(shell cd . && pwd | xargs basename).a
+BIN = bin/libutils.a
 
 .PHONY: all
 all: debug
