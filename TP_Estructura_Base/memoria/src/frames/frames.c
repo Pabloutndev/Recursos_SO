@@ -1,5 +1,5 @@
-#include "frames.h"
-#include "../mod_memoria.h"
+#include <frames/frames.h>
+#include <mod_memoria.h>
 #include <commons/bitarray.h>
 #include <stdlib.h>
 

@@ -1,5 +1,5 @@
-#include "memoria_core.h"
-#include "../mod_memoria.h"
+#include <gestion/memoria_core.h>
+#include <mod_memoria.h>
 #include <string.h>
 
 static void* espacio_memoria = NULL;

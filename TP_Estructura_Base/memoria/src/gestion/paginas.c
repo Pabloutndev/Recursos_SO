@@ -1,7 +1,5 @@
-#include "paginas.h"
-#include "../management_interfaces.h" // Wait, I need a standard interface?
-#include "../frames/frames.h"
-#include "../mod_memoria.h"
+#include <mod_memoria.h>
+#include <gestion/paginas.h>
 #include <commons/collections/dictionary.h>
 #include <string.h>
 
