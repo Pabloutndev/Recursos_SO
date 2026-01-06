@@ -2,11 +2,11 @@
 #include <stdlib.h>
 #include <cpu.h>
 
-#define CPU_CONFIG "cpu.config"
+#define PATH_CPU_CONFIG "cpu.config"
 
 int main(int argc, char* argv[])
 {   
-    cpu_init(CPU_CONFIG);
+    cpu_init(PATH_CPU_CONFIG);
     cpu_run();
     cpu_shutdown();
 

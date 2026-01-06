@@ -1,5 +1,5 @@
-#include "segmentacion.h"
-#include "../mod_memoria.h"
+#include <gestion/segmentacion.h>
+#include <mod_memoria.h>
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
 

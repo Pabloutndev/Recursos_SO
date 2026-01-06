@@ -1,7 +1,7 @@
-#include "memoria_config.h"
+#include <configs/memoria_config.h>
 
 t_memoria_config* memoria_cargar_config(const char* path) {
-    t_config* cfg = config_create(path);
+    t_config* cfg = config_create((char*)path);
     if(cfg == NULL) {
         return NULL;
     }
