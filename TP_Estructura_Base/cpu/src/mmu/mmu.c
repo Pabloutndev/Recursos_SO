@@ -11,7 +11,7 @@
 
 static uint32_t pid_actual;
 
-void mmu_set_contexto(const contexto_t* ctx) {
+void mmu_set_contexto(const t_contexto_cpu* ctx) {
     pid_actual = ctx->pid;
 }
 

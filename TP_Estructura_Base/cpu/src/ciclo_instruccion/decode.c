@@ -2,6 +2,7 @@
 #include <instrucciones/instrucciones.h>
 #include <commons/string.h>
 #include <stdlib.h>
+#include <string.h>
 
 static reg_id_t parse_registro(char* r)
 {

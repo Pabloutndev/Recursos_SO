@@ -4,9 +4,10 @@
 #include <instrucciones/operaciones.h>
 #include <mmu/mmu.h>
 #include <cpu.h>
+#include <stdlib.h>
 #include <unistd.h>
 
-void ciclo_instruccion_ejecutar(contexto_t* ctx) {    
+void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
 
     mmu_set_contexto(ctx);
 
@@ -26,14 +27,14 @@ void ciclo_instruccion_ejecutar(contexto_t* ctx) {
 
         if ((--ctx->quantum) <= 0) {
             log_info(logger, "Fin quantum PID %d", ctx->pid);
-            //TODO:
-            //kernel_enviar_interrupcion(FIN_QUANTUM);
+            ///todo:
+            ///kernel_enviar_interrupcion(FIN_QUANTUM);
             break;
         }
     }
 }
 
-char* fetch_instruccion(contexto_t* ctx)
+char* fetch_instruccion(t_contexto_cpu* ctx)
 {
     uint32_t pc = ctx->registros.PC;
     uint32_t dir_fisica = mmu_traducir(pc, false);

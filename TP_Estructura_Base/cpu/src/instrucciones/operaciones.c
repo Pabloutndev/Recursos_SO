@@ -2,16 +2,16 @@
 #include <registros/registros.h>
 #include <stdbool.h>
 
-static void ejecutar_set(instruccion_t* i, contexto_t* ctx);
-static void ejecutar_sum(instruccion_t* i, contexto_t* ctx);
-static void ejecutar_sub(instruccion_t* i, contexto_t* ctx);
-static void ejecutar_jnz(instruccion_t* i, contexto_t* ctx);
-static void ejecutar_io(instruccion_t* i, contexto_t* ctx);
-static void ejecutar_exit(contexto_t* ctx);
+static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx);
+static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx);
+static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx);
+static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx);
+static void ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx);
+static void ejecutar_exit(t_contexto_cpu* ctx);
 
 void execute_instruccion(instruccion_t* inst, void* contexto)
 {
-    contexto_t* ctx = (contexto_t*) contexto;
+    t_contexto_cpu* ctx = (t_contexto_cpu*) contexto;
 
     switch (inst->opcode) {
         case INST_SET: 
@@ -37,13 +37,13 @@ void execute_instruccion(instruccion_t* inst, void* contexto)
     }
 }
 
-static void ejecutar_set(instruccion_t* i, contexto_t* ctx)
+static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx)
 {
     registros_escribir(&ctx->registros, i->r1, i->inmediato);
     ctx->registros.PC++;
 }
 
-static void ejecutar_sum(instruccion_t* i, contexto_t* ctx)
+static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx)
 {
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
@@ -52,7 +52,7 @@ static void ejecutar_sum(instruccion_t* i, contexto_t* ctx)
     ctx->registros.PC++;
 }
 
-static void ejecutar_sub(instruccion_t* i, contexto_t* ctx)
+static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx)
 {
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
@@ -61,7 +61,7 @@ static void ejecutar_sub(instruccion_t* i, contexto_t* ctx)
     ctx->registros.PC++;
 }
 
-static void ejecutar_jnz(instruccion_t* i, contexto_t* ctx)
+static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx)
 {
     // Convención clásica del TP:
     // si el último resultado ≠ 0 → salto
@@ -72,7 +72,7 @@ static void ejecutar_jnz(instruccion_t* i, contexto_t* ctx)
     }
 }
 
-static void ejecutar_io(instruccion_t* i, contexto_t* ctx)
+static void ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx)
 {
     ctx->bloqueado = true;
     ctx->io_time = i->inmediato;
@@ -80,7 +80,7 @@ static void ejecutar_io(instruccion_t* i, contexto_t* ctx)
     // NO incrementa PC → kernel guarda contexto
 }
 
-static void ejecutar_exit(contexto_t* ctx)
+static void ejecutar_exit(t_contexto_cpu* ctx)
 {
     ctx->finalizado = true;
 }

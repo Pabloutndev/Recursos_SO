@@ -8,47 +8,49 @@
 #include <string.h>
 #include <pthread.h>
 #include <commons/collections/list.h>
+#include <conexiones/memoria.h>
+#include <conexion/conexion.h>
+
+extern int socket_memoria;
+extern t_kernel_config KCONF;
 
 /* ===============================
- * START PROCESS (RUN)
+ * COMMAND: START PROCESS (RUN)
  * =============================== */
 void ejecutar_proceso(char* path)
 {
     log_info(logger, "Creación de Proceso solicitada");
-
-    /* Conexión a memoria */
-    /*int socket_mem = crear_socket(
-        logger,
-        CLIENTE,
-        KCONF.ip_memoria,
-        KCONF.puerto_memoria
-    );
+    
+    // coneccion a memoria 
+    if(socket_memoria < -1) {
+        conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
+    }
 
     t_paquete* paquete = crear_paquete_con_codigo_op(PCKT_START_PROCESS);
     agregar_a_paquete(paquete, path, strlen(path) + 1);
-    enviar_paquete(paquete, socket_mem);
+    enviar_paquete(paquete, socket_memoria);
 
-    int codop = recibir_operacion(socket_mem);
+    int codop = recibir_operacion(socket_memoria);
 
     if (codop != OK) {
         log_error(logger, "No se pudo crear proceso en memoria");
         eliminar_paquete(paquete);
-        liberar_conexion(socket_mem);
+        liberar_conexion(socket_memoria);
         return;
     }
 
-    //int pid = get_pid(socket_mem);
+    int pid = get_pid(socket_memoria);
 
     /* Crear PCB */
-    //t_pcb* pcb = pcb_crear(pid, KCONF.quantum);
-    int socket_mem = 1;
-    t_pcb* pcb = pcb_crear(socket_mem);
+    t_pcb* pcb = pcb_crear(pid, KCONF.quantum);
+    t_pcb* pcb = pcb_crear(socket_memoria);
 
     /* Ingresar a NEW */
     ingresar_new(pcb);
-/*
+
     eliminar_paquete(paquete);
-    liberar_conexion(socket_mem);*/
+    
+    //liberar_conexion(socket_memoria);
 }
 
 /* ===============================
@@ -127,26 +129,25 @@ void mostrar_procesos(void)
     listar_procesos_por_estado();
 }
 
-
-/*
-void initialize_process(t_process* process, int pid, int quantum) 
+void initialize_process(t_pcb* p, int pid, int quantum) 
 {
-    process->PID = pid;
-    process->QUANTUM = quantum;
-    process->cpu.AX = 0;
-    process->cpu.BX = 0;
-    process->cpu.CX = 0;
-    process->cpu.DX = 0;
-    process->cpu.EAX = 0;
-    process->cpu.EBX = 0;
-    process->cpu.ECX = 0;
-    process->cpu.EDX = 0;
-    process->cpu.SI = 0;
-    process->cpu.DI = 0;
-    process->cpu.PC = 0;
+    p->estado = NEW;
+    p->pid = pid;
+    p->quantum = quantum;
+    p->registros.AX = 0;
+    p->registros.BX = 0;
+    p->registros.CX = 0;
+    p->registros.DX = 0;
+    p->registros.EAX = 0;
+    p->registros.EBX = 0;
+    p->registros.ECX = 0;
+    p->registros.EDX = 0;
+    p->registros.SI = 0;
+    p->registros.DI = 0;
+    p->registros.PC = 0;
 }
-
-t_listProcess* get_listOfProcesses(char* name)
+/*
+t_list* get_listOfProcesses(char* name)
 {
     int i = 0;
     // Modificar 6 por un valor calculado

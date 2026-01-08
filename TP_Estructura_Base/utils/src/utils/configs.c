@@ -1,4 +1,5 @@
 #include <utils/configs.h>
+#include <conexion/conexion.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -46,6 +47,8 @@ config_cpu cpu_cargar_config(char* ruta)
     cpu.tlb_cant_ent       = config_get_int_value(config_archivo, "CANTIDAD_ENTRADAS_TLB");
     cpu.tlb_algoritmo      = config_get_string_value(config_archivo, "ALGORITMO_TLB");
     
+    if (cpu.puerto_dispatch!=NULL) cpu.puerto_dispatch = PUERTO_CPU;
+
     // borrar config_archivo
 
     return cpu;

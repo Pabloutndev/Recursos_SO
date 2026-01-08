@@ -6,13 +6,13 @@
 #include <unistd.h>
 
 #include <cpu.h>   // logger, config
-#include <ciclo/ciclo_instruccion.h>
-
-#include <utils/protocolo/protocolo_kernel_cpu.h>
+#include <ciclo_instruccion/ciclo.h>
+#include <paquete/paquete.h>
+#include <protocolo/protocolo_kernel_cpu.h>
 
 /* ================= Estado CPU ================= */
 
-static volatile bool interrupcion_pendiente = false;
+static bool isInterrupt = false;
 
 /* ================= Handlers ================= */
 
@@ -34,17 +34,19 @@ static void* thread_server_runner(void* arg)
     int server_fd = iniciar_servidor(args->puerto);
     if (server_fd < 0) {
         log_error(loggerError, "Fallo iniciar server %s", args->nombre);
-        goto cleanup;
+        free_cpu(args);
     }
 
     log_info(logger, "Servidor %s escuchando en %s", args->nombre, args->puerto);
     server_escuchar(logger, args->nombre, server_fd, args->handler);
 
-cleanup:
+    return NULL;
+}
+
+static void free_cpu(void* args) {
     free(args->nombre);
     free(args->puerto);
     free(args);
-    return NULL;
 }
 
 static void cpu_launch_server(char* puerto, char* nombre, void* (*handler)(void*))
@@ -88,12 +90,11 @@ static void* handler_dispatch(void* arg)
         switch (op) {
 
         case PROCESO_EXEC: {
-            t_contexto_cpu* ctx =
-                protocolo_cpu_recibir_exec(fd);
+            t_contexto_cpu* ctx = recibir_contexto_cpu(fd);
 
             log_info(logger, "Ejecutando PID %u", ctx->pid);
 
-            ciclo_instruccion_ejecutar(ctx, &interrupcion_pendiente);
+            ciclo_instruccion_ejecutar(ctx);
 
             free(ctx);
             break;
@@ -128,7 +129,7 @@ static void* handler_interrupt(void* arg)
 
         if (op == INTERRUPCION_CPU) {
             log_info(logger, "Interrupcion recibida");
-            interrupcion_pendiente = true;
+            isInterrupt = true;
         } else {
             log_warning(logger, "OpCode invalido en INTERRUPT: %d", op);
         }

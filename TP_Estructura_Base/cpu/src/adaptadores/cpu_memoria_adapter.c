@@ -1,5 +1,6 @@
 #include "cpu_memoria_adapter.h"
 #include <stdlib.h>
+#include <stdint.h>
 
 t_mem_fetch* cpu_a_mem_fetch(uint32_t pid, uint32_t pc)
 {

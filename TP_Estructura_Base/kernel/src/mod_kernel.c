@@ -60,7 +60,6 @@ int kernel_init(const char* config_path)
 }
 
 void kernel_shutdown(void) {
-
     log_info(logger,"Shutdown kernel...");
     planificacion_destroy();
     if (logger) log_destroy(logger);

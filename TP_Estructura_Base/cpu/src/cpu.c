@@ -20,14 +20,13 @@ void cpu_init(const char* path_config)
     cpu_servidores_kernel_init(CPU_CONF.puerto_dispatch, CPU_CONF.puerto_interrupt);
 
     interrupciones_init();
-    //registros_init();
 
     log_info(logger, "CPU inicializada correctamente");
 }
 
 void cpu_run(void) {
     while (true) {
-        contexto_t ctx;
+        t_contexto_cpu ctx;
 
         ctx.pid = 4;
         ctx.quantum = 2000;

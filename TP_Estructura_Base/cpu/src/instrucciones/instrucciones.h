@@ -23,6 +23,6 @@ typedef struct {
     uint32_t inmediato;
 } instruccion_t;
 
-bool ejecutar_siguiente_instruccion(contexto_t* ctx);
+bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx);
 
 #endif

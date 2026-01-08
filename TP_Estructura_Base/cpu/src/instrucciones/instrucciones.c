@@ -6,7 +6,7 @@
 #include <contexto/contexto.h>
 #include <stdbool.h>
 
-bool ejecutar_siguiente_instruccion(contexto_t* ctx)
+bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)
 {
     ///TODO: añadir fetch proximamente cpu_memoria.h
     //char* linea = memoria_fetch_instruccion(ctx->pid, ctx->registros.PC);

@@ -2,6 +2,7 @@
 #define PROTOCOLO_KERNEL_IO_H
 
 #include <common/io/io_ops.h>
+#include <stdint.h>
 
 // Kernel -> IO
 void enviar_io_sleep(int socket_io, t_io_sleep* io);

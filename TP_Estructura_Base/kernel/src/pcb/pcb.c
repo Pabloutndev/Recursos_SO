@@ -8,8 +8,9 @@
 
 static uint32_t PID_GLOBAL = 1;
 extern t_kernel_config KCONF;
+extern int socket_memoria;
 
-t_pcb* pcb_crear(int skt)
+t_pcb* pcb_crear(/*int skt*/)
 {
     t_pcb* pcb = malloc(sizeof(t_pcb));
     
@@ -36,7 +37,7 @@ t_pcb* pcb_crear(int skt)
     pcb->estimacion_rafaga = 0;
     pcb->tiempo_ready = temporal_create();
     
-    pcb->socket_consola = skt;
+    //pcb->socket_consola = skt;
 
     return pcb;
 }
