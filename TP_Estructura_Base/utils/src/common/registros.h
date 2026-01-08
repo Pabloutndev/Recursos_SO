@@ -4,6 +4,9 @@
 
 #include <stdint.h>
 
+/// TODO: REVISAR QUIZÁS NO SE USA....
+/// se deberia colocar en modulo cpu...
+/// red_id_t , registros_t esta bien acá
 typedef enum {
     REG_AX, REG_BX, REG_CX, REG_DX,
     REG_EAX, REG_EBX, REG_ECX, REG_EDX,

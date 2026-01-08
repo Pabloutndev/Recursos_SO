@@ -4,7 +4,7 @@
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
 #include <server/server.h> // Generic server
-
+/*
 static int server_socket = -1;
 
 // Forward declaration of the handler
@@ -158,3 +158,4 @@ void* memoria_client_handler(void* arg) {
     close(fd);
     return NULL;
 }
+*/

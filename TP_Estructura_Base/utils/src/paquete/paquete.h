@@ -38,6 +38,8 @@ typedef enum
     WAIT_RECURSO = 205,      // CPU devuelve por Wait
     SIGNAL_RECURSO = 206,    // CPU devuelve por Signal
     ERROR_MEMORIA = 207,     // CPU devuelve por fallo de memoria incurable
+    DESALOJO = 208,
+    SEGFAULT = 209,
 
     // Kernel/CPU <-> Memoria
     INIT_PROCESO = 300,      // Kernel -> Memoria: Crear estructuras
@@ -47,7 +49,9 @@ typedef enum
     ESCRIBIR_MEMORIA = 304,  // CPU -> Memoria: Escribir bytes
     FETCH_INSTRUCCION = 305, // CPU -> Memoria: Pedir instrucción (PC)
     AJUSTAR_TAMANIO = 306,   // Kernel -> Memoria: Resize
-
+    RESPUESTA_INSTRUCCION = 307,
+    RESPUESTA_LECTURA = 308,
+    
     // IO
 
     IO_STDIN = 400,
@@ -59,6 +63,7 @@ typedef enum
     IO_FS_READ = 406,
     IO_GENERIC_SLEEP = 407,
     
+    IO_FIN = 450,
     // ... completar segun requerimientos IO
     
 } op_code;
