@@ -1,8 +1,7 @@
-#include <conexiones/kernel_cpu.h>
 #include <conexion/conexion.h>
 #include <commons/log.h>
 
-#include <utils/protocolo/protocolo_memoria.h>
+#include <protocolo/protocolo_cpu_memoria.h>
 
 #include <pthread.h>
 #include <stdlib.h>

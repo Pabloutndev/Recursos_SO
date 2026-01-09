@@ -11,8 +11,10 @@ typedef struct {
 
 typedef struct {
     bool ok;
-    void* data;      // OJO: este se serializa aparte
+    void* data; 
     uint32_t size;
 } t_mem_respuesta_lectura;
+
+
 
 #endif

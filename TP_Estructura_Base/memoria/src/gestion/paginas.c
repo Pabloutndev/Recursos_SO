@@ -70,13 +70,68 @@ void paginacion_destruir_proceso(uint32_t pid) {
     free(key);
 }
 
-t_pagina* paginacion_obtener_entrada(uint32_t pid, int pagina) {
+t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina) {
     if (!tablas_paginas) return NULL;
+
     char* key = pid_to_key(pid);
     t_list* tabla = dictionary_get(tablas_paginas, key);
     free(key);
     
-    if(!tabla || pagina >= list_size(tabla)) return NULL;
+    if(!tabla || nro_pagina >= list_size(tabla)) return NULL;
     
-    return list_get(tabla, pagina);
+    t_pagina* pagina = list_get(tabla, nro_pagina);
+
+    if (pagina->presente) {
+        pagina->uso = true;
+        return pagina;
+    }
+// ================= PAGE FAULT =================
+    log_info(logger, "PAGE FAULT PID %d PAG %d", pid, nro_pagina);
+
+    int frame = obtener_frame_libre();
+
+    if (frame == -1) {
+        uint32_t pid_v;
+        int pag_v;
+
+        frame = elegir_victima_clock(&pid_v, &pag_v);
+
+        t_pagina* victima = paginacion_obtener_entrada(pid_v, pag_v);
+
+        int tam_pag = memoria_config->tam_pagina;
+
+        if (victima->modificado) {
+            void* buffer = malloc(tam_pag);
+            leer_memoria_fisica(victima->frame * tam_pag, buffer, tam_pag);
+            swap_escribir_pagina(pid_v, pag_v, buffer);
+            free(buffer);
+
+            log_info(logger, "SWAP OUT PID %d PAG %d", pid_v, pag_v);
+        }
+
+        victima->presente = false;
+        victima->frame = -1;
+        victima->modificado = false;
+        victima->uso = false;
+    }
+
+    // ================= SWAP IN =================
+    int tam_pag = memoria_config->tam_pagina;
+    void* buffer = malloc(tam_pag);
+
+    if (!swap_leer_pagina(pid, nro_pagina, buffer)) {
+        memset(buffer, 0, tam_pag); // primera vez
+    }
+
+    escribir_memoria_fisica(frame * tam_pag, buffer, tam_pag);
+    free(buffer);
+
+    pagina->frame = frame;
+    pagina->presente = true;
+    pagina->uso = true;
+    pagina->modificado = false;
+
+    log_info(logger, "SWAP IN PID %d PAG %d -> FRAME %d", pid, nro_pagina, frame);
+
+    return pagina;
 }

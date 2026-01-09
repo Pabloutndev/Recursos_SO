@@ -36,7 +36,7 @@ bool escribir_memoria_fisica(uint32_t dir_fisica, void* data, int tamanio) {
         log_error(logger, "Segmentation Fault (Write): %d", dir_fisica);
         return false;
     }
-    memcpy(espacio_memoria + dir_fisica, data, tamanio);
+    memcpy((char*)espacio_memoria + dir_fisica, data, tamanio);
     return true;
 }
 

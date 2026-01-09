@@ -54,3 +54,32 @@ uint32_t recibir_frame(int socket_memoria)
     list_destroy_and_destroy_elements(valores, free);
     return frame;
 }
+
+// MEMORIA -> CPU
+void enviar_respuesta_traduccion(int socket_cpu,
+                                 t_mem_respuesta_traduccion* resp)
+{
+    t_paquete* p = crear_paquete(ACCESO_TABLA);
+
+    agregar_entero_a_paquete(p, resp->ok);
+    agregar_entero_a_paquete(p, resp->frame);
+
+    enviar_paquete(p, socket_cpu);
+    eliminar_paquete(p);
+}
+
+void enviar_respuesta_lectura(int socket_cpu,
+                              t_mem_respuesta_lectura* resp) {
+
+    t_paquete* p = crear_paquete(RESPUESTA_LECTURA);
+
+    agregar_entero_a_paquete(p, resp->ok);
+    agregar_entero_a_paquete(p, resp->size);
+
+    if (resp->ok && resp->size > 0) {
+        agregar_a_paquete(p, resp->data, resp->size);
+    }
+
+    enviar_paquete(p, socket_cpu);
+    eliminar_paquete(p);
+}
