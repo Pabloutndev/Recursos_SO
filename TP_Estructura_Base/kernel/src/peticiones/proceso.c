@@ -10,6 +10,7 @@
 #include <commons/collections/list.h>
 #include <conexiones/memoria.h>
 #include <conexion/conexion.h>
+#include <paquete/paquete.h>
 
 extern int socket_memoria;
 extern t_kernel_config KCONF;
@@ -25,8 +26,9 @@ void ejecutar_proceso(char* path)
     if(socket_memoria < -1) {
         conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
     }
-
-    t_paquete* paquete = crear_paquete_con_codigo_op(PCKT_START_PROCESS);
+    
+    /// TODO: Crear proceso en memoria 
+    t_paquete* paquete = crear_paquete(INIT_PROCESO);
     agregar_a_paquete(paquete, path, strlen(path) + 1);
     enviar_paquete(paquete, socket_memoria);
 
@@ -39,11 +41,12 @@ void ejecutar_proceso(char* path)
         return;
     }
 
-    int pid = get_pid(socket_memoria);
+    //int pid = get_pid(socket_memoria);
 
     /* Crear PCB */
-    t_pcb* pcb = pcb_crear(pid, KCONF.quantum);
-    t_pcb* pcb = pcb_crear(socket_memoria);
+    //t_pcb* pcb = pcb_crear(pid, KCONF.quantum);
+    //t_pcb* pcb = pcb_crear(socket_memoria);
+    t_pcb* pcb = pcb_crear();
 
     /* Ingresar a NEW */
     ingresar_new(pcb);

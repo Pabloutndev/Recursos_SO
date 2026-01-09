@@ -46,7 +46,7 @@ typedef struct {
     // registro/local state del hilo si hace falta
 } t_tcb;
 
-t_pcb* pcb_crear(int socket_consola);
+t_pcb* pcb_crear(/*int socket_consola*/);
 int generar_pid();
 void pcb_destruir(t_pcb*);
 

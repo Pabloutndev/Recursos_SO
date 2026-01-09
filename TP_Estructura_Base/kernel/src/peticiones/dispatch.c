@@ -13,8 +13,8 @@ extern int socket_cpu_dispatch;
 
 int enviar_proceso_a_cpu(t_pcb* pcb) {
     ///TODO: serializar_pcb_en_paquete(pcb);
-    if (enviar_paquete(pcb, socket_cpu_dispatch) < -1) return -1;
-    if (eliminar_paquete(pcb) < -1) return -1;
+    //if (enviar_paquete(pcb, socket_cpu_dispatch) < -1) return -1;
+    //if (eliminar_paquete(pcb) < -1) return -1;
     return EXIT_SUCCESS;
 }
 

@@ -1,4 +1,4 @@
-#include "kernel_io_adapter.h"
+#include <adaptadores/kernel_io_adapter.h>
 #include <stdlib.h>
 
 t_io_sleep* pcb_a_io_sleep(t_pcb* pcb, uint32_t tiempo)

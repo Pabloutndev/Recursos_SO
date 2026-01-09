@@ -1,7 +1,7 @@
 #ifndef KERNEL_MEMORIA_ADAPTER_H
 #define KERNEL_MEMORIA_ADAPTER_H
 
-#include <kernel/pcb.h>
+#include <pcb/pcb.h>
 #include <common/memoria/requests.h>
 
 t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb);

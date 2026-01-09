@@ -54,35 +54,33 @@ static void* escuchar_dispatch(void* _)
         switch (op) {
 
         case FIN_DE_QUANTUM: 
-            t_contexto_cpu* ctx = 
-                protocolo_kernel_cpu_recibir_fin_quantum(socket_cpu_dispatch);
-            
+            /*int c = enviar_fin_quantum(socket_cpu_dispatch, ctx);
             manejar_fin_quantum(ctx);
-            free(ctx);
+            free(ctx);*/
             break;
 
         case FIN_DE_PROCESO:
-            t_contexto_cpu* ctx =
+            /*t_contexto_cpu* ctx =
                 protocolo_kernel_cpu_recibir_fin_proceso(socket_cpu_dispatch);
 
             manejar_fin_proceso(ctx);
-            free(ctx);
+            free(ctx);*/
             break;
 
         case BLOQUEO_IO:
-            t_contexto_cpu* ctx =
+            /*t_contexto_cpu* ctx =
                 protocolo_kernel_cpu_recibir_bloqueo_io(socket_cpu_dispatch);
 
             manejar_bloqueo_io(ctx);
-            free(ctx);
+            free(ctx);*/
             break;
 
         case SEGFAULT: 
-            t_contexto_cpu* ctx =
+            /*t_contexto_cpu* ctx =
                 protocolo_kernel_cpu_recibir_segfault(socket_cpu_dispatch);
 
             manejar_segfault(ctx);
-            free(ctx);
+            free(ctx);*/
             break;
 
         default:

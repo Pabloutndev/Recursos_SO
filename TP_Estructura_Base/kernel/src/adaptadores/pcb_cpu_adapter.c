@@ -1,4 +1,5 @@
-#include "pcb_contexto.h"
+#include <common/cpu/contexto.h>
+#include <pcb/pcb.h>
 #include <stdlib.h>
 
 t_contexto_cpu* pcb_a_contexto_cpu(t_pcb* pcb)

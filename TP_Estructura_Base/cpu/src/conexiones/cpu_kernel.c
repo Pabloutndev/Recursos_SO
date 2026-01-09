@@ -27,6 +27,8 @@ typedef struct {
     void* (*handler)(void*);
 } t_server_args;
 
+static void free_cpu(t_server_args* args);
+
 static void* thread_server_runner(void* arg)
 {
     t_server_args* args = arg;
@@ -43,10 +45,10 @@ static void* thread_server_runner(void* arg)
     return NULL;
 }
 
-static void free_cpu(void* args) {
+static void free_cpu(t_server_args* args) {
     free(args->nombre);
     free(args->puerto);
-    free(args);
+    free((void*)args);
 }
 
 static void cpu_launch_server(char* puerto, char* nombre, void* (*handler)(void*))

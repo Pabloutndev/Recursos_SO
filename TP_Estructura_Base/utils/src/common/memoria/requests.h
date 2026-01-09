@@ -2,7 +2,8 @@
 #define COMMON_MEMORIA_REQUESTS_H
 
 #include <common/tipos_basicos.h>
-#include <stdint.h>#include <adaptadores/contexto_
+#include <stdint.h>
+
 typedef struct {
     uint32_t pid;
     uint32_t tamanio;

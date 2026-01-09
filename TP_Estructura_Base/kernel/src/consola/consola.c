@@ -37,7 +37,8 @@ bool procesar_linea(char* linea)
     char** tokens = string_split(linea, " ");
 
     if (!tokens[0]) {
-        string_iterate_lines(tokens, free);
+        void* f = free;
+        string_iterate_lines(tokens, f);
         free(tokens);
         return false;
     }
@@ -106,7 +107,8 @@ bool procesar_linea(char* linea)
         case CMD_EXIT:
             log_info(logger, "Cerrando consola...");
             kernel_shutdown();
-            string_iterate_lines(tokens, free);
+            void* f = free;
+            string_iterate_lines(tokens, f);
             free(tokens);
             return true;
 
@@ -115,8 +117,8 @@ bool procesar_linea(char* linea)
             log_error(logger, "Comando no reconocido");
             break;
     }
-
-    string_iterate_lines(tokens, free);
+    void* f = free;
+    string_iterate_lines(tokens, f);
     free(tokens);
     return false;
 }
@@ -168,7 +170,7 @@ void mensaje_inicial(void)
 
 comando_t obtener_comando(const char* palabra)
 {
-    char* cmd = string_duplicate(palabra);
+    char* cmd = string_duplicate((char*)palabra);
     string_to_upper(cmd);
 
     comando_t resultado = CMD_UNKNOWN;
