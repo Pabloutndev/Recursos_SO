@@ -24,8 +24,15 @@ static char* get_swap_path(uint32_t pid) {
 }
 
 bool swap_escribir_pagina(uint32_t pid, int nro_pagina, void* contenido) {
+    // Deteccion de swap lleno
+    if (write(fd, contenido, tam_pagina) != tam_pagina) {
+        close(fd);
+        return false;
+    }
+
     char* path = get_swap_path(pid);
-    int fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    //int fd = open(path, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
+    int fd = open(path, O_CREAT | O_RDWR, 0644);
     free(path);
     
     if (fd < 0) return false;

@@ -1,9 +1,9 @@
-#include "mod_memoria.h"
+#include <mod_memoria.h>
+#include <gestion/memoria_core.h>
+#include <frames/frames.h>
+#include <swap/swap.h>
+#include <server/server.h>
 #include <unistd.h>
-#include "gestion/memoria_core.h"
-#include "frames/frames.h"
-#include "swap/swap.h"
-#include "server/server.h"
 
 t_log* logger;
 t_memoria_config* memoria_config;
@@ -47,7 +47,6 @@ void memoria_run(void) {
     log_info(logger, "Memoria RUNNING");
     server_listen_loop();
 }
-
 
 void memoria_shutdown(void) {
     server_shutdown();

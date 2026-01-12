@@ -52,20 +52,19 @@ static void* escuchar_kernel(void* _)
         switch (op) {
 
         case INIT_PROCESO: {
-            t_mem_init_proceso* req =
+            /*t_mem_init_proceso* req =
                 protocolo_memoria_recibir_init(socket_kernel);
-
-            manejar_init_proceso(req);
-            free(req);
+                manejar_init_proceso(req);
+            free(req);*/
             break;
         }
 
         case FIN_PROCESO: {
-            t_mem_fin_proceso* req =
+            /*t_mem_fin_proceso* req =
                 protocolo_memoria_recibir_fin(socket_kernel);
 
             manejar_fin_proceso(req);
-            free(req);
+            free(req);*/
             break;
         }
 
@@ -88,15 +87,18 @@ static void* escuchar_cpu(void* _)
         switch (op) {
 
         case FETCH_INSTRUCCION:
-            protocolo_memoria_responder_instruccion(socket_cpu);
+            t_mem_fetch* f;
+            enviar_fetch_instruccion(socket_cpu, f);
             break;
 
         case LEER_MEMORIA:
-            protocolo_memoria_responder_lectura(socket_cpu);
+            t_mem_respuesta_lectura* t;
+            enviar_respuesta_lectura(socket_cpu, t);
             break;
 
         case ESCRIBIR_MEMORIA:
-            protocolo_memoria_escribir(socket_cpu);
+            t_mem_rw* req;
+            enviar_escritura_memoria(socket_cpu, req);
             break;
 
         default:

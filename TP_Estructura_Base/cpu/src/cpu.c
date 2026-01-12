@@ -14,7 +14,7 @@ void cpu_init(const char* path_config)
     loggerError = log_create("cpu_error.log", "CPU_ERROR", 1, LOG_LEVEL_ERROR);
 
     CPU_CONF = (t_cpu_config) cpu_cargar_config(path_config);
-
+    
     cpu_imprimir_config(CPU_CONF);
 
     cpu_servidores_kernel_init(CPU_CONF.puerto_dispatch, CPU_CONF.puerto_interrupt);

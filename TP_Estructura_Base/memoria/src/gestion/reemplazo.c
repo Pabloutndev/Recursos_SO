@@ -4,35 +4,57 @@
 #include <mod_memoria.h>
 #include <common/memoria/responses.h>
 
-static uint32_t clock_pid = 0;
-static int clock_pagina = 0;
+static uint32_t clock_pid_victima;
+static int clock_pagina_victima;
+static int clock_frame_victima;
+static bool clock_encontrada;
+
+
+static void clock_buscar_victima(char* key, void* value)
+{
+    if (clock_encontrada) return;
+
+    uint32_t pid = atoi(key);
+    t_list* tabla = (t_list*) value;
+
+    for (int i = 0; i < list_size(tabla); i++) {
+        t_pagina* p = list_get(tabla, i);
+
+        if (!p->presente) continue;
+
+        if (!p->uso) {
+            clock_pid_victima = pid;
+            clock_pagina_victima = i;
+            clock_frame_victima = p->frame;
+            clock_encontrada = true;
+            return;
+        }
+
+        // Segunda oportunidad
+        p->uso = false;
+    }
+}
 
 int elegir_victima_clock(uint32_t* pid_victima, int* pagina_victima)
 {
-    /*
-    //t_dictionary_iterator it = dictionary_iterator(tablas_paginas);
+    if (!tablas_paginas) return -1;
 
-    while (dictionary_iterator_has_next(&it)) {
-        char* key;
-        t_list* tabla;
-        dictionary_iterator_next(&it, &key, (void**)&tabla);
+    clock_encontrada = false;
+    clock_frame_victima = -1;
 
-        uint32_t pid = atoi(key);
+    dictionary_iterator(tablas_paginas, clock_buscar_victima);
 
-        for (int i = 0; i < list_size(tabla); i++) {
-            t_pagina* pag = list_get(tabla, i);
-
-            if (!pag->presente) continue;
-
-            if (!pag->uso) {
-                *pid_victima = pid;
-                *pagina_victima = i;
-                return pag->frame;
-            }
-
-            pag->uso = false;
-        }
+    if (!clock_encontrada) {
+        dictionary_iterator(tablas_paginas, clock_buscar_victima);
     }
-    return -1; // No debería pasar
-    */
+
+    if (!clock_encontrada) {
+        log_error(logger, "CLOCK: no se encontró página víctima");
+        return -1;
+    }
+
+    *pid_victima = clock_pid_victima;
+    *pagina_victima = clock_pagina_victima;
+
+    return clock_frame_victima;
 }

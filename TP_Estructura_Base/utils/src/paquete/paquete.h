@@ -7,101 +7,61 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <unistd.h>
-#include <commons/log.h>
-#include <commons/collections/list.h>
-#include <pthread.h>
-#include <semaphore.h>
-#include <common/cpu/ex_cpu.h>
 #include <stddef.h>
 
-/* CÓDIGOS DE OPERACIÓN (Protocolo) */
-typedef enum
-{ 
-    // Genericos
-    MENSAJE = 0,
-    PAQUETE,
-    OK = 10,
-    FAIL = 11,
+#include <pthread.h>
+#include <semaphore.h>
 
-    // Conexiones / Handshakes
-    HANDSHAKE_KERNEL = 100,
-    HANDSHAKE_CPU = 101,
-    HANDSHAKE_MEMORIA = 102,
-    HANDSHAKE_IO = 103,
+#include <commons/log.h>
+#include <commons/collections/list.h>
+#include <common/cpu/ex_cpu.h>
 
-    // Kernel <-> CPU
-    PROCESO_EXEC = 200,      // Kernel envía contexto a CPU para ejecutar
-    INTERRUPCION_CPU = 201,  // Kernel envía interrupción
-    FIN_DE_QUANTUM = 202,    // CPU devuelve contexto por fin de Q
-    FIN_DE_PROCESO = 203,    // CPU devuelve por Exit
-    BLOQUEO_IO = 204,        // CPU devuelve por IO
-    WAIT_RECURSO = 205,      // CPU devuelve por Wait
-    SIGNAL_RECURSO = 206,    // CPU devuelve por Signal
-    ERROR_MEMORIA = 207,     // CPU devuelve por fallo de memoria incurable
-    DESALOJO = 208,
-    SEGFAULT = 209,
-
-    // Kernel/CPU <-> Memoria
-    INIT_PROCESO = 300,      // Kernel -> Memoria: Crear estructuras
-    FIN_PROCESO = 301,       // Kernel -> Memoria: Liberar estructuras
-    ACCESO_TABLA = 302,      // CPU -> Memoria: Traducir Pagina a Frame
-    LEER_MEMORIA = 303,      // CPU -> Memoria: Leer bytes
-    ESCRIBIR_MEMORIA = 304,  // CPU -> Memoria: Escribir bytes
-    FETCH_INSTRUCCION = 305, // CPU -> Memoria: Pedir instrucción (PC)
-    AJUSTAR_TAMANIO = 306,   // Kernel -> Memoria: Resize
-    RESPUESTA_INSTRUCCION = 307,
-    RESPUESTA_LECTURA = 308,
-    
-    // IO
-
-    IO_STDIN = 400,
-    IO_STDOUT = 401,
-    IO_FS_CREATE = 402,
-    IO_FS_DELETE = 403,
-    IO_FS_TRUNCATE = 404,
-    IO_FS_WRITE = 405,
-    IO_FS_READ = 406,
-    IO_GENERIC_SLEEP = 407,
-    
-    IO_FIN = 450,
-    // ... completar segun requerimientos IO
-    
-} op_code;
+#include <protocolo/op_code.h>
 
 /* Estructuras de Serialización */
 typedef struct
 {
-	int size;
+	uint32_t size;
+    uint32_t offset;
 	void* stream;
 } t_buffer;
 
-typedef struct
+typedef struct 
 {
 	op_code codigo_operacion;
 	t_buffer* buffer;
 } t_paquete;
 
-/* Primitivas de Paquetes */
-t_paquete* crear_paquete(op_code codigo_op);
-void agregar_a_paquete(t_paquete* paquete, void* valor, int tamanio);
-void agregar_entero_a_paquete(t_paquete* paquete, int x);
-void enviar_paquete(t_paquete* paquete, int socket_cliente);
-void crear_buffer(t_paquete* paquete);
-void eliminar_paquete(t_paquete* paquete);
+///NOTE: API FOR SEND/RECV PACKAGE BY SOCKETS
+t_paquete* paquete_create(op_code code);
+t_buffer* buffer_create(void);
+void paquete_destroy(t_paquete* p);
 
-/* Recepción */
-int recibir_operacion(int socket_cliente);
-void* recibir_buffer(int* size, int socket_cliente);
-t_list* recibir_paquete(int socket_cliente);
+/// NOTE: SEND / RECV
+bool paquete_send(int fd, t_paquete* p);
+t_paquete* paquete_recv(int fd);
 
-/* Serialización Auxiliar */
-void* serializar_paquete(t_paquete* paquete, int bytes);
-void enviar_mensaje(char* mensaje, int socket_cliente);
-void enviar_codigo(int socket, int op_code);
+/// NOTE: SERIALIZACION / DESERIALIZACION
+bool paquete_write_buffer(t_paquete*, const void*, uint32_t);
+void* paquete_read_buffer(t_paquete*, uint32_t*);
 
-/* Funciones especificas de Proceso (Legacy/Specific) */
-// Se mantienen firmas pero sugiero usar paquetes genéricos
-void enviar_contexto(int socket_client, void* ctx, int size_ctx); // Generic void* wrapper
-// void recibir_contexto(...);
+bool paquete_write_string(t_paquete* p, const char* s);
+char* paquete_read_string(t_paquete* p);
+
+/// NOTE: TIPOS DE DATOS (SERIALIZACION / DESERIALIZACION)
+bool paquete_write_uint8(t_paquete*, uint8_t);
+bool paquete_read_uint8(t_paquete*, uint8_t*);
+
+bool paquete_write_uint32(t_paquete*, uint32_t);
+bool paquete_read_uint32(t_paquete*, uint32_t*);
+
+bool paquete_write_int(t_paquete*, int);
+bool paquete_read_int(t_paquete*, int*);
+
+bool paquete_write_float(t_paquete*, float);
+bool paquete_read_float(t_paquete*, float*);
+
+bool paquete_write_bool(t_paquete*, bool);
+bool paquete_read_bool(t_paquete*, bool*);
 
 #endif /*UTILS_PCK_H_*/

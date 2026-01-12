@@ -3,11 +3,12 @@
 #include <gestion/paginas.h>
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
+#include <common/memoria/responses.h>
+#include <common/memoria/requests.h>
 #include <server/server.h> // Generic server
-/*
+
 static int server_socket = -1;
 
-// Forward declaration of the handler
 void* memoria_client_handler(void* arg);
 
 int server_init(const char* port) {
@@ -18,7 +19,6 @@ int server_init(const char* port) {
 }
 
 void server_listen_loop(void) {
-    // Calls generic server loop with specific handler
     server_escuchar(logger, "MEMORIA", server_socket, memoria_client_handler);
 }
 
@@ -26,9 +26,8 @@ void server_shutdown(void) {
     close(server_socket);
 }
 
-// Helper to send OK
 static void send_ok(int fd) {
-    int ok = 1; // OK
+    int ok = 1; 
     send(fd, &ok, sizeof(int), 0);
 }
 
@@ -48,7 +47,17 @@ void* memoria_client_handler(void* arg) {
         int size;
         
         switch (cod_op) {
-            case HANDSHAKE_CPU:
+            case ACCESO_TABLA: {
+                t_mem_traducir_pagina req;
+
+                if (!recibir_traduccion_pagina(fd, &req))
+                    break;
+
+                manejar_traduccion_pagina(&req, fd);
+                break;
+            }
+
+            /*case HANDSHAKE_CPU:
                 log_info(logger, "Handshake CPU recibido");
                 int tam_pag = get_tamanio_pagina();
                 send(fd, &tam_pag, sizeof(int), 0);
@@ -151,11 +160,11 @@ void* memoria_client_handler(void* arg) {
 
             default:
                 log_warning(logger, "Operacion desconocida: %d", cod_op);
-                break;
+                break;*/
         }
     }
 
     close(fd);
+
     return NULL;
 }
-*/

@@ -1,5 +1,7 @@
 #include <mod_memoria.h>
 #include <gestion/paginas.h>
+#include <common/memoria/requests.h>
+#include <common/memoria/responses.h>
 #include <commons/collections/dictionary.h>
 #include <string.h>
 
@@ -70,22 +72,37 @@ void paginacion_destruir_proceso(uint32_t pid) {
     free(key);
 }
 
-t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina) {
+void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
+{
+    t_pagina* pag = paginacion_obtener_entrada(req->pid, req->pagina);
+
+    t_mem_respuesta_traduccion resp = {
+        .ok = (pag != NULL),
+        .frame = pag ? pag->frame : -1
+    };
+
+    enviar_respuesta_traduccion(socket_cpu, &resp);
+}
+
+t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
+{
     if (!tablas_paginas) return NULL;
 
     char* key = pid_to_key(pid);
     t_list* tabla = dictionary_get(tablas_paginas, key);
     free(key);
-    
-    if(!tabla || nro_pagina >= list_size(tabla)) return NULL;
-    
+
+    if (!tabla || nro_pagina >= list_size(tabla)) return NULL;
+
     t_pagina* pagina = list_get(tabla, nro_pagina);
 
+    /* ===== HIT ===== */
     if (pagina->presente) {
         pagina->uso = true;
         return pagina;
     }
-// ================= PAGE FAULT =================
+
+    /* ===== PAGE FAULT ===== */
     log_info(logger, "PAGE FAULT PID %d PAG %d", pid, nro_pagina);
 
     int frame = obtener_frame_libre();
@@ -95,18 +112,29 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina) {
         int pag_v;
 
         frame = elegir_victima_clock(&pid_v, &pag_v);
+        if (frame == -1) {
+            log_error(logger, "MEMORIA Y SWAP LLENOS");
+            return NULL; // kernel debería matar proceso
+        }
 
-        t_pagina* victima = paginacion_obtener_entrada(pid_v, pag_v);
+        char* k = pid_to_key(pid_v);
+        t_list* tabla_v = dictionary_get(tablas_paginas, k);
+        free(k);
 
+        t_pagina* victima = list_get(tabla_v, pag_v);
         int tam_pag = memoria_config->tam_pagina;
 
         if (victima->modificado) {
             void* buffer = malloc(tam_pag);
             leer_memoria_fisica(victima->frame * tam_pag, buffer, tam_pag);
-            swap_escribir_pagina(pid_v, pag_v, buffer);
-            free(buffer);
 
-            log_info(logger, "SWAP OUT PID %d PAG %d", pid_v, pag_v);
+            if (!swap_escribir_pagina(pid_v, pag_v, buffer)) {
+                free(buffer);
+                log_error(logger, "SWAP LLENO - Abortando");
+                return NULL;
+            }
+
+            free(buffer);
         }
 
         victima->presente = false;
@@ -115,13 +143,12 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina) {
         victima->uso = false;
     }
 
-    // ================= SWAP IN =================
+    /* ===== SWAP IN ===== */
     int tam_pag = memoria_config->tam_pagina;
     void* buffer = malloc(tam_pag);
 
-    if (!swap_leer_pagina(pid, nro_pagina, buffer)) {
-        memset(buffer, 0, tam_pag); // primera vez
-    }
+    if (!swap_leer_pagina(pid, nro_pagina, buffer))
+        memset(buffer, 0, tam_pag);
 
     escribir_memoria_fisica(frame * tam_pag, buffer, tam_pag);
     free(buffer);
@@ -131,7 +158,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina) {
     pagina->uso = true;
     pagina->modificado = false;
 
-    log_info(logger, "SWAP IN PID %d PAG %d -> FRAME %d", pid, nro_pagina, frame);
+    log_info(logger, "PAGINA CARGADA PID %d PAG %d -> FRAME %d", pid, nro_pagina, frame);
 
     return pagina;
 }
