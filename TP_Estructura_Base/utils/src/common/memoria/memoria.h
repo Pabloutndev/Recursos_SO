@@ -1,8 +1,10 @@
-#ifndef COMMON_MEMORIA_REQUESTS_H
-#define COMMON_MEMORIA_REQUESTS_H
+#ifndef COMMON_MEMORIA_RESPONSES_H
+#define COMMON_MEMORIA_RESPONSES_H
 
-#include <common/tipos_basicos.h>
 #include <stdint.h>
+#include <stdbool.h>
+
+/* REQUEST */
 
 typedef struct {
     uint32_t pid;
@@ -29,4 +31,17 @@ typedef struct {
     uint32_t pc;
 } t_mem_fetch;
 
-#endif
+/* RESPONSE */
+
+typedef struct {
+    bool ok;
+    uint32_t frame;
+} t_mem_respuesta_traduccion;
+
+typedef struct {
+    bool ok;
+    void* data; 
+    uint32_t size;
+} t_mem_respuesta_lectura;
+
+#endif /* COMMON_MEMORIA_RESPONSES_H */

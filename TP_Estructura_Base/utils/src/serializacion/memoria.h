@@ -2,22 +2,28 @@
 #define SERIALIZACION_MEMORIA_H
 
 #include <paquete/paquete.h>
-#include <common/memoria/requests.h>
-#include <common/memoria/responses.h>
+#include <common/memoria/memoria.h>
 
-/* Requests */
-/* Kernel -> Memoria */
-t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req);
+/// ##### REQUESTS - SERIALIZACION #####
+
 t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req);
+t_mem_fin_proceso* deserializar_mem_fin_proceso(t_paquete* p);
 
-/* CPU -> Memoria */
 t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req);
-t_paquete* serializar_mem_rw(op_code code, t_mem_rw* req, void* data);
+t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p);
 
-/* Responses */
-t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* resp);
-t_paquete* serializar_mem_respuesta_lectura(t_mem_respuesta_lectura* resp);
-t_paquete* serializar_mem_respuesta_escritura(t_mem_respuesta_lectura* resp);
-t_paquete* serializar_mem_respuesta_kernel(bool ok);
+t_paquete* serializar_mem_rw(t_mem_rw* req);
+t_mem_rw* deserializar_mem_rw(t_paquete* p);
+
+t_paquete* serializar_mem_fetch(t_mem_fetch* req);
+t_mem_fetch* deserializar_mem_fetch(t_paquete* p);
+
+/// ##### RESPONSES - DESERIALIZACION #####
+
+t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res);
+t_mem_respuesta_traduccion* deserializar_mem_respuesta_traduccion(t_paquete* p);
+
+t_paquete* serializar_mem_respuesta_lectura(t_mem_respuesta_lectura* res);
+t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p);
 
 #endif

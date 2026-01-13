@@ -1,6 +1,6 @@
 
-#ifndef SHARED_CONTEXTO_H_
-#define SHARED_CONTEXTO_H_
+#ifndef CPU_CONTEXTO_H_
+#define CPU_CONTEXTO_H_
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -16,4 +16,11 @@ typedef struct {
     registros_t registros;
 } t_contexto_cpu;
 
-#endif
+// Estructura para representar un proceso
+typedef struct {
+    int pid;
+    int quantum;
+    registros_t registros;
+} t_process;
+
+#endif /* CPU_CONTEXTO_H_ */

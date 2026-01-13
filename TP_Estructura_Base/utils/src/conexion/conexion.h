@@ -5,8 +5,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include <unistd.h>
+#include <netdb.h>
 #include <commons/log.h>
 #include <pthread.h>
 #include <paquete/paquete.h> // Include paquete for op_code if needed, or forward declare

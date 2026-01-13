@@ -1,4 +1,5 @@
 #include <paquete/paquete.h>
+#include <protocolo/op_code.h>
 
 static bool buffer_write(t_buffer* b, const void* data, uint32_t size);
 static bool buffer_read(t_buffer* b, void* dest, uint32_t size);
@@ -35,7 +36,7 @@ void paquete_destroy(t_paquete* p)
 }
 
 /// NOTE: SEND / RECV
-bool paquete_send(int fd, t_paquete* p)
+bool enviar_paquete(int fd, t_paquete* p)
 {
     if (send(fd, &p->codigo, sizeof(op_code), 0) <= 0)
         return false;

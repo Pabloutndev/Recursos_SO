@@ -38,7 +38,7 @@ t_buffer* buffer_create(void);
 void paquete_destroy(t_paquete* p);
 
 /// NOTE: SEND / RECV
-bool paquete_send(int fd, t_paquete* p);
+bool enviar_paquete(int fd, t_paquete* p);
 t_paquete* paquete_recv(int fd);
 
 /// NOTE: SERIALIZACION / DESERIALIZACION

@@ -1,4 +1,5 @@
-#include "conexion.h"
+#include <conexion/conexion.h>
+#include <protocolo/op_code.h>
 
 int iniciar_servidor(char* puerto)
 {
