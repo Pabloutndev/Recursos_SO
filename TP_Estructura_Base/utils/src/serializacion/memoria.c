@@ -118,3 +118,13 @@ t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p) {
     res->data = paquete_read_buffer(p, &res->size);
     return res;
 }
+
+t_paquete* serializar_mem_respuesta_instruccion(char* instruccion) {
+    t_paquete* p = paquete_create(OP_RESPUESTA_INSTRUCCION);
+    paquete_write_string(p, instruccion);
+    return p;
+}
+
+char* deserializar_mem_respuesta_instruccion(t_paquete* p) {
+    return paquete_read_string(p);
+}

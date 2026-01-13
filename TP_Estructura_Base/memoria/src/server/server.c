@@ -76,13 +76,16 @@ void* memoria_client_handler(void* arg) {
                 if(req) {
                     log_info(logger, "Solicitud Creacion Proceso: %d (Size: %d)", req->pid, req->tamanio);
                     int result = OP_FAIL;
+                    /// TODO: REVISAR
+                    result = 0;
                     if (paginacion_crear_proceso(req->pid, req->tamanio)) {
                         log_info(logger, "Proceso creado OK");
                         result = OP_OK; 
+                        result = 1;
                     } else {
                         log_error(logger, "Fallo creacion proceso");
                     }
-                    send(fd, &result, sizeof(int), 0);
+                    enviar_respuesta_kernel(fd, result);
                     free(req);
                 }
                 break;
@@ -119,14 +122,29 @@ void* memoria_client_handler(void* arg) {
                      if (memoria_config->retardo_respuesta > 0)
                         usleep(memoria_config->retardo_respuesta * 1000);
 
-                     // Mock respuesta: En un caso real busco en memoria
-                     char* instruccion = "WAIT RECURSO"; 
+                     // 1. Traducir PC -> Dir Fisica
+                     int pag_nro = req->pc / get_tamanio_pagina();
+                     int offset  = req->pc % get_tamanio_pagina();
                      
-                     t_paquete* resp = paquete_create(OP_RESPUESTA_INSTRUCCION);
-                     paquete_write_string(resp, instruccion);
-                     enviar_paquete(fd, resp);
-                     paquete_destroy(resp);
+                     t_pagina* pag = paginacion_obtener_entrada(req->pid, pag_nro);
+                     char* instruccion = NULL;
                      
+                     if (pag && pag->frame != -1) {
+                         // 2. Leer Memoria
+                         uint32_t dir_fisica = (pag->frame * get_tamanio_pagina()) + offset;
+                         
+                         char buffer[256]; 
+                         leer_memoria_fisica(dir_fisica, buffer, 255);
+                         buffer[255] = '\0'; 
+                         instruccion = strdup(buffer);
+                     } else {
+                         instruccion = strdup("EXIT"); 
+                         log_error(logger, "Error Fetch: Pagina no disponible o invalida");
+                     }
+
+                     enviar_respuesta_instruccion(fd, instruccion);
+                     
+                     free(instruccion);
                      free(req);
                  }
                  break;
@@ -155,9 +173,7 @@ void* memoria_client_handler(void* arg) {
                      log_info(logger, "Escritura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_fisica, req->tamanio);
                      
                      bool ok = escribir_memoria_fisica(req->direccion_fisica, req->buffer, req->tamanio);
-                     int result = ok ? OP_OK : OP_FAIL;
-                     
-                     send(fd, &result, sizeof(int), 0); // O enviar paquete OP_RESPUESTA_ESCRITURA
+                     enviar_respuesta_kernel(fd, ok);
                      
                      if (req->buffer) free(req->buffer);
                      free(req);

@@ -46,6 +46,31 @@ bool recibir_respuesta_kernel(int socket_memoria)
     return ok;
 }
 
+void enviar_respuesta_kernel(int socket_memoria, bool ok) {
+    // OpCode generic response or dedicated?
+    // Using simple packet with bool.
+    // Assuming receiver just checks payload.
+    // The OpCode in header matters for switching, but here kernel waits for ANY packet and checks content?
+    // recibir_respuesta_kernel implementation just calls recibir_paquete.
+    // recibir_paquete doesn't check OpCode?
+    // It returns payload list.
+    // So OpCode doesn't theoretically matter if Kernel is just blocked on recv.
+    // But let's use a standard one.
+    t_paquete* p = paquete_create(OP_RESPUESTA_GENERICA); // Reuse or defined?
+    // Define OP_RESPUESTA_GENERICA in op_code if needed, or use OP_OK implies success?
+    // If I use OP_OK, it might be confusing if payload is bool.
+    // Let's use OP_RES_GENERAL.
+    // I need to check op_code.h.
+    // For now I'll use OP_PROCESO_EXIT (msg) or similar? No.
+    // Let's use a generic value or assume OP_INIT_PROCESO response has same opcode? No.
+    // I will use OP_DEBUG for now or just add it.
+    // Actually, let's look at `recibir_respuesta_kernel` again.
+    // It reads a BOOL.
+    paquete_write_bool(p, ok);
+    enviar_paquete(socket_memoria, p);
+    eliminar_paquete(p);
+}
+
 /// ==============================
 /// TRADUCIR PAGINA
 /// ==============================
@@ -115,4 +140,17 @@ void enviar_respuesta_traduccion(int socket_memoria, t_mem_respuesta_traduccion*
 t_mem_respuesta_traduccion* recibir_respuesta_traduccion(t_paquete* p)
 {
     return deserializar_mem_respuesta_traduccion(p);
+}
+/// ==============================
+/// RESPUESTA INSTRUCCION 
+/// ==============================
+void enviar_respuesta_instruccion(int socket_memoria, char* instruccion) {
+    t_paquete* p = serializar_mem_respuesta_instruccion(instruccion);
+    enviar_paquete(socket_memoria, p);
+    eliminar_paquete(p);
+}
+
+char* recibir_respuesta_instruccion(t_paquete* p)
+{
+    return deserializar_mem_respuesta_instruccion(p);
 }

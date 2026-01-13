@@ -33,6 +33,10 @@ void execute_instruccion(instruccion_t* inst, void* contexto)
         case INST_IO_FS_WRITE:
         case INST_IO_FS_READ:
             // Generic handler for eviction
+            // IMPORTANTE: Incrementar PC antes de desalojar para que al volver
+            // ejecute la SIGUIENTE instrucción.
+            ctx->registros.PC++;
+            
             ctx->motivo_desalojo = (uint8_t) inst->opcode;
             strcpy(ctx->parametros, inst->parametros);
             ctx->bloqueado = 1; // Stop cycle

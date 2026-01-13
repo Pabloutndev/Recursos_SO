@@ -44,7 +44,13 @@ t_mem_respuesta_lectura* recibir_instruccion(t_paquete* p);
 /// ==============================
 /// RESPUESTA TRADUCCION
 /// ==============================
-void enviar_respuesta_lectura(int socket_memoria, t_mem_respuesta_traduccion* req);
-t_mem_respuesta_traduccion* recibir_traducir(t_paquete* p);
+void enviar_respuesta_traduccion(int socket_memoria, t_mem_respuesta_traduccion* req);
+t_mem_respuesta_traduccion* recibir_respuesta_traduccion(t_paquete* p);
+
+/// ==============================
+/// RESPUESTA INSTRUCCION 
+/// ==============================
+void enviar_respuesta_instruccion(int socket_memoria, char* instruccion);
+char* recibir_respuesta_instruccion(t_paquete* p);
 
 #endif /* PROTOCOLO_MEMORIA_H_ */

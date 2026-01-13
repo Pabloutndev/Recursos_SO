@@ -4,10 +4,11 @@
 typedef enum
 {
     // Genericos
-    OP_MENSAJE = 0,
+    OP_FAIL = 0,
+    OP_OK = 1,
+    OP_MENSAJE = 2,
     OP_PAQUETE,
-    OP_OK = 10,
-    OP_FAIL = 11,
+    OP_RESPUESTA_GENERICA = 12,
 
     // Handshakes
     OP_HANDSHAKE_KERNEL = 100,
