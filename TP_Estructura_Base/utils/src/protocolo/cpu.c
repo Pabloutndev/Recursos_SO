@@ -8,12 +8,15 @@
 /// ==============================
 /// CONTEXTO CPU
 /// ==============================
+/// ==============================
+/// CONTEXTO CPU
+/// ==============================
 void enviar_contexto_cpu(int socket_dest, t_contexto_cpu* ctx)
 {
     t_paquete* p = serializar_contexto_cpu(ctx);
     if (!p) return;
 
-    enviar_paquete(p, socket_dest);
+    enviar_paquete(socket_dest, p);
     eliminar_paquete(p);
 }
 
@@ -30,7 +33,7 @@ void enviar_proceso(int socket_dest, t_process* proc)
     t_paquete* p = serializar_process(proc);
     if (!p) return;
 
-    enviar_paquete(p, socket_dest);
+    enviar_paquete(socket_dest, p);
     eliminar_paquete(p);
 }
 
@@ -47,7 +50,7 @@ void enviar_tlb_entry(int socket_dest, t_tlb_entry* entry)
     t_paquete* p = serializar_tlb_entry(entry);
     if (!p) return;
 
-    enviar_paquete(p, socket_dest);
+    enviar_paquete(socket_dest, p);
     eliminar_paquete(p);
 }
 
@@ -64,7 +67,7 @@ void enviar_tlb(int socket_dest, t_tlb* tlb)
     t_paquete* p = serializar_tlb(tlb);
     if (!p) return;
 
-    enviar_paquete(p, socket_dest);
+    enviar_paquete(socket_dest, p);
     eliminar_paquete(p);
 }
 

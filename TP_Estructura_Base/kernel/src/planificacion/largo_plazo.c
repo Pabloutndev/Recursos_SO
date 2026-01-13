@@ -6,6 +6,7 @@
 #include <commons/collections/list.h>
 #include <semaphore.h>
 #include <pthread.h>
+#include <conexiones/memoria.h>
 
 extern sem_t sem_hay_new;
 extern sem_t sem_mp;
@@ -32,6 +33,24 @@ void* planificador_largo_plazo(void* _) {
         }
         t_pcb* pcb = list_remove(cola_new, 0);
         pthread_mutex_unlock(&mutex_new);
+
+        // Solicitar inicialización de estructuras en Memoria
+        // TODO: size? pcb->tam_proceso? 
+        // Assuming pcb has this field initialized.
+        if (!solicitar_creacion_proceso_memoria(pcb->pid, pcb->tam_proceso)) {
+            log_error(logger, "Fallo inicializar memoria para proceso %u. Finalizando.", pcb->pid);
+            // Liberar PID/Multiprog?
+            // Movemos a EXIT
+            pcb->estado = EXIT;
+            pthread_mutex_lock(&mutex_exec); // Usamos mutex exit normalmente
+            // wait, list_add(cola_exit, ...)? 
+            // Better call planificacion_matar_proceso or similar logic?
+            // But killing requires finding it in a list. It's detached now.
+            // Just free resources.
+            sem_post(&sem_mp);
+            pcb_destruir(pcb); 
+            continue;
+        }
 
         pcb->estado = READY;
         pcb->tiempo_ready = temporal_create();

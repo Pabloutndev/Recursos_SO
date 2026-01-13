@@ -14,7 +14,7 @@ t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx, op_code code = OP_PROCES
     paquete_write_uint32(p, ctx->finalizado);
     paquete_write_uint32(p, ctx->bloqueado);
     paquete_write_uint32(p, ctx->io_time);
-
+    
     // Serializar registros
     serializar_registros(p, &ctx->registros);
     return p;

@@ -6,6 +6,7 @@
 #include <cpu.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <interrupciones/interrupciones.h>
 
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
 
@@ -17,19 +18,27 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
     
     while (!(ctx->finalizado || ctx->bloqueado)) {
 
+        if (interrupcion_pendiente()) {
+            break; // Salir del ciclo para atender interrupcion en handler
+        }
+
         char* linea = fetch_instruccion(ctx);
+        if (!linea) break; // Error fetch
 
         instruccion_t inst = decode_instruccion(linea);
         
         execute_instruccion(&inst, ctx);
+        free(linea); 
 
-        sleep(2);
+        sleep(2); // Retardo a demanda
 
-        if ((--ctx->quantum) <= 0) {
-            log_info(logger, "Fin quantum PID %d", ctx->pid);
-            ///todo:
-            ///kernel_enviar_interrupcion(FIN_QUANTUM);
-            break;
+        // Quantum check (managed by CPU counter here)
+        if (ctx->quantum > 0) {
+             ctx->quantum--;
+             if (ctx->quantum == 0) {
+                 interrupcion_disparar(0); 
+                 break;
+             }
         }
     }
 }
@@ -37,12 +46,12 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
 char* fetch_instruccion(t_contexto_cpu* ctx)
 {
     uint32_t pc = ctx->registros.PC;
-    uint32_t dir_fisica = mmu_traducir(pc, false);
-
-    char* linea = memoria_leer_instruccion(ctx->pid, dir_fisica);
+    // MMU translation removed as Memory handles PC -> Instruction logic
+    
+    char* linea = memoria_fetch_instruccion(ctx->pid, pc);
 
     log_info(logger, "FETCH PID %d PC %d -> %s",
-             ctx->pid, pc, linea);
+             ctx->pid, pc, linea ? linea : "NULL");
 
     return linea;
 }

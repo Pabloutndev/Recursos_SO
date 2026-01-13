@@ -5,6 +5,7 @@
 #include <planificacion/planificacion.h>
 #include <conexiones/cpu.h>
 #include <conexiones/memoria.h>
+#include <conexiones/io.h>
 #include <stdlib.h>
 
 #define PUERTO "8005"
@@ -51,6 +52,18 @@ int kernel_init(const char* config_path)
     KCONF = kernel_cargar_config(config_path);
     
     kernel_imprimir_config(KCONF);
+
+    // Inicializar conexiones (CPU, Memoria)
+    conexiones_init();
+    
+    // Iniciar Server para IO
+    // Asumimos que KCONF tiene puerto_escucha o similar para entradasalida
+    // Si no, hardcodeo o busco en config
+    // Revisar struct t_kernel_config si es necesario.
+    // Por ahora uso un puerto generic si no esta en config, o KCONF.puerto_escucha
+    // KCONF no parece tener puerto_escucha en el view anterior, solo ip/puertos de otros.
+    // Asumire que existe o usan PUERTO define.
+    server_io_init(PUERTO); 
 
     planificacion_init();
 

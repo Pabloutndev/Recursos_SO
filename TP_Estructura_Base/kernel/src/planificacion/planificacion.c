@@ -11,6 +11,7 @@
 #include <string.h>
 #include <config/kernel_config.h>
 #include <loggers/logger.h>
+#include <peticiones/dispatch.h>
 
 extern t_log* logger;
 extern t_kernel_config KCONF;
@@ -224,7 +225,14 @@ void planificacion_matar_proceso(t_pcb* pcb)
         encontrado->estado = EXIT;
         list_add(cola_exit, encontrado);
         log_fin_proceso(encontrado->pid, "KILL");
-        // TODO: Enviar interrupción a CPU para detener ejecución
+        
+        // Enviar interrupción a CPU para detener ejecución
+        // Nota: Como ya lo movimos a EXIT, cuando CPU devuelva contexto (por interrupción),
+        // dispatch deberá ignorarlo o manejarlo.
+        // Ojo con Race Condition: Si CPU devuelve contexto antes de que lo movamos? NO, tenemos mutex_exec.
+        // Si CPU devuelve después? escuchar_dispatch buscará PID en EXEC y no lo encontrará.
+        // Deberíamos manejar ese caso en escuchar_dispatch.
+        enviar_interrupt_cpu(encontrado->pid);
     }
     pthread_mutex_unlock(&mutex_exec);
     

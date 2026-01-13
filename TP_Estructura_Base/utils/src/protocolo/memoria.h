@@ -30,9 +30,10 @@ t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p);
 /// ==============================
 /// LEER/ESCRIBIR MEMORIA
 /// ==============================
-void enviar_lectura_memoria(int socket_memoria, t_mem_rw* req);
-void enviar_escritura_memoria(int socket_memoria, t_mem_rw* req);
-t_mem_rw* recibir_mem_rw(t_paquete* p);
+void enviar_lectura_memoria(int socket_memoria, t_mem_read* req);
+void enviar_escritura_memoria(int socket_memoria, t_mem_write* req);
+t_mem_read* recibir_lectura_memoria(t_paquete* p);
+t_mem_write* recibir_escritura_memoria(t_paquete* p);
 
 /// ==============================
 /// RESPUESTA LECTURA

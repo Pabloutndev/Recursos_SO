@@ -3,9 +3,9 @@
 #include <gestion/paginas.h>
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
-#include <common/memoria/responses.h>
-#include <common/memoria/requests.h>
-#include <server/server.h> // Generic server
+#include <common/memoria/memoria.h> // Includes requests/responses logic
+#include <protocolo/memoria.h>      // Helpers
+#include <server/server.h>
 
 static int server_socket = -1;
 
@@ -36,132 +36,141 @@ void* memoria_client_handler(void* arg) {
     free(arg);
 
     while(1) {
-        int cod_op = recibir_operacion(fd);
-        if (cod_op < 0) {
+        t_paquete* paquete = paquete_recv(fd);
+        if (paquete == NULL) {
             log_warning(logger, "Cliente FD %d desconectado", fd);
             break;
         }
 
-        t_list* lista;
-        uint32_t pid;
-        int size;
-        
-        switch (cod_op) {
-            case ACCESO_TABLA: {
-                t_mem_traducir_pagina req;
-
-                if (!recibir_traduccion_pagina(fd, &req))
-                    break;
-
-                manejar_traduccion_pagina(&req, fd);
-                break;
-            }
-
-            /*case HANDSHAKE_CPU:
+        switch (paquete->codigo_operacion) {
+            
+            // =============================================================
+            // HANDSHAKES
+            // =============================================================
+            case OP_HANDSHAKE_CPU:
                 log_info(logger, "Handshake CPU recibido");
+                 // Enviar tamanio de pagina como respuesta simple
                 int tam_pag = get_tamanio_pagina();
                 send(fd, &tam_pag, sizeof(int), 0);
                 break;
 
-            case HANDSHAKE_KERNEL:
+            case OP_HANDSHAKE_KERNEL:
                 log_info(logger, "Handshake KERNEL recibido");
                 send_ok(fd);
                 break;
-            case HANDSHAKE_IO:
-                 // Consume payload (Name)
-                 lista = recibir_paquete(fd);
-                 char* io_name = (char*)list_get(lista, 0); // Assuming first item is string
-                 log_info(logger, "Handshake IO recibido: %s", io_name);
-                 
-                 // If IO module logic requires storing connection, do it here.
-                 // For now just ack.
-                 send_ok(fd);
-                 list_destroy_and_destroy_elements(lista, free);
-                 break;
 
-            case INIT_PROCESO:
-                lista = recibir_paquete(fd);
-                pid = *(uint32_t*)list_get(lista, 0);
-                size = *(int*)list_get(lista, 1);
-                
-                log_info(logger, "Solicitud Creacion Proceso: %d (Size: %d)", pid, size);
-                
-                if (paginacion_crear_proceso(pid, size)) {
-                    log_info(logger, "Proceso creado OK");
-                    // Assuming kernel waits for int code or msg
-                    int resp = OK; 
-                    send(fd, &resp, sizeof(int), 0);
-                } else {
-                    log_error(logger, "Fallo creacion proceso");
-                     int resp = FAIL; 
-                    send(fd, &resp, sizeof(int), 0);
-                }
-                list_destroy_and_destroy_elements(lista, free);
+            case OP_HANDSHAKE_IO: {
+                // El handshake de IO suele venir con su nombre
+                char* io_name = paquete_read_string(paquete);
+                log_info(logger, "Handshake IO recibido: %s", io_name ? io_name : "UNKNOWN");
+                free(io_name);
+                send_ok(fd);
                 break;
+            }
 
-            case FIN_PROCESO:
-                lista = recibir_paquete(fd);
-                pid = *(uint32_t*)list_get(lista, 0);
-                log_info(logger, "Solicitud Fin Proceso: %d", pid);
-                paginacion_destruir_proceso(pid);
-                list_destroy_and_destroy_elements(lista, free);
-                break;
-
-            case FETCH_INSTRUCCION:
-                lista = recibir_paquete(fd);
-                pid = *(uint32_t*)list_get(lista, 0);
-                uint32_t pc = *(uint32_t*)list_get(lista, 1);
-                (void)pc; // Fix unused variable warning
-                
-                if (memoria_config->retardo_respuesta > 0)
-                    usleep(memoria_config->retardo_respuesta * 1000);
-
-                char* instruccion = "EXIT"; // Mock
-                enviar_mensaje(instruccion, fd);
-                list_destroy_and_destroy_elements(lista, free);
-                break;
-            
-            case ACCESO_TABLA:
-                lista = recibir_paquete(fd);
-                pid = *(uint32_t*)list_get(lista, 0);
-                int pagina = *(int*)list_get(lista, 1);
-                
-                if (memoria_config->retardo_respuesta > 0)
-                    usleep(memoria_config->retardo_respuesta * 1000);
-
-                t_pagina* entry = paginacion_obtener_entrada(pid, pagina);
-                int frame = -1;
-                if (entry) {
-                    if (entry->presente) {
-                        frame = entry->frame;
-                        entry->uso = true;
+            // =============================================================
+            // GESTION PROCESOS
+            // =============================================================
+            case OP_INIT_PROCESO: {
+                t_mem_init_proceso* req = deserializar_mem_init_proceso(paquete);
+                if(req) {
+                    log_info(logger, "Solicitud Creacion Proceso: %d (Size: %d)", req->pid, req->tamanio);
+                    int result = OP_FAIL;
+                    if (paginacion_crear_proceso(req->pid, req->tamanio)) {
+                        log_info(logger, "Proceso creado OK");
+                        result = OP_OK; 
                     } else {
-                        // Page Fault
-                         frame = -1; // Indicate Page Fault to requester logic? 
-                         // Or handle loading here? Usually Memory replies frame index.
-                         // If -1, CPU/Kernel handles page fault logic or Memory blocks.
-                         // Simple approach: Return -1.
+                        log_error(logger, "Fallo creacion proceso");
                     }
+                    send(fd, &result, sizeof(int), 0);
+                    free(req);
                 }
-                
-                send(fd, &frame, sizeof(int), 0);
-                list_destroy_and_destroy_elements(lista, free);
                 break;
+            }
+
+            case OP_FIN_PROCESO: {
+                t_mem_fin_proceso* req = deserializar_mem_fin_proceso(paquete);
+                if(req) {
+                    log_info(logger, "Solicitud Fin Proceso: %d", req->pid);
+                    paginacion_destruir_proceso(req->pid);
+                    free(req);
+                }
+                break;
+            }
+
+            // =============================================================
+            // ACCESOS
+            // =============================================================
+            case OP_ACCESO_TABLA: {
+                t_mem_traducir_pagina* req = deserializar_mem_traducir_pagina(paquete);
+                if(req) {
+                   log_info(logger, "Traduccion solicitada PID: %d Pagina: %d", req->pid, req->pagina);
+                   manejar_traduccion_pagina(req, fd); 
+                   free(req);
+                }
+                break;
+            }
             
-            // IO Handlers (Leer/Escribir)
-            case LEER_MEMORIA:
-                 // [PID, ADDR, SIZE]
-                 // ... implementation
+            case OP_FETCH_INSTRUCCION: {
+                 t_mem_fetch* req = deserializar_mem_fetch(paquete);
+                 if(req) {
+                     log_info(logger, "Fetch Instruccion PID: %d IP: %d", req->pid, req->pc);
+                     
+                     if (memoria_config->retardo_respuesta > 0)
+                        usleep(memoria_config->retardo_respuesta * 1000);
+
+                     // Mock respuesta: En un caso real busco en memoria
+                     char* instruccion = "WAIT RECURSO"; 
+                     
+                     t_paquete* resp = paquete_create(OP_RESPUESTA_INSTRUCCION);
+                     paquete_write_string(resp, instruccion);
+                     enviar_paquete(fd, resp);
+                     paquete_destroy(resp);
+                     
+                     free(req);
+                 }
                  break;
-            case ESCRIBIR_MEMORIA:
-                 // [PID, ADDR, CONTENT]
-                 // ... implementation
+            }
+            
+            case OP_LEER_MEMORIA: {
+                t_mem_read* req = recibir_lectura_memoria(paquete);
+                if(req) {
+                   log_info(logger, "Lectura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_fisica, req->tamanio);
+                   
+                   void* buffer = malloc(req->tamanio);
+                   bool ok = leer_memoria_fisica(req->direccion_fisica, buffer, req->tamanio);
+                   
+                   t_mem_respuesta_lectura res = { .ok = ok, .data = buffer, .size = req->tamanio };
+                   enviar_respuesta_lectura(fd, &res);
+                   
+                   free(buffer);
+                   free(req);
+                }
+                break;
+            }
+
+            case OP_ESCRIBIR_MEMORIA: {
+                 t_mem_write* req = recibir_escritura_memoria(paquete);
+                 if(req) {
+                     log_info(logger, "Escritura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_fisica, req->tamanio);
+                     
+                     bool ok = escribir_memoria_fisica(req->direccion_fisica, req->buffer, req->tamanio);
+                     int result = ok ? OP_OK : OP_FAIL;
+                     
+                     send(fd, &result, sizeof(int), 0); // O enviar paquete OP_RESPUESTA_ESCRITURA
+                     
+                     if (req->buffer) free(req->buffer);
+                     free(req);
+                 }
                  break;
+            }
 
             default:
-                log_warning(logger, "Operacion desconocida: %d", cod_op);
-                break;*/
+                log_warning(logger, "Operacion desconocida: %d", paquete->codigo_operacion);
+                break;
         }
+        
+        paquete_destroy(paquete);
     }
 
     close(fd);

@@ -2,6 +2,7 @@
 #define INTERRUPCIONES_H
 
 #include <stdint.h>
+#include <common/cpu/contexto.h>
 
 /**
  * @brief Desaloja un proceso que está en ejecución
@@ -15,5 +16,9 @@ void desalojar_proceso(uint32_t pid);
  * @param motivo Motivo de la interrupción (QUANTUM, IO, etc.)
  */
 void manejar_interrupcion(uint32_t pid, const char* motivo);
+
+void manejar_wait_recurso(t_contexto_cpu* ctx);
+void manejar_signal_recurso(t_contexto_cpu* ctx);
+void manejar_bloqueo_io(t_contexto_cpu* ctx);
 
 #endif /* INTERRUPCIONES_H */

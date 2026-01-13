@@ -11,7 +11,7 @@
 void enviar_fetch_instruccion(int socket_memoria, t_mem_fetch* req)
 {
     t_paquete* p = serializar_mem_fetch(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
@@ -26,18 +26,17 @@ t_mem_fetch* recibir_fetch(t_paquete* p)
 void enviar_init_proceso(int socket_memoria, t_mem_init_proceso* req)
 {
     t_paquete* p = serializar_mem_init_proceso(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
 void enviar_fin_proceso(int socket_memoria, t_mem_fin_proceso* req)
 {
     t_paquete* p = serializar_mem_fin_proceso(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-/// TODO: REVISAR
 bool recibir_respuesta_kernel(int socket_memoria)
 {
     t_list* payload = recibir_paquete(socket_memoria);
@@ -53,7 +52,7 @@ bool recibir_respuesta_kernel(int socket_memoria)
 void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req)
 {
     t_paquete* p = serializar_mem_traducir_pagina(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
@@ -65,23 +64,28 @@ t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p)
 /// ==============================
 /// LEER/ESCRIBIR MEMORIA
 /// ==============================
-void enviar_lectura_memoria(int socket_memoria, t_mem_rw* req)
+void enviar_lectura_memoria(int socket_memoria, t_mem_read* req)
 {
-    t_paquete* p = serializar_mem_rw(req);
-    enviar_paquete(p, socket_memoria);
+    t_paquete* p = serializar_mem_read(req);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-void enviar_escritura_memoria(int socket_memoria, t_mem_rw* req)
+void enviar_escritura_memoria(int socket_memoria, t_mem_write* req)
 {
-    t_paquete* p = serializar_mem_traducir_pagina(req);
-    enviar_paquete(p, socket_memoria);
+    t_paquete* p = serializar_mem_write(req); 
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-t_mem_rw* recibir_mem_rw(t_paquete* p)
+t_mem_read* recibir_lectura_memoria(t_paquete* p)
 {
-    return deserializar_mem_rw(p);
+    return deserializar_mem_read(p);
+}
+
+t_mem_write* recibir_escritura_memoria(t_paquete* p)
+{
+    return deserializar_mem_write(p);
 }
 
 /// ==============================
@@ -90,25 +94,25 @@ t_mem_rw* recibir_mem_rw(t_paquete* p)
 void enviar_respuesta_lectura(int socket_memoria, t_mem_respuesta_lectura* req)
 {
     t_paquete* p = serializar_mem_respuesta_lectura(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-t_mem_respuesta_lectura* recibir_instruccion(t_paquete* p)
+t_mem_respuesta_lectura* recibir_respuesta_lectura(t_paquete* p)
 {
-    return deserializar_mem_respuesta_traduccion(p);
+    return deserializar_mem_respuesta_lectura(p);
 }
 
 /// ==============================
 /// RESPUESTA TRADUCCION
 /// ==============================
-void enviar_respuesta_lectura(int socket_memoria, t_mem_respuesta_traduccion* req) {
+void enviar_respuesta_traduccion(int socket_memoria, t_mem_respuesta_traduccion* req) {
     t_paquete* p = serializar_mem_respuesta_traduccion(req);
-    enviar_paquete(p, socket_memoria);
+    enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-t_mem_respuesta_traduccion* recibir_traducir(t_paquete* p)
+t_mem_respuesta_traduccion* recibir_respuesta_traduccion(t_paquete* p)
 {
-    return deserializar_mem_respuesta_lectura(p);
+    return deserializar_mem_respuesta_traduccion(p);
 }

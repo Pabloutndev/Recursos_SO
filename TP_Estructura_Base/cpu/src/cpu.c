@@ -19,6 +19,8 @@ void cpu_init(const char* path_config)
 
     cpu_servidores_kernel_init(CPU_CONF.puerto_dispatch, CPU_CONF.puerto_interrupt);
 
+    cpu_conexiones_memoria_init(CPU_CONF.ip_memoria, CPU_CONF.puerto_memoria);
+
     interrupciones_init();
 
     log_info(logger, "CPU inicializada correctamente");

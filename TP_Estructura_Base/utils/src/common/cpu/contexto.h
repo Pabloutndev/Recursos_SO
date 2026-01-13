@@ -13,6 +13,9 @@ typedef struct {
     uint32_t finalizado;
     uint32_t bloqueado;
     uint32_t io_time;
+    // Expansión para manejo de desalojos
+    uint8_t motivo_desalojo; // Codigo de instrucción/razón (WAIT, SIGNAL, IO, etc)
+    char parametros[256];    // Nombre recurso, nombre archivo, etc.
     registros_t registros;
 } t_contexto_cpu;
 

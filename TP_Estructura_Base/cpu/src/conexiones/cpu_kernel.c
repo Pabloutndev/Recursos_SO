@@ -9,10 +9,10 @@
 #include <ciclo_instruccion/ciclo.h>
 #include <paquete/paquete.h>
 #include <protocolo/protocolo_kernel_cpu.h>
-
-/* ================= Estado CPU ================= */
-
-static bool isInterrupt = false;
+#include <interrupciones/interrupciones.h>
+#include <protocolo/op_code.h>
+#include <serializacion/cpu.h>
+#include <instrucciones/instrucciones.h> // For INST_ constants
 
 /* ================= Handlers ================= */
 
@@ -82,30 +82,63 @@ static void* handler_dispatch(void* arg)
     log_info(logger, "Kernel conectado a CPU DISPATCH (fd=%d)", fd);
 
     while (1) {
-
-        op_code op = recibir_operacion(fd);
-        if (op < 0) {
+        t_paquete* paquete = paquete_recv(fd);
+        
+        if (paquete == NULL) {
             log_warning(logger, "Kernel Dispatch desconectado");
             break;
         }
 
-        switch (op) {
+        switch (paquete->codigo_operacion) {
 
-        case PROCESO_EXEC: {
-            t_contexto_cpu* ctx = recibir_contexto_cpu(fd);
-
+        case OP_PROCESO_EXEC: {
+            t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
+            
             log_info(logger, "Ejecutando PID %u", ctx->pid);
 
             ciclo_instruccion_ejecutar(ctx);
 
-            free(ctx);
+             // Determinar motivo de devolución
+            op_code rs_code = OP_DESALOJO; // Default
+
+            if (ctx->finalizado) {
+                rs_code = OP_FIN_DE_PROCESO;
+            } else if (interrupcion_pendiente()) {
+                rs_code = OP_FIN_DE_QUANTUM;
+                interrupcion_reset();
+            } else if (ctx->bloqueado) {
+                 switch(ctx->motivo_desalojo) {
+                     case INST_WAIT: rs_code = OP_WAIT_RECURSO; break;
+                     case INST_SIGNAL: rs_code = OP_SIGNAL_RECURSO; break;
+                     case INST_IO_GEN_SLEEP: 
+                     case INST_IO_STDIN_READ: 
+                     case INST_IO_STDOUT_WRITE: 
+                     case INST_IO_FS_CREATE: 
+                     case INST_IO_FS_DELETE: 
+                     case INST_IO_FS_TRUNCATE: 
+                     case INST_IO_FS_WRITE: 
+                     case INST_IO_FS_READ: 
+                        rs_code = OP_BLOQUEO_IO; 
+                        break;
+                     default: rs_code = OP_BLOQUEO_IO; break;
+                 }
+            }
+
+            // Enviar respuesta
+            t_paquete* resp = serializar_contexto_cpu(ctx, rs_code);
+            enviar_paquete(fd, resp);
+            paquete_destroy(resp);
+
+            free(ctx); 
             break;
         }
 
         default:
-            log_warning(logger, "OpCode invalido en DISPATCH: %d", op);
+            log_warning(logger, "OpCode invalido en DISPATCH: %d", paquete->codigo_operacion);
             break;
         }
+
+        paquete_destroy(paquete);
     }
 
     close(fd);
@@ -122,19 +155,21 @@ static void* handler_interrupt(void* arg)
     log_info(logger, "Kernel conectado a CPU INTERRUPT (fd=%d)", fd);
 
     while (1) {
+        t_paquete* paquete = paquete_recv(fd);
 
-        op_code op = recibir_operacion(fd);
-        if (op < 0) {
+        if (paquete == NULL) {
             log_warning(logger, "Kernel Interrupt desconectado");
             break;
         }
 
-        if (op == INTERRUPCION_CPU) {
-            log_info(logger, "Interrupcion recibida");
-            isInterrupt = true;
+        if (paquete->codigo_operacion == OP_INTERRUPCION_CPU) {
+            log_info(logger, "Interrupcion recibida de Kernel");
+            interrupcion_disparar(0); 
         } else {
-            log_warning(logger, "OpCode invalido en INTERRUPT: %d", op);
+            log_warning(logger, "OpCode invalido en INTERRUPT: %d", paquete->codigo_operacion);
         }
+
+        paquete_destroy(paquete);
     }
 
     close(fd);

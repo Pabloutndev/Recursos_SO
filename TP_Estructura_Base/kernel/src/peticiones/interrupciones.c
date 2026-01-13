@@ -98,3 +98,30 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         log_fin_proceso(pid, "EXIT");
     }
 }
+
+void manejar_bloqueo_io(t_contexto_cpu* ctx) {
+    // Logica basica: Mover a Block
+    // TODO: Usar interfaz IO
+    manejar_interrupcion(ctx->pid, "IO");
+}
+
+void manejar_wait_recurso(t_contexto_cpu* ctx) {
+    // Logica basica: Chequear semaforo
+    // Si recurso disponible -> Ready (o continuar exec si se pudiera, pero aca desalojo)
+    // Si no -> Block
+    // Por ahora simulamos Block siempre o manejo generico
+    log_info(logger, "WAIT RECURSO: %s", ctx->parametros);
+    // TODO: Implementar Logica Recursos
+    manejar_interrupcion(ctx->pid, "WAIT");
+}
+
+void manejar_signal_recurso(t_contexto_cpu* ctx) {
+    // Logica basica: Liberar recurso
+    log_info(logger, "SIGNAL RECURSO: %s", ctx->parametros);
+    // TODO: Implementar Logica Recursos
+    // Signal no suele bloquear, pero si desalojo por instruccion explicita:
+    // Podria volver a Ready o seguir Exec si la CPU no devolviera control.
+    // Como devolvio control, lo mandamos a Ready? O Kernel decide devolvérselo.
+    // Asumimos Yield/Ready.
+    manejar_interrupcion(ctx->pid, "QUANTUM"); // Hack: treat as ready
+}

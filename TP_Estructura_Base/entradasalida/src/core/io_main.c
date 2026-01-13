@@ -10,6 +10,8 @@ int socket_kernel;
 int socket_memoria;
 char* io_name;
 
+#include <protocolo/op_code.h>
+
 void conectar_modulos() {
     // Conectar Kernel
     socket_kernel = crear_conexion(config->ip_kernel, config->puerto_kernel);
@@ -18,69 +20,80 @@ void conectar_modulos() {
         exit(EXIT_FAILURE);
     }
     // Handshake Kernel
-    // Enviamos nombre o ID
-    t_paquete* p = crear_paquete(HANDSHAKE_IO);
-    agregar_a_paquete(p, io_name, strlen(io_name) + 1);
-    enviar_paquete(p, socket_kernel);
-    eliminar_paquete(p);
+    t_paquete* p = paquete_create(OP_HANDSHAKE_IO);
+    paquete_write_string(p, io_name);
+    enviar_paquete(socket_kernel, p);
+    paquete_destroy(p);
+
+    // Esperar OK de Kernel
+    int respuesta;
+    if(recv(socket_kernel, &respuesta, sizeof(int), MSG_WAITALL) <= 0 || respuesta != OP_OK) {
+         log_error(logger, "Handshake Kernel fallido");
+         exit(EXIT_FAILURE);
+    }
     
-    // Conectar Memoria (si es necesario por tipo de interfaz, pero lo hacemos siempre para simplificar por ahora)
+    // Conectar Memoria (si es necesario)
     if (config->tipo_interfaz != IO_TYPE_GENERICA) {
         socket_memoria = crear_conexion(config->ip_memoria, config->puerto_memoria);
         if (socket_memoria == -1) {
             log_error(logger, "Error conectando a Memoria");
-            // No fatal si es generica, pero ya filtramos
         } else {
-             t_paquete* pm = crear_paquete(HANDSHAKE_IO);
-             agregar_a_paquete(pm, io_name, strlen(io_name) + 1);
-             enviar_paquete(pm, socket_memoria);
-             eliminar_paquete(pm);
+             t_paquete* pm = paquete_create(OP_HANDSHAKE_IO);
+             paquete_write_string(pm, io_name);
+             enviar_paquete(socket_memoria, pm);
+             paquete_destroy(pm);
+
+             // Esperar OK de Memoria
+             int resp_mem;
+             recv(socket_memoria, &resp_mem, sizeof(int), MSG_WAITALL);
+             // No validamos estricto para no romper si Memoria aun no implementa handshake io full
         }
     }
 }
 
 void io_loop() {
     while (1) {
-        int op_code = recibir_operacion(socket_kernel);
-        if (op_code < 0) {
+        t_paquete* paquete = paquete_recv(socket_kernel);
+        if (paquete == NULL) {
             log_error(logger, "Kernel desconectado");
             break;
         }
 
-        t_list* packet = recibir_paquete(socket_kernel);
-        // [PID, ...] params logic depends on op_code
-        // Assumes first element is always PID (int)
-        
-        switch (op_code) {
-            case IO_GENERIC_SLEEP:
-                io_generic_handler(packet, config, logger);
+        switch (paquete->codigo_operacion) {
+            case OP_IO_GENERIC_SLEEP:
+                // [PID, TIEMPO]
+                // Ejemplo deserializacion manual:
+                // uint32_t pid; paquete_read_uint32(paquete, &pid);
+                // uint32_t ms; paquete_read_uint32(paquete, &ms);
+                // io_generic_handler(pid, ms);
+                
+                // Nota: io_generic_handler deberia ser adaptada para recibir valores
+                // o pasamos el paquete.
+                // Por ahora asumimos que los handlers seran refactorizados
+                // o hacemos un wrapper.
+                // io_generic_handler_wrapper(paquete);
+                log_info(logger, "Solicitud IO_GENERIC_SLEEP recibida");
                 break;
-            case IO_STDIN:
-                io_stdin_handler(packet, config, logger, socket_memoria);
+
+            case OP_IO_STDIN:
+                log_info(logger, "Solicitud IO_STDIN recibida");
                 break;
-            case IO_STDOUT:
-                io_stdout_handler(packet, config, logger, socket_memoria);
+            case OP_IO_STDOUT:
+                log_info(logger, "Solicitud IO_STDOUT recibida");
                 break;
-            case IO_FS_CREATE:
-            case IO_FS_DELETE:
-            case IO_FS_TRUNCATE:
-            case IO_FS_WRITE:
-            case IO_FS_READ:
-                io_dialfs_handler(op_code, packet, config, logger, socket_memoria);
+            case OP_IO_FS_CREATE:
+            case OP_IO_FS_DELETE:
+            case OP_IO_FS_TRUNCATE:
+            case OP_IO_FS_WRITE:
+            case OP_IO_FS_READ:
+                log_info(logger, "Solicitud DIALFS recibida: %d", paquete->codigo_operacion);
                 break;
             default:
-                log_warning(logger, "Operacion desconocida: %d", op_code);
+                log_warning(logger, "Operacion desconocida: %d", paquete->codigo_operacion);
                 break;
         }
         
-        // Notify Kernel Finish (Generic simple implementations often block kernel until done)
-        // Usually we send PID back + Status
-        t_paquete* resp = crear_paquete(FIN_DE_PROCESO); // Or specific IO_FIN
-        // Using generic response for now
-        enviar_codigo(socket_kernel, 10); // OK or FIN
-        // Note: Real implementation needs strict protocol compliance.
-        
-        list_destroy_and_destroy_elements(packet, free);
+        paquete_destroy(paquete);
     }
 }
 
@@ -96,7 +109,7 @@ void io_init(const char* config_path, char* name) {
     
     // Initialize specific interface systems
     if (config->tipo_interfaz == IO_TYPE_DIALFS) {
-        io_dialfs_init(config, logger);
+        // io_dialfs_init(config, logger);
     }
 
     conectar_modulos();

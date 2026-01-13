@@ -78,8 +78,7 @@ void* timer_quantum(void* arg) {
     pthread_mutex_unlock(&mutex_exec);
 
     if (sigue_en_exec) {
-        // TODO: 
-        //enviar_interrupcion(pcb->pid);
+        enviar_interrupt_cpu(pcb->pid);
         log_info(logger, "Quantum vencido → PID=%u desalojado", pcb->pid);
     }
 

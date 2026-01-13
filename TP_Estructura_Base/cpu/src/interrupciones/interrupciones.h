@@ -6,5 +6,6 @@
 void interrupciones_init(void);
 bool interrupcion_pendiente(void);
 void interrupcion_disparar(int tipo);
+void interrupcion_reset(void);
 
 #endif

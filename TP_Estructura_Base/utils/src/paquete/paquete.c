@@ -38,7 +38,7 @@ void paquete_destroy(t_paquete* p)
 /// NOTE: SEND / RECV
 bool enviar_paquete(int fd, t_paquete* p)
 {
-    if (send(fd, &p->codigo, sizeof(op_code), 0) <= 0)
+    if (send(fd, &p->codigo_operacion, sizeof(op_code), 0) <= 0)
         return false;
 
     if (send(fd, &p->buffer->size, sizeof(uint32_t), 0) <= 0)
