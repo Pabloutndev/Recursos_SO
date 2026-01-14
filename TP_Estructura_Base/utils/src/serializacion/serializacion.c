@@ -107,8 +107,8 @@ void deserializar_registros(t_paquete* p, registros_t* r) {
 
 /// ##### REQUESTS - SERIALIZACION #####
 
-t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req) {
-    t_paquete* p = paquete_create(OP_INIT_PROCESO);
+t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->tamanio);
     return p;
@@ -121,8 +121,8 @@ t_mem_init_proceso* deserializar_mem_init_proceso(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req) {
-    t_paquete* p = paquete_create(OP_FIN_PROCESO);
+t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     return p;
 }
@@ -133,8 +133,8 @@ t_mem_fin_proceso* deserializar_mem_fin_proceso(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req) {
-    t_paquete* p = paquete_create(OP_ACCESO_TABLA);
+t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->direccion_logica);
     return p;
@@ -147,8 +147,8 @@ t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_read(t_mem_read* req) {
-    t_paquete* p = paquete_create(OP_LEER_MEMORIA);
+t_paquete* serializar_mem_read(t_mem_read* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->direccion_fisica);
     paquete_write_uint32(p, req->tamanio);
@@ -163,8 +163,8 @@ t_mem_read* deserializar_mem_read(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_write(t_mem_write* req) {
-    t_paquete* p = paquete_create(OP_ESCRIBIR_MEMORIA);
+t_paquete* serializar_mem_write(t_mem_write* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->direccion_fisica);
     paquete_write_buffer(p, req->buffer, req->tamanio);
@@ -179,8 +179,8 @@ t_mem_write* deserializar_mem_write(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_fetch(t_mem_fetch* req) {
-    t_paquete* p = paquete_create(OP_FETCH_INSTRUCCION);
+t_paquete* serializar_mem_fetch(t_mem_fetch* req, op_code code) {
+    t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->pc);
     return p;

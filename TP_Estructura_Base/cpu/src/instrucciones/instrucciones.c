@@ -8,14 +8,15 @@
 
 bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)
 {
-    ///TODO: añadir fetch proximamente cpu_memoria.h
-    //char* linea = memoria_fetch_instruccion(ctx->pid, ctx->registros.PC);
-    char* linea = "SUM AX EX \n\n";
-    if (!linea) return false;
+    char* linea = memoria_fetch_instruccion(ctx->pid, ctx->registros.PC);
+    if (!linea) {
+        ctx->finalizado = 1;
+        return false;
+    }
 
     instruccion_t inst = (instruccion_t) decoder_parsear(linea);
+    free(linea);
     
-    ///TODO: revisar logica
     if (inst.opcode==INST_EXIT) {
         ctx->finalizado = 1;
         return false;

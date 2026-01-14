@@ -20,7 +20,7 @@ static void* escuchar_interrupt(void* arg);
 
 void enviar_contexto_a_cpu(t_contexto_cpu* ctx) {
     // Usamos el helper de protocolo que refactorizamos
-    enviar_proceso_exec(socket_cpu_dispatch, ctx);
+    enviar_contexto(socket_cpu_dispatch, ctx, OP_PROCESO_EXEC);
 }
 
 void enviar_interrupcion_a_cpu(int pid, int motivo) {

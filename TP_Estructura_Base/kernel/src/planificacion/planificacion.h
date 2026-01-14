@@ -62,6 +62,8 @@ void planificacion_destroy(void);
 
 void planificacion_ingresar_proceso(t_pcb* pcb);
 void listar_procesos_por_estado(void);
+/* Matar proceso */
+void planificacion_finalizar_proceso(uint32_t pid);
 void planificacion_matar_proceso(t_pcb* pcb);
 void planificacion_dump_estado(t_pcb* pcb);
 

@@ -106,22 +106,71 @@ void manejar_bloqueo_io(t_contexto_cpu* ctx) {
 }
 
 void manejar_wait_recurso(t_contexto_cpu* ctx) {
-    // Logica basica: Chequear semaforo
-    // Si recurso disponible -> Ready (o continuar exec si se pudiera, pero aca desalojo)
-    // Si no -> Block
-    // Por ahora simulamos Block siempre o manejo generico
-    log_info(logger, "WAIT RECURSO: %s", ctx->parametros);
-    // TODO: Implementar Logica Recursos
-    manejar_interrupcion(ctx->pid, "WAIT");
+    // 1. Buscar PCB en EXEC
+    t_pcb* pcb = NULL;
+    pthread_mutex_lock(&mutex_exec);
+    for(int i=0; i<list_size(cola_exec); i++) {
+        t_pcb* p = list_get(cola_exec, i);
+        if(p->pid == ctx->pid) {
+            pcb = p;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+    
+    if (!pcb) {
+        log_error(logger, "WAIT: PCB no encontrado para PID %d", ctx->pid);
+        return;
+    }
+
+    // Actualizar Contexto en PCB
+    pcb->program_counter = ctx->pc;
+    pcb->registros = ctx->registros;
+
+    // 2. Intentar adquirir recurso
+    bool bloqueo = recurso_wait(pcb, ctx->parametros);
+
+    if (bloqueo) {
+        // Bloquear proceso
+        manejar_interrupcion(ctx->pid, "WAIT"); 
+    } else {
+        // No bloquea - recurso adquirido, volver a Ready
+        manejar_interrupcion(ctx->pid, "QUANTUM");
+    }
 }
 
 void manejar_signal_recurso(t_contexto_cpu* ctx) {
-    // Logica basica: Liberar recurso
-    log_info(logger, "SIGNAL RECURSO: %s", ctx->parametros);
-    // TODO: Implementar Logica Recursos
-    // Signal no suele bloquear, pero si desalojo por instruccion explicita:
-    // Podria volver a Ready o seguir Exec si la CPU no devolviera control.
-    // Como devolvio control, lo mandamos a Ready? O Kernel decide devolvérselo.
-    // Asumimos Yield/Ready.
-    manejar_interrupcion(ctx->pid, "QUANTUM"); // Hack: treat as ready
+    t_pcb* desbloqueado = recurso_signal(ctx->parametros);
+    
+    if (desbloqueado) {
+        // El proceso desbloqueado estaba en BLOCKED y en la cola del recurso.
+        // recurso_signal lo sacó de la cola del recurso.
+        // Ahora debemos sacarlo de BLOCKED global y pasarlo a READY.
+        
+        pthread_mutex_lock(&mutex_blocked);
+        // OJO: list_remove_element usa comparacion de punteros. 
+        // Si desbloqueado es el puntero real, funciona.
+        bool removed = list_remove_element(cola_blocked, desbloqueado);
+        pthread_mutex_unlock(&mutex_blocked);
+        
+        if (removed) {
+            desbloqueado->estado = READY;
+            desbloqueado->tiempo_ready = temporal_create(); // Reset wait time?
+            
+            pthread_mutex_lock(&mutex_ready);
+            list_add(cola_ready, desbloqueado);
+            pthread_mutex_unlock(&mutex_ready);
+            sem_post(&sem_hay_ready);
+            
+            log_info(logger, "PID %d Movido de BLOCKED a READY por SIGNAL", desbloqueado->pid);
+        } else {
+             // Podria no estar en Blocked global si hubo algun race o error.
+             log_error(logger, "PID %d desbloqueado por recurso pero no encontrado en BLOCKED global", desbloqueado->pid);
+        }
+    }
+    
+    // El proceso que hizo SIGNAL (ctx->pid) sigue ejecutando. 
+    // Como CPU devolvió control, lo mandamos a Ready para que siga compitiendo (o Dispatch directo).
+    // Simil Wait exitoso.
+    manejar_interrupcion(ctx->pid, "QUANTUM");
 }

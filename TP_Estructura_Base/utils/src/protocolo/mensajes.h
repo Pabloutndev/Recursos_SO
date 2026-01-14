@@ -60,7 +60,7 @@ void enviar_interrupcion_cpu(int socket_interrupt);
 // ------------------------------
 //
 
-void enviar_fetch_instruccion(int socket_memoria, t_mem_fetch* req);
+void enviar_fetch_instruccion(int socket_memoria, t_mem_fetch* req, op_code code);
 t_mem_fetch* recibir_fetch(t_paquete* p);
 
 //
@@ -69,8 +69,10 @@ t_mem_fetch* recibir_fetch(t_paquete* p);
 // ------------------------------
 //
 
-void enviar_init_proceso(int socket_memoria, t_mem_init_proceso* req);
-void enviar_fin_proceso(int socket_memoria, t_mem_fin_proceso* req);
+void enviar_init_proceso(int socket_memoria, t_mem_init_proceso* req, op_code code);
+t_mem_init_proceso* recibir_init_proceso(t_paquete* p);
+
+void enviar_fin_proceso(int socket_memoria, t_mem_fin_proceso* req, op_code code);
 t_mem_fin_proceso* recibir_fin_proceso(t_paquete* p);
 
 //
@@ -79,7 +81,7 @@ t_mem_fin_proceso* recibir_fin_proceso(t_paquete* p);
 // ------------------------------
 //
 
-void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req);
+void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req, op_code code);
 t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p);
 
 //
@@ -88,8 +90,8 @@ t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p);
 // ------------------------------
 //
 
-void enviar_lectura_memoria(int socket_memoria, t_mem_read* req);
-void enviar_escritura_memoria(int socket_memoria, t_mem_write* req);
+void enviar_lectura_memoria(int socket_memoria, t_mem_read* req, op_code code);
+void enviar_escritura_memoria(int socket_memoria, t_mem_write* req, op_code code);
 
 t_mem_read* recibir_lectura_memoria(t_paquete* p);
 t_mem_write* recibir_escritura_memoria(t_paquete* p);

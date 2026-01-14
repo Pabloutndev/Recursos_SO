@@ -161,3 +161,28 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
 
     return pagina;
 }
+
+char* paginacion_leer_instruccion(uint32_t pid, uint32_t pc)
+{
+    // 1. Traducir PC -> Dir Fisica
+    // memoria_config es global desde mod_memoria.h
+    int tam_pag = memoria_config->tam_pagina; 
+    
+    int pag_nro = pc / tam_pag;
+    int offset  = pc % tam_pag;
+    
+    t_pagina* pag = paginacion_obtener_entrada(pid, pag_nro);
+    
+    if (pag && pag->presente && pag->frame != -1) {
+        // 2. Leer Memoria
+        uint32_t dir_fisica = (pag->frame * tam_pag) + offset;
+        
+        char buffer[256]; 
+        leer_memoria_fisica(dir_fisica, buffer, 255);
+        buffer[255] = '\0'; 
+        
+        return strdup(buffer);
+    } 
+    
+    return NULL; 
+}

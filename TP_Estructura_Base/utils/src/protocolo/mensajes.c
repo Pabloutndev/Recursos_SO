@@ -81,9 +81,9 @@ void enviar_interrupcion_cpu(int socket_interrupt)
 /// ==============================
 /// FETCH INSTRUCCION
 /// ==============================
-void enviar_fetch_instruccion(int socket_memoria, t_mem_fetch* req)
+void enviar_fetch_instruccion(int socket_memoria, t_mem_fetch* req, op_code code)
 {
-    t_paquete* p = serializar_mem_fetch(req);
+    t_paquete* p = serializar_mem_fetch(req, code);
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
@@ -96,16 +96,21 @@ t_mem_fetch* recibir_fetch(t_paquete* p)
 /// ==============================
 /// PROCESS
 /// ==============================
-void enviar_init_proceso(int socket_memoria, t_mem_init_proceso* req)
+void enviar_init_proceso(int socket_memoria, t_mem_init_proceso* req, op_code code)
 {
-    t_paquete* p = serializar_mem_init_proceso(req);
+    t_paquete* p = serializar_mem_init_proceso(req, code);
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-void enviar_fin_proceso(int socket_memoria, t_mem_fin_proceso* req)
+t_mem_init_proceso* recibir_init_proceso(t_paquete* p)
 {
-    t_paquete* p = serializar_mem_fin_proceso(req);
+    return deserializar_mem_init_proceso(p);
+}
+
+void enviar_fin_proceso(int socket_memoria, t_mem_fin_proceso* req, op_code code)
+{
+    t_paquete* p = serializar_mem_fin_proceso(req, code);
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
@@ -118,9 +123,9 @@ t_mem_fin_proceso* recibir_fin_proceso(t_paquete* p)
 /// ==============================
 /// TRADUCIR PAGINA
 /// ==============================
-void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req)
+void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req, op_code code)
 {
-    t_paquete* p = serializar_mem_traducir_pagina(req);
+    t_paquete* p = serializar_mem_traducir_pagina(req, code);
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
@@ -133,16 +138,16 @@ t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p)
 /// ==============================
 /// LEER/ESCRIBIR MEMORIA
 /// ==============================
-void enviar_lectura_memoria(int socket_memoria, t_mem_read* req)
+void enviar_lectura_memoria(int socket_memoria, t_mem_read* req, op_code code)
 {
-    t_paquete* p = serializar_mem_read(req);
+    t_paquete* p = serializar_mem_read(req, code);
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }
 
-void enviar_escritura_memoria(int socket_memoria, t_mem_write* req)
+void enviar_escritura_memoria(int socket_memoria, t_mem_write* req, op_code code)
 {
-    t_paquete* p = serializar_mem_write(req); 
+    t_paquete* p = serializar_mem_write(req, code); 
     enviar_paquete(socket_memoria, p);
     eliminar_paquete(p);
 }

@@ -46,22 +46,22 @@ t_io_fs_create* deserializar_io_fs_create(t_paquete* p);
 /// ===========
 /// ##### REQUESTS - SERIALIZACION #####
 
-t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req);
+t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req, op_code code);
 t_mem_init_proceso* deserializar_mem_init_proceso(t_paquete* p);
 
-t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req);
+t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req, op_code code);
 t_mem_fin_proceso* deserializar_mem_fin_proceso(t_paquete* p);
 
-t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req);
+t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req, op_code code);
 t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p);
 
-t_paquete* serializar_mem_read(t_mem_read* req);
+t_paquete* serializar_mem_read(t_mem_read* req, op_code code);
 t_mem_read* deserializar_mem_read(t_paquete* p);
 
-t_paquete* serializar_mem_write(t_mem_write* req);
+t_paquete* serializar_mem_write(t_mem_write* req, op_code code);
 t_mem_write* deserializar_mem_write(t_paquete* p);
 
-t_paquete* serializar_mem_fetch(t_mem_fetch* req);
+t_paquete* serializar_mem_fetch(t_mem_fetch* req, op_code code);
 t_mem_fetch* deserializar_mem_fetch(t_paquete* p);
 
 /// ##### RESPONSES - DESERIALIZACION #####

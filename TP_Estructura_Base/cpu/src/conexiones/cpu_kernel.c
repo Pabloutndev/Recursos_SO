@@ -92,7 +92,8 @@ static void* handler_dispatch(void* arg)
         switch (paquete->codigo_operacion) {
 
         case OP_PROCESO_EXEC: {
-            t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
+            // Updated to use protocol wrapper
+            t_contexto_cpu* ctx = recibir_contexto(paquete);
             
             log_info(logger, "Ejecutando PID %u", ctx->pid);
 
@@ -124,10 +125,8 @@ static void* handler_dispatch(void* arg)
                  }
             }
 
-            // Enviar respuesta
-            t_paquete* resp = serializar_contexto_cpu(ctx, rs_code);
-            enviar_paquete(fd, resp);
-            paquete_destroy(resp);
+            // Enviar respuesta using protocol wrapper
+            enviar_contexto(fd, ctx, rs_code);
 
             free(ctx); 
             break;

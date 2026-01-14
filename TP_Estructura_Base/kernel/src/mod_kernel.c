@@ -6,6 +6,7 @@
 #include <conexiones/cpu.h>
 #include <conexiones/memoria.h>
 #include <conexiones/io.h>
+#include <peticiones/recursos.h>
 #include <stdlib.h>
 
 #define PUERTO "8005"
@@ -57,7 +58,10 @@ int kernel_init(const char* config_path)
     conexiones_init();
     
     // Iniciar Server para IO
-    // Asumimos que KCONF tiene puerto_escucha o similar para entradasalida
+    server_io_init(PUERTO); 
+    
+    // Iniciar Recursos
+    recursos_init(&KCONF);
     // Si no, hardcodeo o busco en config
     // Revisar struct t_kernel_config si es necesario.
     // Por ahora uso un puerto generic si no esta en config, o KCONF.puerto_escucha
@@ -75,6 +79,7 @@ int kernel_init(const char* config_path)
 void kernel_shutdown(void) {
     log_info(logger,"Shutdown kernel...");
     planificacion_destroy();
+    recursos_destroy();
     if (logger) log_destroy(logger);
     if (loggerError) log_destroy(loggerError);
 }

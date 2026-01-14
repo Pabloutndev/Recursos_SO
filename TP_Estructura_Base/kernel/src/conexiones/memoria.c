@@ -3,6 +3,8 @@
 #include <conexion/conexion.h>
 #include <paquete/paquete.h>
 #include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
+#include <serializacion/serializacion.h>
 
 extern int socket_memoria;
 
@@ -19,15 +21,13 @@ void conectar_memoria(char* ip, char* puerto) {
 }
 
 // Need to include protocolo header
-#include <protocolo/memoria.h>
-#include <serializacion/memoria.h>
 
 bool solicitar_creacion_proceso_memoria(uint32_t pid, int size) {
     t_mem_init_proceso req;
     req.pid = pid;
     req.size = size;
 
-    enviar_init_proceso(socket_memoria, &req);
+    enviar_init_proceso(socket_memoria, &req, OP_INIT_PROCESO);
 
     // Esperar respuesta (OK/FAIL)
     int resp = OP_FAIL;
@@ -38,5 +38,5 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, int size) {
 void solicitar_fin_proceso_memoria(uint32_t pid) {
     t_mem_fin_proceso req;
     req.pid = pid;
-    enviar_fin_proceso(socket_memoria, &req);
+    enviar_fin_proceso(socket_memoria, &req, OP_FIN_PROCESO);
 }

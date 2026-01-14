@@ -39,7 +39,7 @@ char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc)
     req.pid = pid;
     req.pc = pc;
 
-    enviar_fetch_instruccion(fd_memoria, &req);
+    enviar_fetch_instruccion(fd_memoria, &req, OP_FETCH_INSTRUCCION);
 
     // 2. Recibir Respuesta
     t_paquete* resp = recibir_paquete(fd_memoria);
@@ -75,7 +75,7 @@ bool memoria_obtener_marco(uint32_t pid, uint32_t pagina, bool escritura, uint32
     req.pagina = pagina;
     // req.escritura = escritura; // Si la estructura lo soporta? REVISAR
 
-    enviar_traduccion_pagina(fd_memoria, &req);
+    enviar_traduccion_pagina(fd_memoria, &req, OP_ACCESO_TABLA);
 
     // 2. Recibir Respuesta
     t_paquete* resp = recibir_paquete(fd_memoria);
@@ -98,6 +98,77 @@ bool memoria_obtener_marco(uint32_t pid, uint32_t pagina, bool escritura, uint32
         }
     } else {
         log_error(loggerError, "Respuesta traduccion inesperada: %d", resp->codigo_operacion);
+    }
+
+    paquete_destroy(resp);
+    paquete_destroy(resp);
+    return exito;
+}
+
+bool memoria_leer(uint32_t pid, uint32_t dir_fisica, void* dest, int size) {
+    if (size <= 0) return false;
+
+    // 1. Serializar Request
+    t_mem_read req;
+    req.pid = pid;
+    req.direccion_fisica = dir_fisica;
+    req.tamanio = size;
+
+    enviar_lectura_memoria(fd_memoria, &req, OP_LEER_MEMORIA);
+
+    // 2. Recibir Respuesta
+    t_paquete* resp = recibir_paquete(fd_memoria);
+    if (!resp) {
+        log_error(loggerError, "Fallo al recibir respuesta LECTURA");
+        return false;
+    }
+
+    bool exito = false;
+    if (resp->codigo_operacion == OP_RESPUESTA_LECTURA) {
+        t_mem_respuesta_lectura* data = recibir_respuesta_lectura(resp);
+        if (data && data->ok && data->size == size) {
+            memcpy(dest, data->data, size);
+            exito = true;
+        }
+        if (data) {
+             if (data->data) free(data->data);
+             free(data);
+        }
+    } else {
+        log_error(loggerError, "Respuesta LECTURA inesperada: %d", resp->codigo_operacion);
+    }
+
+    paquete_destroy(resp);
+    return exito;
+}
+
+bool memoria_escribir(uint32_t pid, uint32_t dir_fisica, void* src, int size) {
+    if (size <= 0) return false;
+
+    // 1. Serializar Request
+    t_mem_write req;
+    req.pid = pid;
+    req.direccion_fisica = dir_fisica;
+    req.tamanio = size;
+    req.buffer = src; // Pointer to data
+
+    enviar_escritura_memoria(fd_memoria, &req, OP_ESCRIBIR_MEMORIA);
+
+    // 2. Recibir Respuesta
+    t_paquete* resp = recibir_paquete(fd_memoria);
+    if (!resp) {
+        log_error(loggerError, "Fallo al recibir respuesta ESCRITURA");
+        return false;
+    }
+
+    bool exito = false;
+    // Asumimos que Kernel/Memoria responde con un OK/FAIL simple para escritura?
+    // En server.c veia: enviar_respuesta_kernel(fd, ok); -> OP_RESPUESTA_KERNEL (int)
+    if (resp->codigo_operacion == OP_RESPUESTA_KERNEL) { // Memoria reuse kernel response logic?
+         int val = paquete_read_int(resp);
+         exito = (val != 0);
+    } else {
+         log_error(loggerError, "Respuesta ESCRITURA inesperada: %d", resp->codigo_operacion);
     }
 
     paquete_destroy(resp);

@@ -12,6 +12,7 @@
 #include <config/kernel_config.h>
 #include <loggers/logger.h>
 #include <peticiones/dispatch.h>
+#include <peticiones/recursos.h>
 
 extern t_log* logger;
 extern t_kernel_config KCONF;
@@ -182,73 +183,72 @@ void planificacion_pause(void)
 }
 
 /* Matar proceso */
-void planificacion_matar_proceso(t_pcb* pcb)
+void planificacion_finalizar_proceso(uint32_t pid)
 {
-    if (!pcb) return;
-    
-    pcb_search_pid = pcb->pid;
-    
+    pcb_search_pid = pid; // Usamos el static para list_find
+    t_pcb* encontrado = NULL;
+
+    // 1. Intentar NEW
     pthread_mutex_lock(&mutex_new);
-    t_pcb* encontrado = list_find(cola_new, pcb_equals_pid);
-    if (encontrado) {
-        list_remove_element(cola_new, encontrado);
-        encontrado->estado = EXIT;
-        pthread_mutex_lock(&mutex_exec);
-        list_add(cola_exit, encontrado);
-        pthread_mutex_unlock(&mutex_exec);
-        log_fin_proceso(encontrado->pid, "KILL");
-        pthread_mutex_unlock(&mutex_new);
-        pcb_search_pid = 0;
-        return;
-    }
+    encontrado = list_find(cola_new, pcb_equals_pid);
+    if (encontrado) list_remove_element(cola_new, encontrado);
     pthread_mutex_unlock(&mutex_new);
-    
-    pthread_mutex_lock(&mutex_ready);
-    encontrado = list_find(cola_ready, pcb_equals_pid);
-    if (encontrado) {
-        list_remove_element(cola_ready, encontrado);
-        encontrado->estado = EXIT;
-        pthread_mutex_lock(&mutex_exec);
-        list_add(cola_exit, encontrado);
-        pthread_mutex_unlock(&mutex_exec);
-        log_fin_proceso(encontrado->pid, "KILL");
+
+    // 2. Intentar READY
+    if (!encontrado) {
+        pthread_mutex_lock(&mutex_ready);
+        encontrado = list_find(cola_ready, pcb_equals_pid);
+        if (encontrado) list_remove_element(cola_ready, encontrado);
         pthread_mutex_unlock(&mutex_ready);
-        pcb_search_pid = 0;
-        return;
     }
-    pthread_mutex_unlock(&mutex_ready);
-    
-    pthread_mutex_lock(&mutex_exec);
-    encontrado = list_find(cola_exec, pcb_equals_pid);
-    if (encontrado) {
-        list_remove_element(cola_exec, encontrado);
-        encontrado->estado = EXIT;
-        list_add(cola_exit, encontrado);
-        log_fin_proceso(encontrado->pid, "KILL");
-        
-        // Enviar interrupción a CPU para detener ejecución
-        // Nota: Como ya lo movimos a EXIT, cuando CPU devuelva contexto (por interrupción),
-        // dispatch deberá ignorarlo o manejarlo.
-        // Ojo con Race Condition: Si CPU devuelve contexto antes de que lo movamos? NO, tenemos mutex_exec.
-        // Si CPU devuelve después? escuchar_dispatch buscará PID en EXEC y no lo encontrará.
-        // Deberíamos manejar ese caso en escuchar_dispatch.
-        enviar_interrupt_cpu(encontrado->pid);
+
+    // 3. Intentar BLOCKED
+    if (!encontrado) {
+        pthread_mutex_lock(&mutex_blocked);
+        encontrado = list_find(cola_blocked, pcb_equals_pid);
+        if (encontrado) list_remove_element(cola_blocked, encontrado);
+        pthread_mutex_unlock(&mutex_blocked);
+        // OJO: Si estaba en blocked de recurso, sigue ahi?
+        // recurso_destroy/release se encargará? 
+        // Idealmente deberiamos sacarlo de la cola del recurso también. 
+        // Pero Kernel no sabe en qué recurso está bloqueado fácil (salvo iterar todos).
+        // UTN Hack: Al liberar recursos del proceso, se limpia.
     }
-    pthread_mutex_unlock(&mutex_exec);
-    
-    pthread_mutex_lock(&mutex_blocked);
-    encontrado = list_find(cola_blocked, pcb_equals_pid);
-    if (encontrado) {
-        list_remove_element(cola_blocked, encontrado);
-        encontrado->estado = EXIT;
+
+    // 4. Intentar EXEC
+    if (!encontrado) {
         pthread_mutex_lock(&mutex_exec);
+        encontrado = list_find(cola_exec, pcb_equals_pid);
+        if (encontrado) {
+            list_remove_element(cola_exec, encontrado);
+            // Si estaba en exec, hay que mandar interrupt para que CPU suelte
+            enviar_interrupt_cpu(encontrado->pid);
+        }
+        pthread_mutex_unlock(&mutex_exec);
+    }
+
+    if (encontrado) {
+        encontrado->estado = EXIT;
+        pthread_mutex_lock(&mutex_exec); // Reusamos mutex exec para cola exit por simplicidad o mutex_exit si existiera
         list_add(cola_exit, encontrado);
         pthread_mutex_unlock(&mutex_exec);
-        log_fin_proceso(encontrado->pid, "KILL");
+        
+        log_fin_proceso(pid, "KILL/EXIT"); 
+        
+        // Solicitar a Memoria fin de estructuras
+        solicitar_fin_proceso_memoria(pid);
+        
+        // Liberar recursos retenidos
+        recursos_liberar_proceso(pid);
+    } else {
+        log_error(logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
     }
-    pthread_mutex_unlock(&mutex_blocked);
     
     pcb_search_pid = 0;
+} 
+// Wrappers legacy
+void planificacion_matar_proceso(t_pcb* pcb) {
+    if(pcb) planificacion_finalizar_proceso(pcb->pid);
 }
 
 /* Dump estado de proceso */

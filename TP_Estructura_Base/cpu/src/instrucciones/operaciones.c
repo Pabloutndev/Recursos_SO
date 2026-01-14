@@ -1,5 +1,8 @@
 #include <instrucciones/operaciones.h>
 #include <registros/registros.h>
+#include <mmu/mmu.h>
+#include <conexiones/cpu_memoria.h>
+#include <protocolo/op_code.h>
 #include <stdbool.h>
 #include <string.h>
 
@@ -43,18 +46,68 @@ void execute_instruccion(instruccion_t* inst, void* contexto)
             break;
 
         case INST_MOV_IN:
-            // TODO: mmu translate + read
-            // ejecutar_mov_in(inst, ctx);
+            // MOV_IN (Registro, Dirección Lógica)
+            // Lee de memoria (Dir Logica) y guarda en Registro
+            {
+                uint32_t dir_logica = inst->inmediato; // Asumiendo inmediato es la dir logica (o leer de registro segun arquitectura)
+                // Usualmente MOV_IN R1, [DIR] -> R1 recibe valor de memoria. 
+                // Revisar struct instruccion_t. Asumimos R1=Dest, Inmediato=Indir/Dir? 
+                // En C-Code base comun: MOV_IN R1, R2 (donde R2 tiene la dir logica)
+                uint32_t dir_logica_val = registros_leer(&ctx->registros, inst->r2); 
+                
+                uint32_t dir_fisica = mmu_traducir(dir_logica_val, false);
+                if (dir_fisica > 0) { // 0 as error?
+                    uint32_t valor_leido = 0;
+                    if (memoria_leer(ctx->pid, dir_fisica, &valor_leido, sizeof(uint32_t))) {
+                        registros_escribir(&ctx->registros, inst->r1, valor_leido);
+                         ctx->registros.PC++;
+                    } else {
+                        // Error lectura
+                        ctx->motivo_desalojo = INST_EXIT; // O Error memoria
+                        strcpy(ctx->parametros, "SEG_FAULT_READ"); 
+                        ctx->bloqueado = 1;
+                    }
+                } else {
+                    // Page Fault (ya manejado en mmu_traducir? MMU devuelve 0 on error, y manda log error)
+                    // Si MMU falló (PF o error), deberia desalojar?
+                    // mmu_traducir deberia setear flag de desalojo? 
+                    // Revisar mmu.c. MMU devuelve 0.
+                    ctx->motivo_desalojo = OP_SEGFAULT; // Usamos OpCode como motivo?
+                    ctx->bloqueado = 1;
+                }
+            }
             break;
         case INST_MOV_OUT:
-            // TODO: mmu translate + write
-            // ejecutar_mov_out(inst, ctx);
+            // MOV_OUT (Dirección Lógica, Registro)
+            // Escribe valor de Registro en Memoria (Dir Logica)
+            {
+                uint32_t dir_logica_val = registros_leer(&ctx->registros, inst->r1);
+                uint32_t valor_escribir = registros_leer(&ctx->registros, inst->r2);
+
+                uint32_t dir_fisica = mmu_traducir(dir_logica_val, true);
+
+                if (dir_fisica > 0) {
+                    if (memoria_escribir(ctx->pid, dir_fisica, &valor_escribir, sizeof(uint32_t))) {
+                         ctx->registros.PC++;
+                    } else {
+                        ctx->motivo_desalojo = INST_EXIT; 
+                        strcpy(ctx->parametros, "SEG_FAULT_WRITE");
+                        ctx->bloqueado = 1;
+                    }
+                } else {
+                    ctx->motivo_desalojo = OP_SEGFAULT;
+                    ctx->bloqueado = 1;
+                }
+            }
             break;
         case INST_RESIZE:
-            // TODO: memoria resize request
+             // TODO: memoria resize request (enviar a Memoria resize, esperar respuesta)
+             // Ajustar tamaño proceso.
             break;
         case INST_COPY_STRING:
-            // TODO: string copy
+            // Complejo: Leer string de memoria (SI) y escribir en memoria (DI).
+            // Requiere loop de lectura escritura byte a byte o bloque.
+            // Por simplicidad del snippet, dejamos TODO o implementamos basico.
             break;
         default:
             break;

@@ -19,6 +19,9 @@ void paginacion_destruir_proceso(uint32_t pid);
 /* Acceso a Tablas */
 t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina);
 
+/* Lectura de Instrucciones (Fetch) */
+char* paginacion_leer_instruccion(uint32_t pid, uint32_t pc);
+
 /* Debug */
 void dump_paginas(uint32_t pid);
 

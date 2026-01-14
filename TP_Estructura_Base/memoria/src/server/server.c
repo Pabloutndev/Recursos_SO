@@ -73,19 +73,20 @@ void* memoria_client_handler(void* arg) {
             // GESTION PROCESOS
             // =============================================================
             case OP_INIT_PROCESO: {
-
-                t_mem_init_proceso* req = deserializar_mem_init_proceso(paquete);
+                // Usamos el wrapper del protocolo
+                t_mem_init_proceso* req = recibir_init_proceso(paquete);
 
                 if(req) {
                     log_info(logger, "Solicitud Creacion Proceso: %d (Size: %d)", req->pid, req->tamanio);
-                    int result = OP_FAIL;
-                    if (paginacion_crear_proceso(req->pid, req->tamanio)) {
-                        result = OP_OK; 
+                    bool success = paginacion_crear_proceso(req->pid, req->tamanio);
+                    
+                    if (success) {
                         log_info(logger, "Proceso creado OK");
+                        enviar_respuesta_ok(fd);
                     } else {
                         log_error(logger, "Fallo creacion proceso");
+                        enviar_respuesta_fail(fd);
                     }
-                    //enviar_respuesta_kernel(fd, result);
                     free(req);
                 }
                 break;
@@ -96,6 +97,8 @@ void* memoria_client_handler(void* arg) {
                 if(req) {
                     log_info(logger, "Solicitud Fin Proceso: %d", req->pid);
                     paginacion_destruir_proceso(req->pid);
+                    // No suele esperar respuesta síncrona, pero si hiciera falta:
+                    // enviar_respuesta_ok(fd);
                     free(req);
                 }
                 break;
@@ -108,7 +111,20 @@ void* memoria_client_handler(void* arg) {
                 t_mem_traducir_pagina* req = recibir_mem_traducir_pagina(paquete);
                 if(req) {
                    log_info(logger, "Traduccion solicitada PID: %d Pagina: %d", req->pid, req->direccion_logica);
-                   manejar_traduccion_pagina(req, fd); 
+                   
+                   // Lógica de traducción
+                   int frame = -1;
+                   t_pagina* pag = paginacion_obtener_entrada(req->pid, req->direccion_logica);
+                   if (pag && pag->frame != -1) {
+                       frame = pag->frame;
+                   }
+
+                   t_mem_respuesta_traduccion res;
+                   res.ok = (frame != -1);
+                   res.frame = (frame != -1) ? frame : 0;
+                   
+                   enviar_respuesta_traduccion(fd, &res);
+                   
                    free(req);
                 }
                 break;
@@ -122,27 +138,14 @@ void* memoria_client_handler(void* arg) {
                      if (memoria_config->retardo_respuesta > 0)
                         usleep(memoria_config->retardo_respuesta * 1000);
 
-                     // 1. Traducir PC -> Dir Fisica
-                     int pag_nro = req->pc / get_tamanio_pagina();
-                     int offset  = req->pc % get_tamanio_pagina();
+                     char* instruccion = paginacion_leer_instruccion(req->pid, req->pc);
                      
-                     t_pagina* pag = paginacion_obtener_entrada(req->pid, pag_nro);
-                     char* instruccion = NULL;
-                     
-                     if (pag && pag->frame != -1) {
-                         // 2. Leer Memoria
-                         uint32_t dir_fisica = (pag->frame * get_tamanio_pagina()) + offset;
-                         
-                         char buffer[256]; 
-                         leer_memoria_fisica(dir_fisica, buffer, 255);
-                         buffer[255] = '\0'; 
-                         instruccion = strdup(buffer);
-                     } else {
+                     if (!instruccion) {
                          instruccion = strdup("EXIT"); 
                          log_error(logger, "Error Fetch: Pagina no disponible o invalida");
                      }
 
-                     //enviar_respuesta_instruccion(fd, instruccion);
+                     enviar_respuesta_instruccion(fd, instruccion);
                      
                      free(instruccion);
                      free(req);
