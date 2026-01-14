@@ -63,7 +63,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
 static void* escuchar_dispatch(void* _)
 {
     while (1) {
-        t_paquete* paquete = paquete_recv(socket_cpu_dispatch);
+        t_paquete* paquete = recibir_paquete(socket_cpu_dispatch);
         if (paquete == NULL) {
             log_error(logger, "CPU Dispatch desconectado");
             break;
@@ -135,7 +135,7 @@ static void* escuchar_dispatch(void* _)
 static void* escuchar_interrupt(void* _)
 {
     while (1) {
-        t_paquete* paquete = paquete_recv(socket_cpu_interrupt);
+        t_paquete* paquete = recibir_paquete(socket_cpu_interrupt);
         if (paquete == NULL) {
             log_error(logger, "CPU Interrupt desconectado");
             break;

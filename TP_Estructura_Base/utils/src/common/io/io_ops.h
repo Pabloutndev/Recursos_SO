@@ -1,7 +1,6 @@
 #ifndef COMMON_IO_OPS_H
 #define COMMON_IO_OPS_H
 
-#include <common/tipos_basicos.h>
 #include <stdint.h>
 
 typedef struct {

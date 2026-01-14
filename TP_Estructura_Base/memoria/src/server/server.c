@@ -3,8 +3,10 @@
 #include <gestion/paginas.h>
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
-#include <common/memoria/memoria.h> // Includes requests/responses logic
-#include <protocolo/memoria.h>      // Helpers
+#include <common/memoria/memoria.h>
+#include <protocolo/memoria.h>
+#include <protocolo/cpu.h>
+#include <protocolo/kernel.h>
 #include <server/server.h>
 
 static int server_socket = -1;
@@ -36,7 +38,7 @@ void* memoria_client_handler(void* arg) {
     free(arg);
 
     while(1) {
-        t_paquete* paquete = paquete_recv(fd);
+        t_paquete* paquete = recibir_paquete(fd);
         if (paquete == NULL) {
             log_warning(logger, "Cliente FD %d desconectado", fd);
             break;
@@ -49,7 +51,6 @@ void* memoria_client_handler(void* arg) {
             // =============================================================
             case OP_HANDSHAKE_CPU:
                 log_info(logger, "Handshake CPU recibido");
-                 // Enviar tamanio de pagina como respuesta simple
                 int tam_pag = get_tamanio_pagina();
                 send(fd, &tam_pag, sizeof(int), 0);
                 break;
@@ -72,27 +73,26 @@ void* memoria_client_handler(void* arg) {
             // GESTION PROCESOS
             // =============================================================
             case OP_INIT_PROCESO: {
+
                 t_mem_init_proceso* req = deserializar_mem_init_proceso(paquete);
+
                 if(req) {
                     log_info(logger, "Solicitud Creacion Proceso: %d (Size: %d)", req->pid, req->tamanio);
                     int result = OP_FAIL;
-                    /// TODO: REVISAR
-                    result = 0;
                     if (paginacion_crear_proceso(req->pid, req->tamanio)) {
-                        log_info(logger, "Proceso creado OK");
                         result = OP_OK; 
-                        result = 1;
+                        log_info(logger, "Proceso creado OK");
                     } else {
                         log_error(logger, "Fallo creacion proceso");
                     }
-                    enviar_respuesta_kernel(fd, result);
+                    //enviar_respuesta_kernel(fd, result);
                     free(req);
                 }
                 break;
             }
 
             case OP_FIN_PROCESO: {
-                t_mem_fin_proceso* req = deserializar_mem_fin_proceso(paquete);
+                t_mem_fin_proceso* req = recibir_fin_proceso(paquete);
                 if(req) {
                     log_info(logger, "Solicitud Fin Proceso: %d", req->pid);
                     paginacion_destruir_proceso(req->pid);
@@ -105,9 +105,9 @@ void* memoria_client_handler(void* arg) {
             // ACCESOS
             // =============================================================
             case OP_ACCESO_TABLA: {
-                t_mem_traducir_pagina* req = deserializar_mem_traducir_pagina(paquete);
+                t_mem_traducir_pagina* req = recibir_mem_traducir_pagina(paquete);
                 if(req) {
-                   log_info(logger, "Traduccion solicitada PID: %d Pagina: %d", req->pid, req->pagina);
+                   log_info(logger, "Traduccion solicitada PID: %d Pagina: %d", req->pid, req->direccion_logica);
                    manejar_traduccion_pagina(req, fd); 
                    free(req);
                 }
@@ -115,7 +115,7 @@ void* memoria_client_handler(void* arg) {
             }
             
             case OP_FETCH_INSTRUCCION: {
-                 t_mem_fetch* req = deserializar_mem_fetch(paquete);
+                 t_mem_fetch* req = recibir_fetch(paquete);
                  if(req) {
                      log_info(logger, "Fetch Instruccion PID: %d IP: %d", req->pid, req->pc);
                      
@@ -142,7 +142,7 @@ void* memoria_client_handler(void* arg) {
                          log_error(logger, "Error Fetch: Pagina no disponible o invalida");
                      }
 
-                     enviar_respuesta_instruccion(fd, instruccion);
+                     //enviar_respuesta_instruccion(fd, instruccion);
                      
                      free(instruccion);
                      free(req);

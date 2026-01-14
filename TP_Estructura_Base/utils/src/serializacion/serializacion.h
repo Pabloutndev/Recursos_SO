@@ -1,9 +1,49 @@
-#ifndef SERIALIZACION_MEMORIA_H
-#define SERIALIZACION_MEMORIA_H
+#ifndef SERIALIZACION_H_
+#define SERIALIZACION_H_
+
+#include <common/memoria/memoria.h>
+#include <common/cpu/tlb.h>
+#include <common/cpu/contexto.h>
+#include <common/kernel/kernel.h>
+#include <common/io/io_ops.h>
 
 #include <paquete/paquete.h>
-#include <common/memoria/memoria.h>
 
+/// ===========
+/// KERNEL Y CPU
+/// ===========
+
+/// ##### REQUESTS - SERIALIZACION y RESPONSES - DESERIALIZACION #####
+
+t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx);
+t_contexto_cpu* deserializar_contexto_cpu(t_paquete* p);
+
+t_paquete* serializar_process(t_process* proc);
+t_process* deserializar_process(t_paquete* p);
+
+/// ##### AUXILIAR SERIALIZACION/DESERIALIZACION DE REGISTROS
+
+void serializar_registros(t_paquete* p, registros_t* r);
+void deserializar_registros(t_paquete* p, registros_t* r);
+
+/// ===========
+/// IO
+/// ===========
+
+/// ##### REQUESTS - SERIALIZACION #####
+
+t_paquete* serializar_io_sleep(const t_io_sleep* req);
+t_io_sleep* deserializar_io_sleep(t_paquete* p);
+
+t_paquete* serializar_io_fs_write(const t_io_fs_write* req);
+t_io_fs_write* deserializar_io_fs_write(t_paquete* p);
+
+t_paquete* serializar_io_fs_create(const t_io_fs_create* req);
+t_io_fs_create* deserializar_io_fs_create(t_paquete* p);
+
+/// ===========
+/// MEMORIA
+/// ===========
 /// ##### REQUESTS - SERIALIZACION #####
 
 t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req);
@@ -35,4 +75,4 @@ t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p);
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion);
 char* deserializar_mem_respuesta_instruccion(t_paquete* p);
 
-#endif
+#endif /* SERIALIZACION_H */

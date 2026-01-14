@@ -9,10 +9,10 @@
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
 #include <gestion/paginas.h>
-#include <common/memoria/requests.h>
-#include <common/memoria/responses.h>
+#include <common/memoria/memoria.h>
 
-#include <protocolo/protocolo_cpu_memoria.h>
+#include <protocolo/memoria.h>
+#include <protocolo/cpu.h>
 
 extern t_log* logger;
 extern t_memoria_config* memoria_config;
@@ -49,12 +49,12 @@ void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
     };
 
     t_pagina* pag =
-        paginacion_obtener_entrada(req->pid, req->pagina);
+        paginacion_obtener_entrada(req->pid, req->direccion_logica);
 
     if (!pag) {
         log_error(logger,
             "MEMORIA: Pagina invalida PID=%u PAG=%u",
-            req->pid, req->pagina);
+            req->pid, req->direccion_logica);
 
         enviar_respuesta_traduccion(socket_cpu, &resp);
         return;
@@ -86,7 +86,7 @@ void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
 }
 
 
-void manejar_lectura_memoria(t_mem_rw* req, int socket_cpu)
+void manejar_lectura_memoria(t_mem_read* req, int socket_cpu)
 {
     t_mem_respuesta_lectura resp = {
         .ok = false,
@@ -121,7 +121,7 @@ void manejar_lectura_memoria(t_mem_rw* req, int socket_cpu)
     free(buffer);
 }
 
-void manejar_escritura_memoria(t_mem_rw* req, int socket_cpu)
+void manejar_escritura_memoria(t_mem_write* req, int socket_cpu)
 {
     /*memcpy(
         memoria_fisica + req->direccion_fisica,

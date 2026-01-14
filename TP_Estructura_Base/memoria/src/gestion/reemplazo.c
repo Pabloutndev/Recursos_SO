@@ -2,13 +2,13 @@
 #include <commons/collections/dictionary.h>
 #include <gestion/paginas.h>
 #include <mod_memoria.h>
-#include <common/memoria/responses.h>
+#include <common/memoria/memoria.h>
 
 static uint32_t clock_pid_victima;
 static int clock_pagina_victima;
 static int clock_frame_victima;
 static bool clock_encontrada;
-
+extern t_dictionary* tablas_paginas;
 
 static void clock_buscar_victima(char* key, void* value)
 {

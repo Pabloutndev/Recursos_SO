@@ -82,7 +82,7 @@ static void* handler_dispatch(void* arg)
     log_info(logger, "Kernel conectado a CPU DISPATCH (fd=%d)", fd);
 
     while (1) {
-        t_paquete* paquete = paquete_recv(fd);
+        t_paquete* paquete = recibir_paquete(fd);
         
         if (paquete == NULL) {
             log_warning(logger, "Kernel Dispatch desconectado");
@@ -155,7 +155,7 @@ static void* handler_interrupt(void* arg)
     log_info(logger, "Kernel conectado a CPU INTERRUPT (fd=%d)", fd);
 
     while (1) {
-        t_paquete* paquete = paquete_recv(fd);
+        t_paquete* paquete = recibir_paquete(fd);
 
         if (paquete == NULL) {
             log_warning(logger, "Kernel Interrupt desconectado");

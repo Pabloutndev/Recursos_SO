@@ -49,7 +49,7 @@ static void* handler_io_connection(void* arg) {
     free(arg);
 
     // Esperamos Handshake OP_HANDSHAKE_IO
-    t_paquete* p = paquete_recv(fd);
+    t_paquete* p = recibir_paquete(fd);
     if (!p) {
         close(fd);
         return NULL;
@@ -79,7 +79,7 @@ static void* handler_io_connection(void* arg) {
     // Asumamos que si.
     
     while(1) {
-        t_paquete* msg = paquete_recv(fd);
+        t_paquete* msg = recibir_paquete(fd);
         if(!msg) {
              // Desconexion
              break;

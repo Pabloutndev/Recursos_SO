@@ -53,7 +53,7 @@ void conectar_modulos() {
 
 void io_loop() {
     while (1) {
-        t_paquete* paquete = paquete_recv(socket_kernel);
+        t_paquete* paquete = recibir_paquete(socket_kernel);
         if (paquete == NULL) {
             log_error(logger, "Kernel desconectado");
             break;

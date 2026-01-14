@@ -51,7 +51,7 @@ bool enviar_paquete(int fd, t_paquete* p)
     return true;
 }
 
-t_paquete* paquete_recv(int fd)
+t_paquete* recibir_paquete(int fd)
 {
     op_code code;
     uint32_t size;

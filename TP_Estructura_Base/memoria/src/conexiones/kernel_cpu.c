@@ -1,7 +1,9 @@
 #include <conexion/conexion.h>
 #include <commons/log.h>
 
-#include <protocolo/protocolo_cpu_memoria.h>
+#include <protocolo/memoria.h>
+#include <protocolo/cpu.h>
+#include <protocolo/op_code.h>
 
 #include <pthread.h>
 #include <stdlib.h>
@@ -31,10 +33,10 @@ void iniciar_conexiones_memoria(char* puerto_kernel, char* puerto_cpu)
     int server_cpu = iniciar_servidor(puerto_cpu);
 
     socket_kernel = esperar_cliente(server_kernel);
-    handshake_servidor(socket_kernel, HANDSHAKE_MEMORIA, OK, logger);
+    handshake_servidor(socket_kernel, OP_HANDSHAKE_MEMORIA, OP_OK, logger);
 
     socket_cpu = esperar_cliente(server_cpu);
-    handshake_servidor(socket_cpu, HANDSHAKE_MEMORIA, OK, logger);
+    handshake_servidor(socket_cpu, OP_HANDSHAKE_MEMORIA, OP_OK, logger);
 
     pthread_create(&hilo_kernel, NULL, escuchar_kernel, NULL);
     pthread_create(&hilo_cpu, NULL, escuchar_cpu, NULL);
@@ -51,20 +53,21 @@ static void* escuchar_kernel(void* _)
 
         switch (op) {
 
-        case INIT_PROCESO: {
-            /*t_mem_init_proceso* req =
+        case OP_INIT_PROCESO: {
+            t_mem_init_proceso* req =
                 protocolo_memoria_recibir_init(socket_kernel);
-                manejar_init_proceso(req);
-            free(req);*/
+                /// TODO:
+                //manejar_init_proceso(req);
+            free(req);
             break;
         }
 
-        case FIN_PROCESO: {
-            /*t_mem_fin_proceso* req =
+        case OP_FIN_PROCESO: {
+            t_mem_fin_proceso* req =
                 protocolo_memoria_recibir_fin(socket_kernel);
-
-            manejar_fin_proceso(req);
-            free(req);*/
+            /// TODO:
+            //enviar_fin_proceso(socket ,req);
+            free(req);
             break;
         }
 
@@ -86,18 +89,18 @@ static void* escuchar_cpu(void* _)
 
         switch (op) {
 
-        case FETCH_INSTRUCCION:
+        case OP_FETCH_INSTRUCCION:
             t_mem_fetch* f;
             enviar_fetch_instruccion(socket_cpu, f);
             break;
 
-        case LEER_MEMORIA:
+        case OP_LEER_MEMORIA:
             t_mem_respuesta_lectura* t;
             enviar_respuesta_lectura(socket_cpu, t);
             break;
 
-        case ESCRIBIR_MEMORIA:
-            t_mem_rw* req;
+        case OP_ESCRIBIR_MEMORIA:
+            t_mem_write* req;
             enviar_escritura_memoria(socket_cpu, req);
             break;
 

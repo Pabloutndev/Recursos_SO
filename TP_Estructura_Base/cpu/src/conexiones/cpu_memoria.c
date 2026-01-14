@@ -42,7 +42,7 @@ char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc)
     enviar_fetch_instruccion(fd_memoria, &req);
 
     // 2. Recibir Respuesta
-    t_paquete* resp = paquete_recv(fd_memoria);
+    t_paquete* resp = recibir_paquete(fd_memoria);
     if (!resp) {
         log_error(loggerError, "Fallo al recibir respuesta de Memoria (FETCH)");
         return NULL;
@@ -78,7 +78,7 @@ bool memoria_obtener_marco(uint32_t pid, uint32_t pagina, bool escritura, uint32
     enviar_traduccion_pagina(fd_memoria, &req);
 
     // 2. Recibir Respuesta
-    t_paquete* resp = paquete_recv(fd_memoria);
+    t_paquete* resp = recibir_paquete(fd_memoria);
     if (!resp) {
         log_error(loggerError, "Fallo recibir respuesta traduccion");
         return false;

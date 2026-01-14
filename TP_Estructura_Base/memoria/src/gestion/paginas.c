@@ -1,12 +1,11 @@
 #include <mod_memoria.h>
 #include <gestion/paginas.h>
-#include <common/memoria/requests.h>
-#include <common/memoria/responses.h>
+#include <common/memoria/memoria.h>
 #include <commons/collections/dictionary.h>
 #include <string.h>
 
 /* Reimplementacion de paginas.c usando la nueva estructura de frames */
-static t_dictionary* tablas_paginas = NULL;
+t_dictionary* tablas_paginas = NULL;
 
 static void check_init_diccionario() {
     if(!tablas_paginas) tablas_paginas = dictionary_create();
@@ -74,7 +73,7 @@ void paginacion_destruir_proceso(uint32_t pid) {
 
 void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
 {
-    t_pagina* pag = paginacion_obtener_entrada(req->pid, req->pagina);
+    t_pagina* pag = paginacion_obtener_entrada(req->pid, req->direccion_logica);
 
     t_mem_respuesta_traduccion resp = {
         .ok = (pag != NULL),

@@ -73,7 +73,7 @@ bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t
     int response;
     recv(socket, &response, sizeof(int), MSG_WAITALL);
 
-    if (response == handshake_expected || response == OK) {
+    if (response == handshake_expected || response == OP_OK) {
         // Logica flexible: a veces validamos que nos devuelvan OK o el mismo handshake
         if(logger) log_info(logger, "Handshake exitoso");
         return true;
