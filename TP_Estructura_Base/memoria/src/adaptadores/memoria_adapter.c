@@ -11,8 +11,7 @@
 #include <gestion/paginas.h>
 #include <common/memoria/memoria.h>
 
-#include <protocolo/memoria.h>
-#include <protocolo/cpu.h>
+#include <protocolo/mensajes.h>
 
 extern t_log* logger;
 extern t_memoria_config* memoria_config;

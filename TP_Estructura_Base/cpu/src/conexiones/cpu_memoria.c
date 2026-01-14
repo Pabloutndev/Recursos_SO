@@ -1,8 +1,8 @@
 #include <conexiones/cpu_memoria.h>
 #include <conexion/conexion.h>
 #include <conexion/conexion.h>
-#include <serializacion/memoria.h>
-#include <protocolo/memoria.h>
+#include <serializacion/serializacion.h>
+#include <protocolo/mensajes.h>
 #include <paquete/paquete.h>
 #include <loggers/logger.h>
 #include <sys/socket.h>

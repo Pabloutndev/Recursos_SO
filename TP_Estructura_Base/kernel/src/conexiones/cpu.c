@@ -2,8 +2,8 @@
 #include <mod_kernel.h>
 #include <conexion/conexion.h>
 #include <paquete/paquete.h>
-#include <serializacion/cpu.h>
-#include <protocolo/kernel.h>
+#include <serializacion/serializacion.h>
+#include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <pthread.h>
 

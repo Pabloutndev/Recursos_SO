@@ -1,8 +1,7 @@
 #include <conexion/conexion.h>
 #include <commons/log.h>
 
-#include <protocolo/memoria.h>
-#include <protocolo/cpu.h>
+#include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 
 #include <pthread.h>

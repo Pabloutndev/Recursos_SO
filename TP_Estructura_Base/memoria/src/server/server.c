@@ -4,9 +4,7 @@
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
 #include <common/memoria/memoria.h>
-#include <protocolo/memoria.h>
-#include <protocolo/cpu.h>
-#include <protocolo/kernel.h>
+#include <protocolo/mensajes.h>
 #include <server/server.h>
 
 static int server_socket = -1;

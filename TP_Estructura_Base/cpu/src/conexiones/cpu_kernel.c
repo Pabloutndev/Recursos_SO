@@ -8,10 +8,10 @@
 #include <cpu.h>   // logger, config
 #include <ciclo_instruccion/ciclo.h>
 #include <paquete/paquete.h>
-#include <protocolo/protocolo_kernel_cpu.h>
+#include <protocolo/mensajes.h>
 #include <interrupciones/interrupciones.h>
 #include <protocolo/op_code.h>
-#include <serializacion/cpu.h>
+#include <serializacion/serializacion.h>
 #include <instrucciones/instrucciones.h> // For INST_ constants
 
 /* ================= Handlers ================= */
