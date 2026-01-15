@@ -2,6 +2,7 @@
 #include <mod_memoria.h>
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
+#include <string.h>
 
 /* Estructura de Segmento (Base / Limite) */
 typedef struct {
