@@ -14,7 +14,6 @@
 
 #include <commons/log.h>
 #include <commons/collections/list.h>
-#include <common/cpu/tlb.h>
 #include <common/cpu/contexto.h>
 
 #include <protocolo/op_code.h>

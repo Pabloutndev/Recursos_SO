@@ -2,7 +2,6 @@
 #define SERIALIZACION_H_
 
 #include <common/memoria/memoria.h>
-#include <common/cpu/tlb.h>
 #include <common/cpu/contexto.h>
 #include <common/kernel/kernel.h>
 #include <common/io/io_ops.h>
@@ -15,7 +14,7 @@
 
 /// ##### REQUESTS - SERIALIZACION y RESPONSES - DESERIALIZACION #####
 
-t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx);
+t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx, op_code code);
 t_contexto_cpu* deserializar_contexto_cpu(t_paquete* p);
 
 t_paquete* serializar_process(t_process* proc);
@@ -52,8 +51,8 @@ t_mem_init_proceso* deserializar_mem_init_proceso(t_paquete* p);
 t_paquete* serializar_mem_fin_proceso(t_mem_fin_proceso* req, op_code code);
 t_mem_fin_proceso* deserializar_mem_fin_proceso(t_paquete* p);
 
-t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req, op_code code);
-t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p);
+t_paquete* serializar_mem_traducir_pagina(t_mem_traducir* req, op_code code);
+t_mem_traducir* deserializar_mem_traducir_pagina(t_paquete* p);
 
 t_paquete* serializar_mem_read(t_mem_read* req, op_code code);
 t_mem_read* deserializar_mem_read(t_paquete* p);

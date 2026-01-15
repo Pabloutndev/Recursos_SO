@@ -6,6 +6,7 @@
 #include <common/memoria/memoria.h>
 #include <protocolo/mensajes.h>
 #include <server/server.h>
+#include <protocolo/op_code.h>
 
 static int server_socket = -1;
 
@@ -47,6 +48,12 @@ void* memoria_client_handler(void* arg) {
             // =============================================================
             // HANDSHAKES
             // =============================================================
+             case OP_HANDSHAKE:
+                log_info(logger, "Handshake CPU recibido");
+                int tam_pag = get_tamanio_pagina();
+                send(fd, &tam_pag, sizeof(int), 0);
+                break;
+            /*
             case OP_HANDSHAKE_CPU:
                 log_info(logger, "Handshake CPU recibido");
                 int tam_pag = get_tamanio_pagina();
@@ -66,11 +73,12 @@ void* memoria_client_handler(void* arg) {
                 send_ok(fd);
                 break;
             }
+            */
 
             // =============================================================
             // GESTION PROCESOS
             // =============================================================
-            case OP_INIT_PROCESO: {
+            case OP_MEM_INIT_PROCESO: {
                 // Usamos el wrapper del protocolo
                 t_mem_init_proceso* req = recibir_init_proceso(paquete);
 
@@ -90,7 +98,7 @@ void* memoria_client_handler(void* arg) {
                 break;
             }
 
-            case OP_FIN_PROCESO: {
+            case OP_MEM_FIN_PROCESO: {
                 t_mem_fin_proceso* req = recibir_fin_proceso(paquete);
                 if(req) {
                     log_info(logger, "Solicitud Fin Proceso: %d", req->pid);
@@ -105,8 +113,8 @@ void* memoria_client_handler(void* arg) {
             // =============================================================
             // ACCESOS
             // =============================================================
-            case OP_ACCESO_TABLA: {
-                t_mem_traducir_pagina* req = recibir_mem_traducir_pagina(paquete);
+            case OP_MEM_TRADUCIR_PAGINA: {
+                t_mem_traducir* req = recibir_mem_traducir_pagina(paquete);
                 if(req) {
                    log_info(logger, "Traduccion solicitada PID: %d Pagina: %d", req->pid, req->direccion_logica);
                    
@@ -119,7 +127,7 @@ void* memoria_client_handler(void* arg) {
 
                    t_mem_respuesta_traduccion res;
                    res.ok = (frame != -1);
-                   res.frame = (frame != -1) ? frame : 0;
+                   res.direccion_fisica = (frame != -1) ? frame : 0;
                    
                    enviar_respuesta_traduccion(fd, &res);
                    
@@ -128,7 +136,7 @@ void* memoria_client_handler(void* arg) {
                 break;
             }
             
-            case OP_FETCH_INSTRUCCION: {
+            case OP_MEM_FETCH_INSTRUCCION: {
                  t_mem_fetch* req = recibir_fetch(paquete);
                  if(req) {
                      log_info(logger, "Fetch Instruccion PID: %d IP: %d", req->pid, req->pc);
@@ -151,15 +159,15 @@ void* memoria_client_handler(void* arg) {
                  break;
             }
             
-            case OP_LEER_MEMORIA: {
+            case OP_MEM_LEER: {
                 t_mem_read* req = recibir_lectura_memoria(paquete);
                 if(req) {
-                   log_info(logger, "Lectura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_fisica, req->tamanio);
+                   log_info(logger, "Lectura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_logica, req->size);
                    
-                   void* buffer = malloc(req->tamanio);
-                   bool ok = leer_memoria_fisica(req->direccion_fisica, buffer, req->tamanio);
+                   void* buffer = malloc(req->size);
+                   bool ok = leer_memoria_fisica(req->direccion_logica, buffer, req->size);
                    
-                   t_mem_respuesta_lectura res = { .ok = ok, .data = buffer, .size = req->tamanio };
+                   t_mem_respuesta_lectura res = { .ok = ok, .data = buffer, .size = req->size };
                    enviar_respuesta_lectura(fd, &res);
                    
                    free(buffer);
@@ -168,16 +176,18 @@ void* memoria_client_handler(void* arg) {
                 break;
             }
 
-            case OP_ESCRIBIR_MEMORIA: {
+            case OP_MEM_ESCRIBIR: {
                  t_mem_write* req = recibir_escritura_memoria(paquete);
                  if(req) {
-                     log_info(logger, "Escritura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_fisica, req->tamanio);
-                     
-                     bool ok = escribir_memoria_fisica(req->direccion_fisica, req->buffer, req->tamanio);
-                     enviar_respuesta_kernel(fd, ok);
-                     
-                     if (req->buffer) free(req->buffer);
-                     free(req);
+
+                    bool ok = escribir_memoria_fisica(req->direccion_logica, req->buffer, req->size);
+                    
+                    ok ? enviar_respuesta_ok(fd) : enviar_respuesta_fail(fd);
+                    
+                    log_info(logger, "Escritura PID: %d DirFisica: %d Tam: %d", req->pid, req->direccion_logica, req->size);
+                    
+                    if (req->buffer) free(req->buffer);
+                    free(req);
                  }
                  break;
             }

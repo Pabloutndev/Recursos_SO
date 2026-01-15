@@ -71,13 +71,13 @@ void paginacion_destruir_proceso(uint32_t pid) {
     free(key);
 }
 
-void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
+void manejar_traduccion_pagina(t_mem_traducir* req, int socket_cpu)
 {
     t_pagina* pag = paginacion_obtener_entrada(req->pid, req->direccion_logica);
 
     t_mem_respuesta_traduccion resp = {
         .ok = (pag != NULL),
-        .frame = pag ? pag->frame : -1
+        .direccion_fisica = pag ? pag->frame : -1
     };
 
     enviar_respuesta_traduccion(socket_cpu, &resp);

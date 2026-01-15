@@ -40,11 +40,11 @@ void manejar_fin_proceso(t_mem_fin_proceso* req)
 }
 
 /* CPU → Memoria */
-void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
+void manejar_traduccion_pagina(t_mem_traducir* req, int socket_cpu)
 {
     t_mem_respuesta_traduccion resp = {
         .ok = false,
-        .frame = 0
+        .direccion_fisica = 0
     };
 
     t_pagina* pag =
@@ -79,7 +79,7 @@ void manejar_traduccion_pagina(t_mem_traducir_pagina* req, int socket_cpu)
     }
 
     resp.ok = true;
-    resp.frame = pag->frame;
+    resp.direccion_fisica = pag->frame;
 
     enviar_respuesta_traduccion(socket_cpu, &resp);
 }
@@ -90,11 +90,11 @@ void manejar_lectura_memoria(t_mem_read* req, int socket_cpu)
     t_mem_respuesta_lectura resp = {
         .ok = false,
         .data = NULL,
-        .size = req->tamanio
+        .size = req->size
     };
     
-    int pagina = req->direccion_fisica / memoria_config->tam_pagina;
-    int offset = req->direccion_fisica % memoria_config->tam_pagina;
+    int pagina = req->direccion_logica / memoria_config->tam_pagina;
+    int offset = req->direccion_logica % memoria_config->tam_pagina;
 
     t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
 
@@ -106,8 +106,8 @@ void manejar_lectura_memoria(t_mem_read* req, int socket_cpu)
     uint32_t dir_fisica = 
         pag->frame * memoria_config->tam_pagina + offset;
 
-    void* buffer = malloc(req->tamanio);
-    if (!memoria_leer(dir_fisica, req->tamanio, buffer)) {
+    void* buffer = malloc(req->size);
+    if (!memoria_leer(dir_fisica, req->size, buffer)) {
         free(buffer);
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
@@ -129,7 +129,7 @@ void manejar_escritura_memoria(t_mem_write* req, int socket_cpu)
     );*/
 
     // marcar página como modificada
-    int pagina = req->direccion_fisica / memoria_config->tam_pagina;
+    int pagina = req->direccion_logica / memoria_config->tam_pagina;
     t_pagina* pag =
         paginacion_obtener_entrada(req->pid, pagina);
 

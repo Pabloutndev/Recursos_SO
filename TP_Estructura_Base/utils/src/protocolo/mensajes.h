@@ -5,10 +5,14 @@
 #include <stdint.h>
 
 // ==============================
+// Paquete
+// ==============================
+#include <paquete/paquete.h>
+
+// ==============================
 // Structs compartidas
 // ==============================
 #include <common/cpu/contexto.h>
-#include <common/cpu/tlb.h>
 #include <common/memoria/memoria.h>
 #include <common/kernel/kernel.h>
 #include <common/io/io_ops.h>
@@ -32,13 +36,13 @@ t_contexto_cpu* recibir_contexto(t_paquete* p);
 // TLB (opcional / experimental)
 // ------------------------------
 //
-
+/*
 void enviar_tlb_entry(int socket_dest, t_tlb_entry* entry);
 t_tlb_entry* recibir_tlb_entry(t_paquete* p);
 
 void enviar_tlb(int socket_dest, t_tlb* tlb);
 t_tlb* recibir_tlb(t_paquete* p);
-
+*/
 //
 // ------------------------------
 // Interrupciones
@@ -81,8 +85,8 @@ t_mem_fin_proceso* recibir_fin_proceso(t_paquete* p);
 // ------------------------------
 //
 
-void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir_pagina* req, op_code code);
-t_mem_traducir_pagina* recibir_mem_traducir_pagina(t_paquete* p);
+void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir* req, op_code code);
+t_mem_traducir* recibir_mem_traducir_pagina(t_paquete* p);
 
 //
 // ------------------------------

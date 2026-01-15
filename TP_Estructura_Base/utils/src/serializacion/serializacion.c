@@ -1,5 +1,4 @@
 #include <common/memoria/memoria.h>
-#include <common/cpu/tlb.h>
 #include <common/cpu/contexto.h>
 #include <common/kernel/kernel.h>
 #include <common/io/io_ops.h>
@@ -45,7 +44,7 @@ t_paquete* serializar_process(t_process* proc) {
     t_paquete* p = paquete_create(OP_PROCESO_EXEC);
     paquete_write_int(p, proc->pid);
     paquete_write_int(p, proc->quantum);
-    serializar_registros(p, &proc->registros);
+    serializar_registros(&p, &(proc->registros));
     return p;
 }
 
@@ -133,15 +132,15 @@ t_mem_fin_proceso* deserializar_mem_fin_proceso(t_paquete* p) {
     return req;
 }
 
-t_paquete* serializar_mem_traducir_pagina(t_mem_traducir_pagina* req, op_code code) {
+t_paquete* serializar_mem_traducir_pagina(t_mem_traducir* req, op_code code) {
     t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
     paquete_write_uint32(p, req->direccion_logica);
     return p;
 }
 
-t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p) {
-    t_mem_traducir_pagina* req = malloc(sizeof(t_mem_traducir_pagina));
+t_mem_traducir* deserializar_mem_traducir_pagina(t_paquete* p) {
+    t_mem_traducir* req = malloc(sizeof(t_mem_traducir));
     paquete_read_uint32(p, &req->pid);
     paquete_read_uint32(p, &req->direccion_logica);
     return req;
@@ -150,32 +149,32 @@ t_mem_traducir_pagina* deserializar_mem_traducir_pagina(t_paquete* p) {
 t_paquete* serializar_mem_read(t_mem_read* req, op_code code) {
     t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
-    paquete_write_uint32(p, req->direccion_fisica);
-    paquete_write_uint32(p, req->tamanio);
+    paquete_write_uint32(p, req->direccion_logica);
+    paquete_write_uint32(p, req->size);
     return p;
 }
 
 t_mem_read* deserializar_mem_read(t_paquete* p) {
     t_mem_read* req = malloc(sizeof(t_mem_read));
     paquete_read_uint32(p, &req->pid);
-    paquete_read_uint32(p, &req->direccion_fisica);
-    paquete_read_uint32(p, &req->tamanio);
+    paquete_read_uint32(p, &req->direccion_logica);
+    paquete_read_uint32(p, &req->size);
     return req;
 }
 
 t_paquete* serializar_mem_write(t_mem_write* req, op_code code) {
     t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
-    paquete_write_uint32(p, req->direccion_fisica);
-    paquete_write_buffer(p, req->buffer, req->tamanio);
+    paquete_write_uint32(p, req->direccion_logica);
+    paquete_write_buffer(p, req->buffer, req->size);
     return p;
 }
 
 t_mem_write* deserializar_mem_write(t_paquete* p) {
     t_mem_write* req = malloc(sizeof(t_mem_write));
     paquete_read_uint32(p, &req->pid);
-    paquete_read_uint32(p, &req->direccion_fisica);
-    req->buffer = paquete_read_buffer(p, &req->tamanio);
+    paquete_read_uint32(p, &req->direccion_logica);
+    req->buffer = paquete_read_buffer(p, &req->size);
     return req;
 }
 
@@ -196,21 +195,21 @@ t_mem_fetch* deserializar_mem_fetch(t_paquete* p) {
 /// ##### RESPONSES - DESERIALIZACION #####
 
 t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res) {
-    t_paquete* p = paquete_create(OP_RESPUESTA_TRADUCCION);
+    t_paquete* p = paquete_create(OP_MEM_RESP_TRADUCCION);
     paquete_write_bool(p, res->ok);
-    paquete_write_uint32(p, res->frame);
+    paquete_write_uint32(p, res->direccion_fisica);
     return p;
 }
 
 t_mem_respuesta_traduccion* deserializar_mem_respuesta_traduccion(t_paquete* p) {
     t_mem_respuesta_traduccion* res = malloc(sizeof(t_mem_respuesta_traduccion));
     paquete_read_bool(p, &res->ok);
-    paquete_read_uint32(p, &res->frame);
+    paquete_read_uint32(p, &res->direccion_fisica);
     return res;
 }
 
 t_paquete* serializar_mem_respuesta_lectura(t_mem_respuesta_lectura* res) {
-    t_paquete* p = paquete_create(OP_RESPUESTA_LECTURA);
+    t_paquete* p = paquete_create(OP_MEM_RESP_LECTURA);
     paquete_write_bool(p, res->ok);
     paquete_write_buffer(p, res->data, res->size);
     return p;
@@ -224,7 +223,7 @@ t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p) {
 }
 
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion) {
-    t_paquete* p = paquete_create(OP_RESPUESTA_INSTRUCCION);
+    t_paquete* p = paquete_create(OP_MEM_FETCH_INSTRUCCION);
     paquete_write_string(p, instruccion);
     return p;
 }
@@ -240,7 +239,7 @@ t_paquete* serializar_io_sleep(const t_io_sleep* req)
 {
     if (!req) return NULL;
 
-    t_paquete* p = paquete_create(OP_IO_GENERIC_SLEEP);
+    t_paquete* p = paquete_create(OP_IO_SLEEP);
     if (!p) return NULL;
 
     if (!paquete_write_uint32(p, req->pid)) { paquete_destroy(p); return NULL; }

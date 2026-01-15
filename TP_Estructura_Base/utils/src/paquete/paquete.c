@@ -150,7 +150,7 @@ bool paquete_write_float(t_paquete* p, float v)
     return buffer_write(p->buffer, &v, sizeof(float));
 }
 
-bool paquete_read_float(t_paquete* p, int* v)
+bool paquete_read_float(t_paquete* p, float* v)
 {
     return buffer_read(p->buffer, v, sizeof(float));
 }
