@@ -107,7 +107,7 @@ void manejar_lectura_memoria(t_mem_read* req, int socket_cpu)
         pag->frame * memoria_config->tam_pagina + offset;
 
     void* buffer = malloc(req->size);
-    if (!memoria_leer(dir_fisica, req->size, buffer)) {
+    if (!leer_memoria_fisica(dir_fisica, buffer, req->size)) {
         free(buffer);
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
