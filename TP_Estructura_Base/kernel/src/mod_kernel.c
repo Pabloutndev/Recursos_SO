@@ -16,11 +16,6 @@ t_log* logger;
 t_log* loggerError;
 t_kernel_config KCONF;
 
-int socket_memoria = -1;
-int socket_cpu_dispatch = -1;
-int socket_cpu_interrupt = -1;
-int socket_fs = -1;
-
 void conexiones_init()
 {
     // Conectar a Memoria

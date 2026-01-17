@@ -8,6 +8,7 @@
 
 /* Variables Globales */
 extern t_log* logger;
+extern t_log* loggerError;
 extern t_memoria_config* memoria_config;
 
 /* Funciones de ciclo de vida */

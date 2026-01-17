@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 t_log* logger;
+t_log* loggerError;
 t_memoria_config* memoria_config;
 
 int memoria_init(const char* path_config) {

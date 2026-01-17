@@ -7,6 +7,7 @@
 t_log* logger;
 t_log* loggerError;
 t_cpu_config CPU_CONF;
+t_contexto_cpu cpu_estado;
 
 void cpu_init(const char* path_config)
 {

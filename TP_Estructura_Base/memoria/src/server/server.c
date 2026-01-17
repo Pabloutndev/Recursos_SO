@@ -140,11 +140,3 @@ void* memoria_client_handler(void* arg)
     close(fd);
     return NULL;
 }
-
-        paquete_destroy(paquete);
-    }
-
-    close(fd);
-
-    return NULL;
-}

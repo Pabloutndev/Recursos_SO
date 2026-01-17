@@ -19,6 +19,7 @@
 extern t_log* logger;
 extern t_log* loggerError;
 extern t_cpu_config CPU_CONF;
+extern t_contexto_cpu cpu_estado;
 
 void cpu_init(const char* path_config);
 void cpu_run(void);

@@ -39,11 +39,6 @@ char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc)
     return cpu_fetch_instruccion(pid, pc);
 }
 
-char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc)
-{
-    return cpu_fetch_instruccion(pid, pc);
-}
-
 bool memoria_obtener_marco(uint32_t pid, uint32_t pagina, bool escritura, uint32_t* marco)
 {
     // Nota: parámetro 'escritura' no se usa (la traducción es independiente del acceso)

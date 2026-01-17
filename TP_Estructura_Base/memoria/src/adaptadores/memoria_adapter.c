@@ -4,6 +4,7 @@
 #include <commons/log.h>
 #include <commons/string.h>
 
+#include <mod_memoria.h>
 #include <configs/memoria_config.h>
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>

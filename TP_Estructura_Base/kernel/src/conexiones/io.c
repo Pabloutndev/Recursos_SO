@@ -50,11 +50,12 @@ int obtener_socket_interfaz(const char* nombre_interfaz)
     if (!nombre_interfaz || !lista_interfaces) {
         return -1;
     }
-
-    t_interfaz_io* iface = list_find(lista_interfaces, 
+    // TODO: FIX
+    t_interfaz_io* iface = NULL;
+    /*t_interfaz_io* iface = list_find(lista_interfaces, 
                                      _find_interfaz_por_nombre, 
                                      (void*)nombre_interfaz);
-    
+    */
     if (iface) {
         log_info(logger, "Socket IO encontrado para: %s (FD=%d)", 
                 nombre_interfaz, iface->socket);

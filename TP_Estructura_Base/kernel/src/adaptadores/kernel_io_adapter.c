@@ -61,7 +61,7 @@ void kernel_sleep(t_pcb* pcb, uint32_t tiempo_ms,
 
 void kernel_fs_operation(t_pcb* pcb, 
                                      const char* tipo_operacion,
-                                     const char* nombre_archivo,
+                                     const char* path,
                                      uint32_t tamanio,
                                      char* interfaz_io)
 {
@@ -82,27 +82,27 @@ void kernel_fs_operation(t_pcb* pcb,
     if (strcmp(tipo_operacion, "CREATE") == 0) {
         t_io_fs_create* req = malloc(sizeof(t_io_fs_create));
         req->pid = pcb->pid;
-        req->nombre_archivo = strdup(nombre_archivo);
+        req->path = strdup(path);
         
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_CREATE (PID=%u, ARCHIVO=%s) a %s",
-                 pcb->pid, nombre_archivo, interfaz_io);
+                 pcb->pid, path, interfaz_io);
         
         enviar_io_fs_create(socket_io, req);
         
-        free(req->nombre_archivo);
+        free(req->path);
         free(req);
     }
     else if (strcmp(tipo_operacion, "DELETE") == 0) {
         // Struct y función similar a CREATE
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_DELETE (PID=%u, ARCHIVO=%s) a %s",
-                 pcb->pid, nombre_archivo, interfaz_io);
+                 pcb->pid, path, interfaz_io);
         
         // TODO: Implementar t_io_fs_delete y enviar_io_fs_delete en protocolo
         log_warning(logger, "IO_ADAPTER: FS_DELETE no completamente implementado");
     }
     else if (strcmp(tipo_operacion, "READ") == 0) {
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_READ (PID=%u, ARCHIVO=%s) a %s",
-                 pcb->pid, nombre_archivo, interfaz_io);
+                 pcb->pid, path, interfaz_io);
         
         // TODO: Implementar estructura y protocolo para READ
         log_warning(logger, "IO_ADAPTER: FS_READ no completamente implementado");
@@ -110,20 +110,20 @@ void kernel_fs_operation(t_pcb* pcb,
     else if (strcmp(tipo_operacion, "WRITE") == 0) {
         t_io_fs_write* req = malloc(sizeof(t_io_fs_write));
         req->pid = pcb->pid;
-        req->nombre_archivo = strdup(nombre_archivo);
-        req->tamanio = tamanio;
+        req->path = strdup(path);
+        req->size = tamanio;
         
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_WRITE (PID=%u, ARCHIVO=%s, TAM=%u) a %s",
-                 pcb->pid, nombre_archivo, tamanio, interfaz_io);
+                 pcb->pid, path, tamanio, interfaz_io);
         
         enviar_io_fs_write(socket_io, req);
         
-        free(req->nombre_archivo);
+        free(req->path);
         free(req);
     }
     else if (strcmp(tipo_operacion, "TRUNCATE") == 0) {
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_TRUNCATE (PID=%u, ARCHIVO=%s) a %s",
-                 pcb->pid, nombre_archivo, interfaz_io);
+                 pcb->pid, path, interfaz_io);
         
         // TODO: Implementar estructura y protocolo para TRUNCATE
         log_warning(logger, "IO_ADAPTER: FS_TRUNCATE no completamente implementado");

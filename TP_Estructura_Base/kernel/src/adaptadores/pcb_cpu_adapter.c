@@ -5,8 +5,10 @@
 #include <protocolo/op_code.h>
 #include <stdlib.h>
 #include <commons/log.h>
+#include <mod_kernel.h>
 
 extern int socket_cpu_dispatch;
+extern int socket_cpu_interrupt;
 extern t_log* logger;
 
 /* ========================================

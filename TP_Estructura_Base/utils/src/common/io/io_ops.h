@@ -10,14 +10,14 @@ typedef struct {
 
 typedef struct {
     uint32_t pid;
-    char path[256];
+    char* path;
     uint32_t offset;
     uint32_t size;
 } t_io_fs_write;
 
 typedef struct {
     uint32_t pid;
-    char path[256];
+    char* path;
 } t_io_fs_create;
 
 #endif
