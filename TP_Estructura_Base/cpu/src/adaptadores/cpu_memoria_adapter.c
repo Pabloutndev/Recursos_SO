@@ -229,11 +229,15 @@ bool cpu_escribir(uint32_t pid, uint32_t dir_fisica,
              pid, dir_fisica, size);
     enviar_escritura_memoria(fd_memoria, &req, OP_MEM_ESCRIBIR);
 
-    // Paso 3: Recibir respuesta (int: 1=OK, 0=FAIL)
-    int respuesta = 0;
-    int bytes_recibidos = recv(fd_memoria, &respuesta, sizeof(int), MSG_WAITALL);
+    // Paso 3: Recibir respuesta (paquete con OP_OK o OP_FAIL)
+    t_paquete* resp = recibir_paquete(fd_memoria);
 
-    bool exito = (bytes_recibidos > 0 && respuesta == 1);
+    if (!resp) {
+        log_error(loggerError, "ADAPTER: Error recibiendo respuesta escribir");
+        return false;
+    }
+
+    bool exito = recibir_respuesta(resp);
     
     if (exito) {
         log_info(logger, "ADAPTER: Escritura OK");
@@ -241,5 +245,6 @@ bool cpu_escribir(uint32_t pid, uint32_t dir_fisica,
         log_error(loggerError, "ADAPTER: Escritura fallida");
     }
 
+    paquete_destroy(resp);
     return exito;
 }

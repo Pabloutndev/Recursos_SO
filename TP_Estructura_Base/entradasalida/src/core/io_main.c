@@ -11,6 +11,8 @@ int socket_memoria;
 char* io_name;
 
 #include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
+#include <paquete/paquete.h>
 
 void conectar_modulos() {
     // Conectar Kernel
@@ -25,12 +27,13 @@ void conectar_modulos() {
     enviar_paquete(socket_kernel, p);
     paquete_destroy(p);
 
-    // Esperar OK de Kernel
-    int respuesta;
-    if(recv(socket_kernel, &respuesta, sizeof(int), MSG_WAITALL) <= 0 || respuesta != OP_OK) {
+    // Esperar OK de Kernel (paquete con OP_OK/OP_FAIL)
+    t_paquete* resp_kernel = recibir_paquete(socket_kernel);
+    if (!resp_kernel || !recibir_respuesta(resp_kernel)) {
          log_error(logger, "Handshake Kernel fallido");
          exit(EXIT_FAILURE);
     }
+    paquete_destroy(resp_kernel);
     
     // Conectar Memoria (si es necesario)
     if (config->tipo_interfaz != IO_TYPE_GENERICA) {
@@ -43,9 +46,9 @@ void conectar_modulos() {
              enviar_paquete(socket_memoria, pm);
              paquete_destroy(pm);
 
-             // Esperar OK de Memoria
-             int resp_mem;
-             recv(socket_memoria, &resp_mem, sizeof(int), MSG_WAITALL);
+             // Esperar OK de Memoria (paquete)
+             t_paquete* resp_mem = recibir_paquete(socket_memoria);
+             if (resp_mem) paquete_destroy(resp_mem);
              // No validamos estricto para no romper si Memoria aun no implementa handshake io full
         }
     }

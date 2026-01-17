@@ -29,10 +29,13 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, int size) {
 
     enviar_init_proceso(socket_memoria, &req, OP_MEM_INIT_PROCESO);
 
-    // Esperar respuesta (OK/FAIL)
-    int resp = OP_FAIL;
-    recv(socket_memoria, &resp, sizeof(int), MSG_WAITALL);
-    return resp == OP_OK;
+    // Esperar respuesta (paquete con OP_OK/OP_FAIL)
+    t_paquete* resp = recibir_paquete(socket_memoria);
+    if (!resp) return false;
+    
+    bool exito = recibir_respuesta(resp);
+    paquete_destroy(resp);
+    return exito;
 }
 
 void solicitar_fin_proceso_memoria(uint32_t pid) {

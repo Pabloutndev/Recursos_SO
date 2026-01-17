@@ -51,21 +51,21 @@ bool kernel_init_proceso(t_pcb* pcb)
              req->pid, req->tamanio);
     enviar_init_proceso(socket_memoria, req, OP_MEM_INIT_PROCESO);
 
-    // Paso 3: Esperar respuesta simple (int: 1=OK, 0=FAIL)
-    int respuesta = 0;
-    int bytes_recibidos = recv(socket_memoria, &respuesta, sizeof(int), MSG_WAITALL);
+    // Paso 3: Esperar respuesta (paquete con OP_OK o OP_FAIL)
+    t_paquete* resp = recibir_paquete(socket_memoria);
 
     free(req);
 
-    if (bytes_recibidos < 0) {
+    if (!resp) {
         log_error(loggerError, "ADAPTER: Error recibiendo respuesta de Memoria");
         return false;
     }
 
-    bool exito = (respuesta == 1);  // OP_OK = 1
+    bool exito = recibir_respuesta(resp);
     log_info(logger, "ADAPTER: Respuesta Memoria init_proceso: %s",
              exito ? "OK" : "FAIL");
 
+    paquete_destroy(resp);
     return exito;
 }
 

@@ -21,22 +21,6 @@ extern t_log* loggerError;
 extern t_memoria_config* memoria_config;
 
 /* ========================================
- * RESPUESTAS SIMPLES
- * ======================================== */
-
-static void enviar_respuesta_ok(int socket_destino)
-{
-    int respuesta = 1;  // 1 = OK
-    send(socket_destino, &respuesta, sizeof(int), 0);
-}
-
-static void enviar_respuesta_fail(int socket_destino)
-{
-    int respuesta = 0;  // 0 = FAIL
-    send(socket_destino, &respuesta, sizeof(int), 0);
-}
-
-/* ========================================
  * REQUEST HANDLERS (ADAPTADORES)
  * ======================================== */
 
