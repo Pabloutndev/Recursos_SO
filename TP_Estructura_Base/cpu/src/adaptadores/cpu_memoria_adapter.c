@@ -1,5 +1,5 @@
 #include "cpu_memoria_adapter.h"
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <conexion/conexion.h>

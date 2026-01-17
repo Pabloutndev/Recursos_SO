@@ -8,6 +8,7 @@ t_log* logger;
 t_log* loggerError;
 t_cpu_config CPU_CONF;
 t_contexto_cpu cpu_estado;
+static t_cpu_motivo motivo_actual;
 
 void cpu_init(const char* path_config)
 {
@@ -31,18 +32,13 @@ void cpu_run(void) {
     while (true) {
         t_contexto_cpu ctx;
 
-        ctx.pid = 4;
-        ctx.quantum = 2000;
-
-        /* TODO: 
-        if (!kernel_recibir_contexto(&ctx)) {
-            log_info(logger, "Esperando contexto...");
-            continue;
-        }*/
+        recibir_contexto_kernel(&ctx);
 
         ciclo_instruccion_ejecutar(&ctx);
 
-        //kernel_enviar_contexto(&ctx);
+        t_cpu_motivo motivo = cpu_get_motivo();
+
+        enviar_contexto_kernel(&ctx, motivo);
     }
 }
 

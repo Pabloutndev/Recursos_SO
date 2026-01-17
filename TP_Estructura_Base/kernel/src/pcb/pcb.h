@@ -17,7 +17,8 @@ typedef enum {
 
 typedef struct {
     uint32_t pid;
-    t_list* instrucciones;
+    char* path;
+    // t_list* instrucciones;
     uint32_t program_counter;
     t_estado estado;
     int quantum;

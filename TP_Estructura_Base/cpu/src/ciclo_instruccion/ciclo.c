@@ -4,71 +4,48 @@
 #include <instrucciones/operaciones.h>
 #include <mmu/mmu.h>
 #include <cpu.h>
+#include <cpu/contexto.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <interrupciones/interrupciones.h>
 
+extern t_log* loggerError;
+
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
-    /*
-     * Ciclo de Instrucción: Fetch → Decode → Execute
-     * 
-     * Puntos de salida:
-     * 1. ctx->finalizado = 1      [Instrucción EXIT o EOF]
-     * 2. ctx->bloqueado = 1       [Instrucción IO, WAIT, etc.]
-     * 3. interrupcion_pendiente() [Señal de quantum/desalojo]
-     * 4. fetch_instruccion() NULL [Fin de archivo]
-     * 
-     * Responsabilidades:
-     * - Validar que contexto es válido
-     * - Detectar interrupciones tempranamente
-     * - Manejar errores de fetch gracefully
-     * - Mantener estado consistente al salir
-     */
 
     if (!ctx) {
-        log_error(logger, "Contexto NULL en ciclo");
+        log_error(loggerError, "Contexto NULL en ciclo de instruccion cpu");
         return;
     }
 
-    mmu_set_contexto(ctx);
-
-    if (!(ctx->finalizado || ctx->bloqueado)) {
-        log_info(logger, "CPU ejecutando PID %d", ctx->pid);
-    }
+    log_info(logger, "CPU ejecutando PID %d", ctx->pid);
     
-    while (!(ctx->finalizado || ctx->bloqueado)) {
+    // MMU: Una vez por cambio de estado
+    mmu_set_contexto(ctx);
+       
+    while (true) {
 
-        // ✅ PUNTO CRÍTICO: Detección temprana de interrupción
         if (interrupcion_pendiente()) {
             log_info(logger, "CPU PID %d: Interrupción detectada", ctx->pid);
-            break;  // Salir del ciclo para atender interrupcion
+            cpu_set_motivo(CPU_FIN_QUANTUM);
+            break;
         }
 
         char* linea = fetch_instruccion(ctx);
         if (!linea) {
             log_info(logger, "CPU PID %d: Fin de archivo/instrucciones", ctx->pid);
-            ctx->finalizado = 1;
-            break;  // Error fetch o fin de programa
+            cpu_set_motivo(CPU_EXIT);
+            break;
         }
 
-        instruccion_t inst = decode_instruccion(linea);
-        
-        execute_instruccion(&inst, ctx);
+        instruccion_t inst = decode_instruccion(linea);        
         free(linea); 
 
-        // Retardo opcional para debugging/visualización
-        // if (CPU_CONF.retardo_instruccion > 0) {
-        //     usleep(CPU_CONF.retardo_instruccion);
-        // }
-
-        // ✅ Quantum check (gestionado por Kernel principalmente)
-        // Este contador es respaldo en caso de que el timer del Kernel no funcione
-        if (ctx->quantum > 0) {
-             ctx->quantum--;
-             if (ctx->quantum == 0) {
-                 interrupcion_disparar(0); 
-                 break;
-             }
+        t_cpu_motivo motivo = execute_instruccion(&inst, ctx);
+        
+        if (motivo != CPU_CONTINUAR) {
+            cpu_set_motivo(motivo);
+            break;
         }
     }
 }

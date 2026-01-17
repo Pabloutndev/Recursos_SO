@@ -5,6 +5,7 @@
 #include <protocolo/op_code.h>
 #include <stdbool.h>
 #include <string.h>
+#include <cpu.h>
 
 static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx);
@@ -13,16 +14,14 @@ static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_exit(t_contexto_cpu* ctx);
 
-void execute_instruccion(instruccion_t* inst, void* contexto)
+t_cpu_motivo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
 {
-    t_contexto_cpu* ctx = (t_contexto_cpu*) contexto;
-
     switch (inst->opcode) {
-        case INST_SET: ejecutar_set(inst, ctx); break;
-        case INST_SUM: ejecutar_sum(inst, ctx); break;
-        case INST_SUB: ejecutar_sub(inst, ctx); break;
-        case INST_JNZ: ejecutar_jnz(inst, ctx); break;
-        case INST_EXIT: ejecutar_exit(ctx); break;
+        case INST_SET: ejecutar_set(inst, ctx); return CPU_CONTINUAR; break;
+        case INST_SUM: ejecutar_sum(inst, ctx); return CPU_CONTINUAR; break;
+        case INST_SUB: ejecutar_sub(inst, ctx); return CPU_CONTINUAR; break;
+        case INST_JNZ: ejecutar_jnz(inst, ctx); return CPU_CONTINUAR; break;
+        case INST_EXIT: ejecutar_exit(ctx); return CPU_EXIT; break;
         
         // Desalojos
         case INST_WAIT:
@@ -35,82 +34,27 @@ void execute_instruccion(instruccion_t* inst, void* contexto)
         case INST_IO_FS_TRUNCATE:
         case INST_IO_FS_WRITE:
         case INST_IO_FS_READ:
-            // Generic handler for eviction
-            // IMPORTANTE: Incrementar PC antes de desalojar para que al volver
-            // ejecute la SIGUIENTE instrucción.
-            ctx->registros.PC++;
-            
-            ctx->motivo_desalojo = (uint8_t) inst->opcode;
-            strcpy(ctx->parametros, inst->parametros);
-            ctx->bloqueado = 1; // Stop cycle
-            break;
+            return ejecutar_io(inst, ctx);
 
         case INST_MOV_IN:
-            // MOV_IN (Registro, Dirección Lógica)
-            // Lee de memoria (Dir Logica) y guarda en Registro
-            {
-                uint32_t dir_logica = inst->inmediato; // Asumiendo inmediato es la dir logica (o leer de registro segun arquitectura)
-                // Usualmente MOV_IN R1, [DIR] -> R1 recibe valor de memoria. 
-                // Revisar struct instruccion_t. Asumimos R1=Dest, Inmediato=Indir/Dir? 
-                // En C-Code base comun: MOV_IN R1, R2 (donde R2 tiene la dir logica)
-                uint32_t dir_logica_val = registros_leer(&ctx->registros, inst->r2); 
-                
-                uint32_t dir_fisica = mmu_traducir(dir_logica_val, false);
-                if (dir_fisica > 0) { // 0 as error?
-                    uint32_t valor_leido = 0;
-                    if (memoria_leer(ctx->pid, dir_fisica, &valor_leido, sizeof(uint32_t))) {
-                        registros_escribir(&ctx->registros, inst->r1, valor_leido);
-                         ctx->registros.PC++;
-                    } else {
-                        // Error lectura
-                        ctx->motivo_desalojo = INST_EXIT; // O Error memoria
-                        strcpy(ctx->parametros, "SEG_FAULT_READ"); 
-                        ctx->bloqueado = 1;
-                    }
-                } else {
-                    // Page Fault (ya manejado en mmu_traducir? MMU devuelve 0 on error, y manda log error)
-                    // Si MMU falló (PF o error), deberia desalojar?
-                    // mmu_traducir deberia setear flag de desalojo? 
-                    // Revisar mmu.c. MMU devuelve 0.
-                    ctx->motivo_desalojo = OP_SEGFAULT; // Usamos OpCode como motivo?
-                    ctx->bloqueado = 1;
-                }
-            }
-            break;
+            return ejecutar_mov_in(inst, ctx);
+            
         case INST_MOV_OUT:
-            // MOV_OUT (Dirección Lógica, Registro)
-            // Escribe valor de Registro en Memoria (Dir Logica)
-            {
-                uint32_t dir_logica_val = registros_leer(&ctx->registros, inst->r1);
-                uint32_t valor_escribir = registros_leer(&ctx->registros, inst->r2);
+            return ejecutar_mov_out(inst, ctx);
 
-                uint32_t dir_fisica = mmu_traducir(dir_logica_val, true);
-
-                if (dir_fisica > 0) {
-                    if (memoria_escribir(ctx->pid, dir_fisica, &valor_escribir, sizeof(uint32_t))) {
-                         ctx->registros.PC++;
-                    } else {
-                        ctx->motivo_desalojo = INST_EXIT; 
-                        strcpy(ctx->parametros, "SEG_FAULT_WRITE");
-                        ctx->bloqueado = 1;
-                    }
-                } else {
-                    ctx->motivo_desalojo = OP_SEGFAULT;
-                    ctx->bloqueado = 1;
-                }
-            }
-            break;
         case INST_RESIZE:
              // TODO: memoria resize request (enviar a Memoria resize, esperar respuesta)
              // Ajustar tamaño proceso.
-            break;
+            return CPU_IO;
+
         case INST_COPY_STRING:
             // Complejo: Leer string de memoria (SI) y escribir en memoria (DI).
             // Requiere loop de lectura escritura byte a byte o bloque.
             // Por simplicidad del snippet, dejamos TODO o implementamos basico.
-            break;
+            return CPU_IO;
+            
         default:
-            break;
+            return CPU_CONTINUAR;
     }
 }
 
@@ -146,8 +90,56 @@ static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx)
     }
 }
 
-static void ejecutar_exit(t_contexto_cpu* ctx)
+static t_cpu_motivo ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx)
 {
-    ctx->finalizado = true;
-    ctx->motivo_desalojo = INST_EXIT; // Redundante pero util
+    ctx->registros.PC++;
+    strcpy(ctx->parametros, i->parametros);
+    return CPU_IO;
+}
+
+static t_cpu_motivo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
+{
+    // MOV_IN (Registro, Dirección Lógica)
+    // Lee de memoria (Dir Logica) y guarda en Registro
+    uint32_t dir_logica = registros_leer(&ctx->registros, i->r2);
+    uint32_t dir_fisica = mmu_traducir(dir_logica, false);
+    
+    if (!dir_fisica) {
+        return CPU_SEGFAULT;
+    }
+
+    uint32_t valor_leido = 0;
+    if (!memoria_leer(ctx->pid, dir_fisica, &valor_leido, sizeof(uint32_t))) {
+        // Page Fault (ya manejado en mmu_traducir? MMU devuelve 0 on error, y manda log error)
+        // Si MMU falló (PF o error), deberia desalojar?
+        // mmu_traducir deberia setear flag de desalojo? 
+        // Revisar mmu.c. MMU devuelve 0.
+        return CPU_SEGFAULT;
+    }
+    
+    registros_escribir(&ctx->registros, inst->r1, valor_leido);
+    ctx->registros.PC++;
+    
+    return CPU_CONTINUAR;
+}
+
+static t_cpu_motivo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx)
+{
+    // MOV_OUT (Dirección Lógica, Registro)
+    // Escribe valor de Registro en Memoria (Dir Logica)
+    uint32_t dir_logica_val = registros_leer(&ctx->registros, i->r1);
+    uint32_t valor_escribir = registros_leer(&ctx->registros, i->r2);
+
+    uint32_t dir_fisica = mmu_traducir(dir_logica_val, true);
+
+    if (!dir_fisica) {
+        return CPU_SEGFAULT;
+    }
+
+    if (!memoria_escribir(ctx->pid, dir_fisica, &valor_escribir, sizeof(uint32_t))) {
+        return CPU_SEGFAULT;
+    }
+    
+    ctx->registros.PC++;
+    return CPU_CONTINUAR;
 }

@@ -9,7 +9,7 @@
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
 #include <gestion/paginas.h>
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 
@@ -33,19 +33,32 @@ void memoria_adapter_init_proceso(t_mem_init_proceso* req, int socket_kernel)
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_INIT_PROCESO - PID=%u, TAM=%u",
-             req->pid, req->tamanio);
+    log_info(logger,
+             "ADAPTER: OP_MEM_INIT_PROCESO - PID=%u TAM=%u PATH=%s",
+             req->pid, req->tamanio, req->path);
 
-    // Lógica interna
-    bool ok = paginacion_crear_proceso(req->pid, req->tamanio);
-
-    if (ok) {
-        log_info(logger, "ADAPTER: Proceso %u iniciado en Memoria", req->pid);
-        enviar_respuesta_ok(socket_kernel);
-    } else {
-        log_warning(logger, "ADAPTER: Fallo creando proceso %u (¿ya existe?)", req->pid);
+    /* 1. Crear estructuras de paginación */
+    if (!paginacion_crear_proceso(req->pid, req->tamanio)) {
+        log_error(loggerError,
+                  "ADAPTER: Fallo creando paginación PID=%u", req->pid);
         enviar_respuesta_fail(socket_kernel);
+        return;
     }
+
+    /* 2. Cargar instrucciones en memoria lógica */
+    if (!memoria_crear_proceso(req->pid, req->path)) {
+        log_error(loggerError,
+                  "ADAPTER: Fallo cargando instrucciones PID=%u", req->pid);
+
+        paginacion_destruir_proceso(req->pid);
+        enviar_respuesta_fail(socket_kernel);
+        return;
+    }
+
+    log_info(logger,
+             "ADAPTER: Proceso %u inicializado correctamente", req->pid);
+
+    enviar_respuesta_ok(socket_kernel);
 }
 
 void memoria_adapter_fin_proceso(t_mem_fin_proceso* req, int socket_kernel)
@@ -55,157 +68,158 @@ void memoria_adapter_fin_proceso(t_mem_fin_proceso* req, int socket_kernel)
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_FIN_PROCESO - PID=%u", req->pid);
+    log_info(logger,
+             "ADAPTER: OP_MEM_FIN_PROCESO - PID=%u",
+             req->pid);
 
-    // Lógica interna (one-way, no responde)
+    /* Liberar estructuras de memoria */
     paginacion_destruir_proceso(req->pid);
-    
-    log_info(logger, "ADAPTER: Proceso %u finalizado en Memoria", req->pid);
+    memoria_destruir_proceso(req->pid);
+
+    log_info(logger,
+             "ADAPTER: Proceso %u eliminado de Memoria",
+             req->pid);
 }
 
 void memoria_adapter_traducir_pagina(t_mem_traducir* req, int socket_cpu)
 {
+    t_mem_respuesta_traduccion resp = {
+        .ok = false,
+        .direccion_fisica = 0
+    };
+
     if (!req) {
         log_error(loggerError, "ADAPTER: Traducir request NULL");
-        // Enviar respuesta de error
-        t_mem_respuesta_traduccion resp = { .ok = false, .direccion_fisica = 0 };
         enviar_respuesta_traduccion(socket_cpu, &resp);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_TRADUCIR_PAGINA - PID=%u, PAGINA=%u",
-             req->pid, req->direccion_logica);
+    uint32_t pagina  = req->direccion_logica / memoria_config->tam_pagina;
 
-    t_mem_respuesta_traduccion resp = { .ok = false, .direccion_fisica = 0 };
+    log_info(logger,
+             "ADAPTER: OP_MEM_TRADUCIR_PAGINA PID=%u PAG=%u",
+             req->pid, pagina);
 
-    // Obtener entrada en tabla de páginas
-    t_pagina* pag = paginacion_obtener_entrada(req->pid, req->direccion_logica);
+    t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
 
     if (!pag) {
-        log_error(loggerError, "ADAPTER: Página inválida PID=%u PAG=%u",
-                 req->pid, req->direccion_logica);
+        log_error(loggerError,
+                  "ADAPTER: Página inválida PID=%u PAG=%u",
+                  req->pid, pagina);
         enviar_respuesta_traduccion(socket_cpu, &resp);
         return;
     }
 
-    // Si no está presente (page fault), asignar frame
+    /* Resolver page fault si es necesario */
     if (!pag->presente) {
         int frame = obtener_frame_libre();
-        
+
         if (frame < 0) {
-            log_error(loggerError, "ADAPTER: Sin frames libres (PID=%u)",
-                     req->pid);
+            log_error(loggerError,
+                      "ADAPTER: Sin frames libres PID=%u",
+                      req->pid);
             enviar_respuesta_traduccion(socket_cpu, &resp);
             return;
         }
 
-        pag->frame = frame;
-        pag->presente = true;
-        pag->uso = true;
+        pag->frame      = frame;
+        pag->presente   = true;
+        pag->uso        = true;
         pag->modificado = false;
-        log_info(logger, "ADAPTER: Page fault resuelto - Marco %d asignado", frame);
+
+        log_info(logger,
+                 "ADAPTER: Page fault resuelto PID=%u FRAME=%d",
+                 req->pid, frame);
     }
 
-    // Respuesta exitosa
+    /* Dirección física real */
     resp.ok = true;
-    resp.direccion_fisica = pag->frame;
+    resp.direccion_fisica =
+        pag->frame * memoria_config->tam_pagina;
 
-    log_info(logger, "ADAPTER: Traducción OK - PID=%u, PAGINA=%u -> MARCO=%u",
-             req->pid, req->direccion_logica, pag->frame);
-    
     enviar_respuesta_traduccion(socket_cpu, &resp);
 }
 
-void memoria_adapter_fetch_instruccion(t_mem_fetch* req, int socket_cpu)
-{
+void memoria_adapter_fetch_instruccion(t_mem_fetch* req, int socket_cpu) {
     if (!req) {
         log_error(loggerError, "ADAPTER: Fetch request NULL");
         enviar_respuesta_instruccion(socket_cpu, "EXIT");
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_FETCH_INSTRUCCION - PID=%u, PC=%u",
+    log_info(logger,
+             "ADAPTER: OP_MEM_FETCH_INSTRUCCION PID=%u PC=%u",
              req->pid, req->pc);
 
-    // Simular retardo (si está configurado)
-    if (memoria_config->retardo_respuesta > 0) {
-        usleep(memoria_config->retardo_respuesta * 1000);
-    }
+    const char* instruccion =
+        memoria_fetch_instruccion(req->pid, req->pc);
 
-    // Lógica interna: leer instrucción desde dirección PC
-    char* instruccion = paginacion_leer_instruccion(req->pid, req->pc);
+    log_info(logger,
+             "ADAPTER: Instrucción enviada: %s",
+             instruccion);
 
-    if (!instruccion) {
-        log_error(loggerError, "ADAPTER: Error leyendo instrucción PID=%u PC=%u",
-                 req->pid, req->pc);
-        instruccion = strdup("EXIT");  // Fallback
-    }
-
-    log_info(logger, "ADAPTER: Fetch enviando instrucción: %s", instruccion);
-    
-    // Enviar respuesta
     enviar_respuesta_instruccion(socket_cpu, instruccion);
-    
-    free(instruccion);
 }
 
 void memoria_adapter_leer(t_mem_read* req, int socket_cpu)
 {
+   t_mem_respuesta_lectura resp = {
+        .ok   = false,
+        .data = NULL,
+        .size = 0
+    };
+
     if (!req) {
         log_error(loggerError, "ADAPTER: Read request NULL");
-        t_mem_respuesta_lectura resp = { .ok = false, .data = NULL, .size = 0 };
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_LEER - PID=%u, DIR=%u, TAM=%u",
-             req->pid, req->direccion_logica, req->size);
+    uint32_t pagina = req->direccion_logica / memoria_config->tam_pagina;
+    uint32_t offset = req->direccion_logica % memoria_config->tam_pagina;
 
-    t_mem_respuesta_lectura resp = {
-        .ok = false,
-        .data = NULL,
-        .size = req->size
-    };
-
-    // Traducir dirección lógica a física
-    int pagina = req->direccion_logica / memoria_config->tam_pagina;
-    int offset = req->direccion_logica % memoria_config->tam_pagina;
+    if (offset + req->size > memoria_config->tam_pagina) {
+        log_error(loggerError,
+                  "ADAPTER: Lectura cruza pagina PID=%u",
+                  req->pid);
+        enviar_respuesta_lectura(socket_cpu, &resp);
+        return;
+    }
 
     t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
 
     if (!pag || !pag->presente) {
-        log_error(loggerError, "ADAPTER: Página no presente PID=%u PAG=%u",
-                 req->pid, pagina);
+        log_error(loggerError,
+                  "ADAPTER: Página no presente PID=%u PAG=%u",
+                  req->pid, pagina);
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
     }
 
-    // Calcular dirección física
-    uint32_t dir_fisica = pag->frame * memoria_config->tam_pagina + offset;
+    uint32_t dir_fisica =
+        pag->frame * memoria_config->tam_pagina + offset;
 
-    // Leer desde memoria
     void* buffer = malloc(req->size);
     if (!buffer) {
-        log_error(loggerError, "ADAPTER: Fallo malloc en lectura");
+        log_error(loggerError, "ADAPTER: malloc fallido");
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
     }
 
     if (!leer_memoria_fisica(dir_fisica, buffer, req->size)) {
-        log_error(loggerError, "ADAPTER: Fallo leyendo memoria física");
         free(buffer);
         enviar_respuesta_lectura(socket_cpu, &resp);
         return;
     }
 
-    // Respuesta exitosa
-    resp.ok = true;
-    resp.data = buffer;
+    pag->uso = true;
 
-    log_info(logger, "ADAPTER: Lectura OK - %u bytes", req->size);
-    
+    resp.ok   = true;
+    resp.data = buffer;
+    resp.size = req->size;
+
     enviar_respuesta_lectura(socket_cpu, &resp);
-    
+
     free(buffer);
 }
 
@@ -217,37 +231,37 @@ void memoria_adapter_escribir(t_mem_write* req, int socket_cpu)
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_ESCRIBIR - PID=%u, DIR=%u, TAM=%u",
-             req->pid, req->direccion_logica, req->size);
+    uint32_t pagina = req->direccion_logica / memoria_config->tam_pagina;
+    uint32_t offset = req->direccion_logica % memoria_config->tam_pagina;
 
-    // Traducir dirección lógica a física
-    int pagina = req->direccion_logica / memoria_config->tam_pagina;
-    int offset = req->direccion_logica % memoria_config->tam_pagina;
+    if (offset + req->size > memoria_config->tam_pagina) {
+        log_error(loggerError,
+                  "ADAPTER: Escritura cruza pagina PID=%u",
+                  req->pid);
+        enviar_respuesta_fail(socket_cpu);
+        return;
+    }
 
     t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
 
     if (!pag || !pag->presente) {
-        log_error(loggerError, "ADAPTER: Página no presente PID=%u PAG=%u",
-                 req->pid, pagina);
+        log_error(loggerError,
+                  "ADAPTER: Página no presente PID=%u PAG=%u",
+                  req->pid, pagina);
         enviar_respuesta_fail(socket_cpu);
         return;
     }
 
-    // Calcular dirección física
-    uint32_t dir_fisica = pag->frame * memoria_config->tam_pagina + offset;
+    uint32_t dir_fisica =
+        pag->frame * memoria_config->tam_pagina + offset;
 
-    // Escribir en memoria
     if (!escribir_memoria_fisica(dir_fisica, req->buffer, req->size)) {
-        log_error(loggerError, "ADAPTER: Fallo escribiendo memoria física");
         enviar_respuesta_fail(socket_cpu);
         return;
     }
 
-    // Marcar página como modificada
+    pag->uso        = true;
     pag->modificado = true;
-    pag->uso = true;
 
-    log_info(logger, "ADAPTER: Escritura OK - %u bytes", req->size);
-    
     enviar_respuesta_ok(socket_cpu);
 }

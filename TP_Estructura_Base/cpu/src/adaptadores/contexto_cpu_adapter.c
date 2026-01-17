@@ -18,17 +18,7 @@ void cpu_contexto_adapter_cargar(t_contexto_cpu* ctx)
         return;
     }
 
-    // Copiar contexto recibido de Kernel al estado de CPU
-    cpu_estado.pid = ctx->pid;
-    cpu_estado.pc = ctx->pc;
-    cpu_estado.quantum = ctx->quantum;
-    cpu_estado.registros = ctx->registros;
-    
-    // Campos de estado (se actualizarán durante ejecución)
-    cpu_estado.finalizado = ctx->finalizado;
-    cpu_estado.bloqueado = ctx->bloqueado;
-    cpu_estado.io_time = ctx->io_time;
-    cpu_estado.motivo_desalojo = ctx->motivo_desalojo;
+    memcpy(cpu_estado, ctx, sizeof(t_contexto_cpu));
     
     if (ctx->parametros[0] != '\0') {
         // Copiar parámetros si existen (recurso, archivo, etc.)
@@ -45,15 +35,7 @@ t_contexto_cpu* cpu_contexto_adapter_extraer(void)
 {
     // Crear nuevo contexto con estado actual de CPU
     t_contexto_cpu* ctx = malloc(sizeof(t_contexto_cpu));
-    
-    ctx->pid = cpu_estado.pid;
-    ctx->pc = cpu_estado.pc;
-    ctx->quantum = cpu_estado.quantum;
-    ctx->registros = cpu_estado.registros;
-    ctx->finalizado = cpu_estado.finalizado;
-    ctx->bloqueado = cpu_estado.bloqueado;
-    ctx->io_time = cpu_estado.io_time;
-    ctx->motivo_desalojo = cpu_estado.motivo_desalojo;
+    memcpy(ctx, cpu_estado, sizeof(t_contexto_cpu));
 
     // Copiar parámetros
     for (int i = 0; i < 256 && cpu_estado.parametros[i] != '\0'; i++) {

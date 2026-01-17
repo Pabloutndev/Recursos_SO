@@ -1,7 +1,7 @@
 #ifndef CPU_MEMORIA_ADAPTER_H
 #define CPU_MEMORIA_ADAPTER_H
 
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 #include <stdint.h>
 #include <stdbool.h>
 

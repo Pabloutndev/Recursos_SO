@@ -6,11 +6,14 @@
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <pthread.h>
+#include <pcb/pcb.h>
 
 // Variables globales para sockets match mod_kernel.c
 extern int socket_cpu_dispatch;
 extern int socket_cpu_interrupt;
 extern t_log* logger;
+
+extern t_list* cola_exit;
 
 static pthread_t hilo_dispatch;
 static pthread_t hilo_interrupt;
@@ -123,6 +126,7 @@ static void* escuchar_dispatch(void* _)
             t_pcb* pcb = buscar_pcb_por_pid(ctx->pid);
             if (pcb) {
                 pcb->estado = EXIT;
+                ///TODO: cola_exit
                 list_add(cola_exit, pcb);
                 log_error(logger, "PID %d finalizado por segfault", ctx->pid);
             }

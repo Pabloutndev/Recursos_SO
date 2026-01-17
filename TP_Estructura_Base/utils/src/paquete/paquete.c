@@ -74,6 +74,11 @@ t_paquete* recibir_paquete(int fd)
     return p;
 }
 
+op_code devolver_operacion(t_paquete* p)
+{
+    return p->codigo_operacion;
+}
+
 /// NOTE: SERIALIZACION / DESERIALIZACION
 bool paquete_write_string(t_paquete* p, const char* s)
 {

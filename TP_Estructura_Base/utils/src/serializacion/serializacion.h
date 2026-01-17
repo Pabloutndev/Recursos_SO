@@ -1,11 +1,7 @@
 #ifndef SERIALIZACION_H_
 #define SERIALIZACION_H_
 
-#include <common/memoria/memoria.h>
-#include <common/cpu/contexto.h>
-#include <common/kernel/kernel.h>
-#include <common/io/io_ops.h>
-
+#include <model/model.h>
 #include <paquete/paquete.h>
 
 /// ===========
@@ -16,10 +12,10 @@
 
 t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx, op_code code);
 t_contexto_cpu* deserializar_contexto_cpu(t_paquete* p);
-
+/*
 t_paquete* serializar_process(t_process* proc);
-t_process* deserializar_process(t_paquete* p);
-
+t_proceso* deserializar_process(t_paquete* p);
+*/
 /// ##### AUXILIAR SERIALIZACION/DESERIALIZACION DE REGISTROS
 
 void serializar_registros(t_paquete* p, registros_t* r);
@@ -64,13 +60,13 @@ t_paquete* serializar_mem_fetch(t_mem_fetch* req, op_code code);
 t_mem_fetch* deserializar_mem_fetch(t_paquete* p);
 
 /// ##### RESPONSES - DESERIALIZACION #####
-
+/*
 t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res);
 t_mem_respuesta_traduccion* deserializar_mem_respuesta_traduccion(t_paquete* p);
 
 t_paquete* serializar_mem_respuesta_lectura(t_mem_respuesta_lectura* res);
 t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p);
-
+*/
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion);
 char* deserializar_mem_respuesta_instruccion(t_paquete* p);
 

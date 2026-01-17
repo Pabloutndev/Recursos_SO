@@ -203,3 +203,38 @@ static void* handler_interrupt(void* arg)
     close(fd);
     return NULL;
 }
+
+
+bool kernel_recibir_contexto(t_contexto_cpu* ctx)
+{
+    t_paquete* p = recibir_paquete(socket_dispatch);
+    if (!p) return false;
+
+    if (p->codigo_operacion != OP_PROCESO_EXEC) {
+        paquete_destroy(p);
+        return false;
+    }
+
+    t_contexto_cpu* recibido = recibir_contexto(p);
+    paquete_destroy(p);
+
+    adaptar_contexto_kernel_a_cpu(ctx, recibido);
+    free(recibido);
+
+    log_info(logger, "CPU recibió contexto PID=%d", ctx->pid);
+    return true;
+}
+
+void kernel_enviar_contexto(t_contexto_cpu* ctx, t_cpu_motivo motivo)
+{
+    // Guardar motivo dentro del contexto (opcional pero útil)
+    ctx->motivo_desalojo = motivo;
+
+    enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC);
+
+    log_info(logger,
+        "CPU envió contexto PID=%d MOTIVO=%d",
+        ctx->pid,
+        motivo
+    );
+}

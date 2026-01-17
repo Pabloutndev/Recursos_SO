@@ -21,7 +21,7 @@ void interrupcion_init(void) {
 }
 
 bool interrupcion_pendiente(void) {
-    // ✅ Lectura atómica del flag
+    // Lectura atómica del flag
     // Usado en ciclo_instruccion_ejecutar() ANTES del FETCH
     return flag_interrupcion;
 }

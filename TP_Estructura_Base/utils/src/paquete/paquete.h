@@ -14,7 +14,7 @@
 
 #include <commons/log.h>
 #include <commons/collections/list.h>
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 
 #include <protocolo/op_code.h>
 
@@ -41,6 +41,7 @@ void paquete_destroy(t_paquete* p);
 bool enviar_paquete(int fd, t_paquete* p);
 t_paquete* recibir_paquete(int fd);
 op_code recibir_operacion(t_paquete* p);
+op_code devolver_operacion(t_paquete* p);
 
 /// NOTE: SERIALIZACION / DESERIALIZACION
 bool paquete_write_buffer(t_paquete*, const void*, uint32_t);

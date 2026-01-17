@@ -16,12 +16,7 @@
 t_paquete* serializar_contexto_cpu(t_contexto_cpu* ctx, op_code code) {
     t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, ctx->pid);
-    paquete_write_uint32(p, ctx->pc);
-    paquete_write_uint32(p, ctx->quantum);
-    paquete_write_uint32(p, ctx->finalizado);
-    paquete_write_uint32(p, ctx->bloqueado);
-    paquete_write_uint32(p, ctx->io_time);
-    
+    paquete_write_uint32(p, ctx->pc);    
     // Serializar registros
     serializar_registros(p, &ctx->registros);
     return p;
@@ -31,19 +26,15 @@ t_contexto_cpu* deserializar_contexto_cpu(t_paquete* p) {
     t_contexto_cpu* ctx = malloc(sizeof(t_contexto_cpu));
     paquete_read_uint32(p, &ctx->pid);
     paquete_read_uint32(p, &ctx->pc);
-    paquete_read_uint32(p, &ctx->quantum);
-    paquete_read_uint32(p, &ctx->finalizado);
-    paquete_read_uint32(p, &ctx->bloqueado);
-    paquete_read_uint32(p, &ctx->io_time);
-
     deserializar_registros(p, &ctx->registros);
     return ctx;
 }
 
+/*
 t_paquete* serializar_process(t_process* proc) {
     t_paquete* p = paquete_create(OP_PROCESO_EXEC);
     paquete_write_int(p, proc->pid);
-    paquete_write_int(p, proc->quantum);
+    paquete_write_int(p, proc->pc);
     serializar_registros(&p, &(proc->registros));
     return p;
 }
@@ -51,7 +42,7 @@ t_paquete* serializar_process(t_process* proc) {
 t_process* deserializar_process(t_paquete* p) {
     t_process* proc = malloc(sizeof(t_process));
     paquete_read_int(p, &proc->pid);
-    paquete_read_int(p, &proc->quantum);
+    paquete_read_int(p, &proc->pc);
     deserializar_registros(p, &proc->registros);
     return proc;
 }
@@ -59,11 +50,11 @@ t_process* deserializar_process(t_paquete* p) {
 t_paquete* serializar_fin_quatum(t_process* proc) {
     t_paquete* p = paquete_create(OP_FIN_DE_QUANTUM);
     paquete_write_int(p, proc->pid);
-    paquete_write_int(p, proc->quantum);
+    paquete_write_int(p, proc->pc);
     serializar_registros(p, &proc->registros);
     return p;
 }
-
+*/
 /// ##### AUXILIAR SERIALIZACION/DESERIALIZACION DE REGISTROS
 
 void serializar_registros(t_paquete* p, registros_t* r) {
@@ -193,7 +184,7 @@ t_mem_fetch* deserializar_mem_fetch(t_paquete* p) {
 }
 
 /// ##### RESPONSES - DESERIALIZACION #####
-
+/*
 t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res) {
     t_paquete* p = paquete_create(OP_MEM_RESP_TRADUCCION);
     paquete_write_bool(p, res->ok);
@@ -231,7 +222,7 @@ t_paquete* serializar_mem_respuesta_instruccion(char* instruccion) {
 char* deserializar_mem_respuesta_instruccion(t_paquete* p) {
     return paquete_read_string(p);
 }
-
+*/
 // ================================
 // IO - SLEEP
 // ================================

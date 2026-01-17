@@ -12,10 +12,7 @@
 // ==============================
 // Structs compartidas
 // ==============================
-#include <common/cpu/contexto.h>
-#include <common/memoria/memoria.h>
-#include <common/kernel/kernel.h>
-#include <common/io/io_ops.h>
+#include <model/model.h>
 
 // ==============================
 // Net / protocolo base

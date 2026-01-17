@@ -19,8 +19,16 @@
 
 /* Gestión de Sockets */
 int iniciar_servidor(char* puerto);
+
 int esperar_cliente(int socket_servidor);
+
+// Inicia servidor en puerto y se queda escuchando conexiones en un loop infinito.
+// Por cada conexión lanza un hilo con la función handler.
+// El handler recibe un int* con el file descriptor del cliente.
+void server_escuchar(t_log* logger, char* nombre_server, int socket_server, void* (*handler)(void*));
+
 int crear_conexion(char *ip, char* puerto);
+
 void liberar_conexion(int socket_cliente);
 
 /* Handshakes */

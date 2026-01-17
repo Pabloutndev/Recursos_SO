@@ -1,7 +1,6 @@
 #include <peticiones/proceso.h>
 #include <planificacion/planificacion.h>
 #include <pcb/pcb.h>
-#include <loggers/conexion.h>
 #include <loggers/logger.h>
 #include <mod_kernel.h>
 #include <stdlib.h>
@@ -15,7 +14,7 @@
 
 extern int socket_memoria;
 extern t_kernel_config KCONF;
-
+extern int pid;
 /* ===============================
  * COMMAND: START PROCESS (RUN)
  * 
@@ -48,8 +47,8 @@ void ejecutar_proceso(char* path)
 
     // ✅ PASO 1: Crear proceso en memoria
     t_mem_init_proceso req;
-    req.pid = 0;  // Memoria asignará PID
-    strcpy(req.path_instrucciones, path);
+    req.pid = pid;  // Memoria asignará PID
+    strcpy(req.instrucciones, path);
     
     bool creado_en_memoria = kernel_init_proceso_path(&req);
     
@@ -76,13 +75,8 @@ void ejecutar_proceso(char* path)
     
     // ✅ PASO 4: Señalizar planificador
     sem_post(&sem_hay_ready);
-    t_pcb* pcb = pcb_crear();
-
-    /* Ingresar a NEW */
-    ingresar_new(pcb);
-
-    paquete_destroy(paquete);
     
+    /// NOTE: CERRAR??
     //liberar_conexion(socket_memoria);
 }
 

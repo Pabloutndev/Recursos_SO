@@ -1,7 +1,7 @@
 #ifndef MEMORIA_ADAPTER_H
 #define MEMORIA_ADAPTER_H
 
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 
 /* ========================================
  * ADAPTADOR: Memoria - Procesamiento de Requests

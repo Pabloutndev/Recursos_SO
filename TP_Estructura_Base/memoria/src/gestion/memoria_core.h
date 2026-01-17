@@ -4,16 +4,31 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Init/Destroy del USER SPACE (RAM) */
-int memoria_ram_init(void); // Renamed from core_init for clarity? let's keep it simple
-void memoria_ram_destroy(void);
+/* =========================
+ * ESTRUCTURA INTERNA
+ * ========================= */
 
-/* Acceso TIPO RAM */
-bool leer_memoria_fisica(uint32_t dir_fisica, void* buffer, int tamanio);
-bool escribir_memoria_fisica(uint32_t dir_fisica, void* data, int tamanio);
+typedef struct {
+    uint32_t pid;
+    char** instrucciones;     // array de strings
+    uint32_t cantidad;        // cantidad de instrucciones
+} t_proceso_memoria;
 
-/// NOTE: SOLO PARA DEBUG - Funcion Auxiliar
-/// Dangerous but sometimes needed
-void* get_memoria_espacio(void);
+/* =========================
+ * API CORE MEMORIA
+ * ========================= */
+
+// inicializa estructuras internas
+void memoria_core_init(void);
+
+// crea proceso y carga instrucciones desde archivo
+bool memoria_crear_proceso(uint32_t pid, const char* path);
+
+// elimina proceso y libera memoria
+void memoria_destruir_proceso(uint32_t pid);
+
+// devuelve instrucción asociada a PID y PC
+// si PC inválido → devuelve "EXIT"
+const char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc);
 
 #endif
