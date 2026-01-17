@@ -42,7 +42,7 @@ void* planificador_largo_plazo(void* _) {
             // Liberar PID/Multiprog?
             // Movemos a EXIT
             pcb->estado = EXIT;
-            pthread_mutex_lock(&mutex_exec); // Usamos mutex exit normalmente
+            //pthread_mutex_lock(&mutex_exec); // Usamos mutex exit normalmente
             // wait, list_add(cola_exit, ...)? 
             // Better call planificacion_matar_proceso or similar logic?
             // But killing requires finding it in a list. It's detached now.

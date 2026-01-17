@@ -17,7 +17,7 @@ void conectar_memoria(char* ip, char* puerto) {
     log_info(logger, "Conectado a Memoria: %s:%s", ip, puerto);
 
      // Handshake
-    handshake_cliente(socket_memoria, OP_HANDSHAKE_KERNEL, OP_OK, logger);
+    handshake_cliente(socket_memoria, OP_HANDSHAKE, OP_OK, logger);
 }
 
 // Need to include protocolo header
@@ -25,9 +25,9 @@ void conectar_memoria(char* ip, char* puerto) {
 bool solicitar_creacion_proceso_memoria(uint32_t pid, int size) {
     t_mem_init_proceso req;
     req.pid = pid;
-    req.size = size;
+    req.tamanio = size;
 
-    enviar_init_proceso(socket_memoria, &req, OP_INIT_PROCESO);
+    enviar_init_proceso(socket_memoria, &req, OP_MEM_INIT_PROCESO);
 
     // Esperar respuesta (OK/FAIL)
     int resp = OP_FAIL;
@@ -38,5 +38,5 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, int size) {
 void solicitar_fin_proceso_memoria(uint32_t pid) {
     t_mem_fin_proceso req;
     req.pid = pid;
-    enviar_fin_proceso(socket_memoria, &req, OP_FIN_PROCESO);
+    enviar_fin_proceso(socket_memoria, &req, OP_MEM_FIN_PROCESO);
 }

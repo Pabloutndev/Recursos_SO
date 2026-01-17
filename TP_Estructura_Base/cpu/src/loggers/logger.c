@@ -1,5 +1,7 @@
 #include <loggers/logger.h>
 #include <commons/string.h>
+#include <protocolo/op_code.h>
+#include <instrucciones/instrucciones.h>
 
 extern t_log* logger;
 

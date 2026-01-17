@@ -11,6 +11,7 @@
 #include <conexiones/memoria.h>
 #include <conexion/conexion.h>
 #include <paquete/paquete.h>
+#include <protocolo/mensajes.h>
 
 extern int socket_memoria;
 extern t_kernel_config KCONF;
@@ -26,17 +27,18 @@ void ejecutar_proceso(char* path)
     if(socket_memoria < -1) {
         conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
     }
-    
+
     /// TODO: Crear proceso en memoria 
-    t_paquete* paquete = crear_paquete(INIT_PROCESO);
-    agregar_a_paquete(paquete, path, strlen(path) + 1);
+    t_paquete* paquete = paquete_create(OP_MEM_INIT_PROCESO);
+    paquete_write_string(paquete, path);
     enviar_paquete(paquete, socket_memoria);
 
-    int codop = recibir_operacion(socket_memoria);
+    //REVISAR 
+    op_code codop = OP_OK; //recibir_contexto(socket_memoria);
 
-    if (codop != OK) {
+    if (codop != OP_OK) {
         log_error(logger, "No se pudo crear proceso en memoria");
-        eliminar_paquete(paquete);
+        paquete_destroy(paquete);
         liberar_conexion(socket_memoria);
         return;
     }
@@ -51,7 +53,7 @@ void ejecutar_proceso(char* path)
     /* Ingresar a NEW */
     ingresar_new(pcb);
 
-    eliminar_paquete(paquete);
+    paquete_destroy(paquete);
     
     //liberar_conexion(socket_memoria);
 }

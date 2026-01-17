@@ -20,3 +20,8 @@ void interrupciones_init(void)
 {
     interrupcion_init();
 }
+
+void interrupcion_reset(void)
+{
+    flag_interrupcion = false;
+}

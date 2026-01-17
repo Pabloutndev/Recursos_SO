@@ -42,7 +42,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
         exit(EXIT_FAILURE);
     }
     // Handshake
-    handshake_cliente(socket_cpu_dispatch, OP_HANDSHAKE_KERNEL, OP_OK, logger);
+    handshake_cliente(socket_cpu_dispatch, OP_HANDSHAKE, OP_OK, logger);
 
     // 2. Interrupt
     socket_cpu_interrupt = crear_conexion(ip, puerto_interrupt);
@@ -51,7 +51,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
         exit(EXIT_FAILURE);
     }
     // Handshake
-    handshake_cliente(socket_cpu_interrupt, OP_HANDSHAKE_KERNEL, OP_OK, logger);
+    handshake_cliente(socket_cpu_interrupt, OP_HANDSHAKE, OP_OK, logger);
 
     // 3. Threads
     pthread_create(&hilo_dispatch, NULL, escuchar_dispatch, NULL);
@@ -79,7 +79,7 @@ static void* escuchar_dispatch(void* _)
             break;
         }
 
-        case OP_FIN_DE_PROCESO: {
+        case OP_CPU_FIN_PROCESO: {
             // Asumiendo que devuelve contexto o solo PID?
             // Generalmente devuelve contexto actualizado
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
@@ -89,7 +89,7 @@ static void* escuchar_dispatch(void* _)
             break;
         }
 
-        case OP_BLOQUEO_IO: {
+        case OP_IO_SLEEP: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
             log_info(logger, "Bloqueo IO: PID %d. Param: %s", ctx->pid, ctx->parametros);
             manejar_bloqueo_io(ctx);

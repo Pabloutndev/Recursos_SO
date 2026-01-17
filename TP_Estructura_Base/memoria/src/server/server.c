@@ -1,4 +1,5 @@
 #include <mod_memoria.h>
+#include <server/server_mem.h>
 #include <paquete/paquete.h>
 #include <gestion/paginas.h>
 #include <gestion/memoria_core.h>
@@ -12,8 +13,8 @@ static int server_socket = -1;
 
 void* memoria_client_handler(void* arg);
 
-int server_init(const char* port) {
-    server_socket = iniciar_servidor((char*)port);
+int server_init(char* port) {
+    server_socket = iniciar_servidor(port);
     if (server_socket < 0) return -1;
     log_info(logger, "Servidor Memoria iniciado en puerto %s", port);
     return 0;

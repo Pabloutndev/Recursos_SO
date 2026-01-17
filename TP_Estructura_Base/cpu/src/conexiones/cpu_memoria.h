@@ -2,6 +2,7 @@
 #define CPU_MEMORIA_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 void cpu_conexiones_memoria_init(char* ip, char* puerto);
 void cpu_conexiones_memoria_close(void);

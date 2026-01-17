@@ -2,8 +2,9 @@
 #include <ciclo_instruccion/decode.h>
 #include <instrucciones/operaciones.h>
 #include <conexiones/cpu_memoria.h>
-#include <stddef.h>
 #include <contexto/contexto.h>
+#include <stddef.h>
+#include <stdlib.h>
 #include <stdbool.h>
 
 bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)

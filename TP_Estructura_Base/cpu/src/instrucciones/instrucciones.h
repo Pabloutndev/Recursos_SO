@@ -11,6 +11,7 @@ typedef enum {
     INST_SUM,
     INST_SUB,
     INST_JNZ,
+    INST_IO,
     INST_IO_GEN_SLEEP,
     INST_IO_STDIN_READ,
     INST_IO_STDOUT_WRITE,

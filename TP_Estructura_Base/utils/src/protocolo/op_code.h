@@ -41,7 +41,10 @@ typedef enum
     OP_IO_FS_TRUNCATE,
     OP_IO_FS_WRITE,
     OP_IO_FS_READ,
-    OP_IO_FIN_OPERACION
+    OP_IO_FIN_OPERACION,
+    OP_SIGNAL_RECURSO,
+    OP_WAIT_RECURSO,
+    OP_BLOQUEO_IO
 
 } op_code;
 

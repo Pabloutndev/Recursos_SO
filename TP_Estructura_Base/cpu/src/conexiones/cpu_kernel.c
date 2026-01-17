@@ -103,7 +103,7 @@ static void* handler_dispatch(void* arg)
             op_code rs_code = OP_DESALOJO; // Default
 
             if (ctx->finalizado) {
-                rs_code = OP_FIN_DE_PROCESO;
+                rs_code = OP_MEM_FIN_PROCESO;
             } else if (interrupcion_pendiente()) {
                 rs_code = OP_FIN_DE_QUANTUM;
                 interrupcion_reset();

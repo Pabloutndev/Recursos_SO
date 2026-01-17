@@ -55,7 +55,7 @@ static void* handler_io_connection(void* arg) {
         return NULL;
     }
 
-    if (p->codigo_operacion == OP_HANDSHAKE_IO) {
+    if (p->codigo_operacion == OP_HANDSHAKE) {
         // Leer nombre
         char* nombre = paquete_read_string(p);
         log_info(logger, "Nueva interfaz conectada: %s (FD: %d)", nombre, fd);
@@ -65,7 +65,7 @@ static void* handler_io_connection(void* arg) {
         io->socket = fd;
         list_add(lista_interfaces, io);
 
-        send_ok(fd);
+        //send_ok(fd);
     } else {
         log_warning(logger, "Handshake invalido de IO");
     }
