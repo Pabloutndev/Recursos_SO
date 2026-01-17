@@ -3,7 +3,7 @@
 #define CPU_KERNEL_H
 
 #include <stdbool.h>
-#include <contexto/contexto.h>
+#include <common/cpu/contexto.h>
 
 // Inicia los servicios de servidor para Kernel (Dispatch e Interrupt)
 // Esta funcion lanza hilos y no bloquea al caller.

@@ -63,36 +63,72 @@ void io_loop() {
         }
 
         switch (paquete->codigo_operacion) {
-            case OP_IO_GENERIC_SLEEP:
-                // [PID, TIEMPO]
-                // Ejemplo deserializacion manual:
-                // uint32_t pid; paquete_read_uint32(paquete, &pid);
-                // uint32_t ms; paquete_read_uint32(paquete, &ms);
-                // io_generic_handler(pid, ms);
-                
-                // Nota: io_generic_handler deberia ser adaptada para recibir valores
-                // o pasamos el paquete.
-                // Por ahora asumimos que los handlers seran refactorizados
-                // o hacemos un wrapper.
-                // io_generic_handler_wrapper(paquete);
+            case OP_IO_GENERIC_SLEEP: {
                 log_info(logger, "Solicitud IO_GENERIC_SLEEP recibida");
+                // Desserializar PID y tiempo
+                uint32_t pid;
+                uint32_t tiempo_ms;
+                paquete_read_uint32(paquete, &pid);
+                paquete_read_uint32(paquete, &tiempo_ms);
+                
+                // Ejecutar sleep
+                log_info(logger, "IO_SLEEP PID %u por %u ms", pid, tiempo_ms);
+                usleep(tiempo_ms * 1000);  // Convertir ms a microsegundos
+                
+                // Responder al Kernel con OP_IO_FIN_OPERACION
+                enviar_respuesta_ok(socket_kernel);
                 break;
+            }
 
-            case OP_IO_STDIN:
-                log_info(logger, "Solicitud IO_STDIN recibida");
+            case OP_IO_STDIN_READ: {
+                log_info(logger, "Solicitud IO_STDIN_READ recibida");
+                uint32_t pid;
+                paquete_read_uint32(paquete, &pid);
+                
+                // Ejecutar lectura desde stdin
+                log_info(logger, "IO_STDIN_READ PID %u", pid);
+                // TODO: Implementar lectura real desde stdin
+                
+                // Responder al Kernel
+                enviar_respuesta_ok(socket_kernel);
                 break;
-            case OP_IO_STDOUT:
-                log_info(logger, "Solicitud IO_STDOUT recibida");
+            }
+
+            case OP_IO_STDOUT_WRITE: {
+                log_info(logger, "Solicitud IO_STDOUT_WRITE recibida");
+                uint32_t pid;
+                paquete_read_uint32(paquete, &pid);
+                
+                // Ejecutar escritura a stdout
+                log_info(logger, "IO_STDOUT_WRITE PID %u", pid);
+                // TODO: Implementar escritura real a stdout
+                
+                // Responder al Kernel
+                enviar_respuesta_ok(socket_kernel);
                 break;
+            }
+
             case OP_IO_FS_CREATE:
             case OP_IO_FS_DELETE:
             case OP_IO_FS_TRUNCATE:
             case OP_IO_FS_WRITE:
-            case OP_IO_FS_READ:
+            case OP_IO_FS_READ: {
                 log_info(logger, "Solicitud DIALFS recibida: %d", paquete->codigo_operacion);
+                uint32_t pid;
+                paquete_read_uint32(paquete, &pid);
+                
+                // Ejecutar operación FS según código
+                // TODO: Delegar a interfaz dialfs/generic según tipo_interfaz
+                log_info(logger, "IO_FS_OP PID %u - Code %d", pid, paquete->codigo_operacion);
+                
+                // Responder al Kernel
+                enviar_respuesta_ok(socket_kernel);
                 break;
+            }
+
             default:
                 log_warning(logger, "Operacion desconocida: %d", paquete->codigo_operacion);
+                enviar_respuesta_fail(socket_kernel);
                 break;
         }
         

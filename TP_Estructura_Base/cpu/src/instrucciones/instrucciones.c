@@ -2,7 +2,7 @@
 #include <ciclo_instruccion/decode.h>
 #include <instrucciones/operaciones.h>
 #include <conexiones/cpu_memoria.h>
-#include <contexto/contexto.h>
+#include <common/cpu/contexto.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdbool.h>

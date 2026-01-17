@@ -115,8 +115,18 @@ static void* escuchar_dispatch(void* _)
 
         case OP_SEGFAULT: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_error(logger, "Segfault: PID %d", ctx->pid);
-            // manejar_segfault(ctx); // todavia no impl
+            log_error(logger, "Page Fault / Segmentation Fault: PID %d, PC %u", ctx->pid, ctx->pc);
+            
+            // Manejar error de página
+            // 1. Buscar PCB en EXEC
+            // 2. Mover a cola de errores o finalizar
+            t_pcb* pcb = buscar_pcb_por_pid(ctx->pid);
+            if (pcb) {
+                pcb->estado = EXIT;
+                list_add(cola_exit, pcb);
+                log_error(logger, "PID %d finalizado por segfault", ctx->pid);
+            }
+            
             free(ctx);
             break;
         }

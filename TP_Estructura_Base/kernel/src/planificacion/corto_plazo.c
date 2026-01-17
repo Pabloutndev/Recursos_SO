@@ -15,34 +15,59 @@
 /* proximoAEjecutar está declarado en planificacion.c como extern */
 extern t_pcb* (*proximoAEjecutar)(void);
 
+/*
+ * Planificador a Corto Plazo (CPU Scheduler)
+ * 
+ * Responsabilidades:
+ * 1. Esperar que haya procesos en READY (sem_wait)
+ * 2. Seleccionar próximo proceso según algoritmo
+ * 3. Cambiar estado READY → EXEC
+ * 4. Enviar a CPU para ejecución
+ * 5. Lanzar timer de quantum (en hilo separado)
+ * 6. Esperar respuesta de CPU (en hilo listener)
+ * 
+ * Flujo:
+ * READY → EXEC (aquí) → respuesta CPU → READY/BLOCK/EXIT (listener)
+ */
 void* planificador_corto_plazo(void* _) {
     while (1) {
+        // ✅ ESPERAR procesos disponibles
         sem_wait(&sem_hay_ready);
 
+        // ✅ SELECCIONAR según algoritmo (FIFO/RR/HRRN)
         t_pcb* pcb = proximoAEjecutar();
-        if (!pcb) continue;
+        if (!pcb) {
+            log_warning(logger, "Planificador: Proceso NULL retornado por proximoAEjecutar");
+            continue;
+        }
 
+        // ✅ CAMBIAR ESTADO Y TIMESTAMP
         pcb->estado = EXEC;
-        temporal_stop(pcb->tiempo_ready); // Detener tiempo de espera
+        temporal_stop(pcb->tiempo_ready); // Detener cronómetro de READY
 
+        // ✅ AGREGAR A EXEC bajo lock
         pthread_mutex_lock(&mutex_exec);
         list_add(cola_exec, pcb);
         pthread_mutex_unlock(&mutex_exec);
 
         log_cambio_estado(pcb->pid, "READY", "EXEC");
-        log_info(logger, "READY → EXEC PID=%u", pcb->pid);
+        log_info(logger, "Planificador: READY → EXEC PID=%u, Quantum=%u", pcb->pid, pcb->quantum);
 
-        // Despachar proceso a CPU
+        // ✅ DESPACHAR A CPU para ejecución
         int sock = enviar_proceso_a_cpu(pcb);
 
         if (sock >= 0) {
-            // Lanzar timer de quantum
+            // ✅ LANZAR TIMER en hilo separado (no bloquea)
             pthread_t hilo_quantum;
-            pthread_create(&hilo_quantum, NULL, timer_quantum, pcb);
+            pthread_create(&hilo_quantum, NULL, timer_quantum, (void*)(uintptr_t)pcb->pid);
             pthread_detach(hilo_quantum);
+            
+            log_info(logger, "Planificador: Timer quantum iniciado para PID=%u", pcb->pid);
+            
         } else if (sock < 0) {
-            log_error(logger, "Error al enviar proceso %u a CPU", pcb->pid);
-            // Reencolar en READY si falla el envío
+            log_error(logger, "Planificador: Fallo envío a CPU para PID=%u", pcb->pid);
+            
+            // ✅ RECUPERACIÓN: Reencolar en READY
             pthread_mutex_lock(&mutex_exec);
             list_remove_element(cola_exec, pcb);
             pthread_mutex_unlock(&mutex_exec);

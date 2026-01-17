@@ -92,48 +92,77 @@ static void* handler_dispatch(void* arg)
         switch (paquete->codigo_operacion) {
 
         case OP_PROCESO_EXEC: {
-            // Updated to use protocol wrapper
             t_contexto_cpu* ctx = recibir_contexto(paquete);
             
-            log_info(logger, "Ejecutando PID %u", ctx->pid);
+            if (!ctx) {
+                log_error(logger, "Error deserializando contexto");
+                break;
+            }
+            
+            log_info(logger, "CPU Dispatch: Ejecutando PID %u, PC=%u, Quantum=%u", 
+                     ctx->pid, ctx->pc, ctx->quantum);
 
+            // ✅ CICLO PRINCIPAL DE CPU
             ciclo_instruccion_ejecutar(ctx);
 
-             // Determinar motivo de devolución
-            op_code rs_code = OP_DESALOJO; // Default
+            // ✅ DETERMINAR MOTIVO DE DEVOLUCIÓN
+            op_code rs_code = OP_DESALOJO;  // Default
 
             if (ctx->finalizado) {
+                // Proceso finalizó normalmente (EXIT o EOF)
                 rs_code = OP_MEM_FIN_PROCESO;
+                log_info(logger, "CPU Dispatch: PID %u finalizó normalmente", ctx->pid);
+                
             } else if (interrupcion_pendiente()) {
+                // Fue interrumpido por Kernel (quantum vencido)
                 rs_code = OP_FIN_DE_QUANTUM;
-                interrupcion_reset();
+                interrupcion_reset();  // Limpiar flag
+                log_info(logger, "CPU Dispatch: PID %u interrumpido por quantum", ctx->pid);
+                
             } else if (ctx->bloqueado) {
-                 switch(ctx->motivo_desalojo) {
-                     case INST_WAIT: rs_code = OP_WAIT_RECURSO; break;
-                     case INST_SIGNAL: rs_code = OP_SIGNAL_RECURSO; break;
-                     case INST_IO_GEN_SLEEP: 
-                     case INST_IO_STDIN_READ: 
-                     case INST_IO_STDOUT_WRITE: 
-                     case INST_IO_FS_CREATE: 
-                     case INST_IO_FS_DELETE: 
-                     case INST_IO_FS_TRUNCATE: 
-                     case INST_IO_FS_WRITE: 
-                     case INST_IO_FS_READ: 
-                        rs_code = OP_BLOQUEO_IO; 
+                // Proceso se bloqueó (IO, WAIT, SIGNAL, etc.)
+                switch(ctx->motivo_desalojo) {
+                    case INST_WAIT: 
+                        rs_code = OP_WAIT_RECURSO;
+                        log_info(logger, "CPU Dispatch: PID %u bloqueado por WAIT", ctx->pid);
                         break;
-                     default: rs_code = OP_BLOQUEO_IO; break;
-                 }
+                        
+                    case INST_SIGNAL: 
+                        rs_code = OP_SIGNAL_RECURSO;
+                        log_info(logger, "CPU Dispatch: PID %u bloqueado por SIGNAL", ctx->pid);
+                        break;
+                        
+                    case INST_IO_GEN_SLEEP: 
+                    case INST_IO_STDIN_READ: 
+                    case INST_IO_STDOUT_WRITE: 
+                    case INST_IO_FS_CREATE: 
+                    case INST_IO_FS_DELETE: 
+                    case INST_IO_FS_TRUNCATE: 
+                    case INST_IO_FS_WRITE: 
+                    case INST_IO_FS_READ: 
+                        rs_code = OP_BLOQUEO_IO;
+                        log_info(logger, "CPU Dispatch: PID %u bloqueado por IO (%u)", 
+                                 ctx->pid, ctx->motivo_desalojo);
+                        break;
+                        
+                    default: 
+                        rs_code = OP_BLOQUEO_IO;
+                        log_warning(logger, "CPU Dispatch: PID %u motivo desalojo desconocido (%u)",
+                                    ctx->pid, ctx->motivo_desalojo);
+                        break;
+                }
             }
 
-            // Enviar respuesta using protocol wrapper
+            // ✅ ENVIAR RESPUESTA A KERNEL
             enviar_contexto(fd, ctx, rs_code);
+            log_info(logger, "CPU Dispatch: Contexto retornado PID %u (Code: %d)", ctx->pid, rs_code);
 
             free(ctx); 
             break;
         }
 
         default:
-            log_warning(logger, "OpCode invalido en DISPATCH: %d", paquete->codigo_operacion);
+            log_warning(logger, "CPU Dispatch: OpCode inválido: %d", paquete->codigo_operacion);
             break;
         }
 

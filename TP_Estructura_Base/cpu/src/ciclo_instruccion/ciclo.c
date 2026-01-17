@@ -9,6 +9,26 @@
 #include <interrupciones/interrupciones.h>
 
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
+    /*
+     * Ciclo de Instrucción: Fetch → Decode → Execute
+     * 
+     * Puntos de salida:
+     * 1. ctx->finalizado = 1      [Instrucción EXIT o EOF]
+     * 2. ctx->bloqueado = 1       [Instrucción IO, WAIT, etc.]
+     * 3. interrupcion_pendiente() [Señal de quantum/desalojo]
+     * 4. fetch_instruccion() NULL [Fin de archivo]
+     * 
+     * Responsabilidades:
+     * - Validar que contexto es válido
+     * - Detectar interrupciones tempranamente
+     * - Manejar errores de fetch gracefully
+     * - Mantener estado consistente al salir
+     */
+
+    if (!ctx) {
+        log_error(logger, "Contexto NULL en ciclo");
+        return;
+    }
 
     mmu_set_contexto(ctx);
 
@@ -18,21 +38,31 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
     
     while (!(ctx->finalizado || ctx->bloqueado)) {
 
+        // ✅ PUNTO CRÍTICO: Detección temprana de interrupción
         if (interrupcion_pendiente()) {
-            break; // Salir del ciclo para atender interrupcion en handler
+            log_info(logger, "CPU PID %d: Interrupción detectada", ctx->pid);
+            break;  // Salir del ciclo para atender interrupcion
         }
 
         char* linea = fetch_instruccion(ctx);
-        if (!linea) break; // Error fetch
+        if (!linea) {
+            log_info(logger, "CPU PID %d: Fin de archivo/instrucciones", ctx->pid);
+            ctx->finalizado = 1;
+            break;  // Error fetch o fin de programa
+        }
 
         instruccion_t inst = decode_instruccion(linea);
         
         execute_instruccion(&inst, ctx);
         free(linea); 
 
-        sleep(2); // Retardo a demanda
+        // Retardo opcional para debugging/visualización
+        // if (CPU_CONF.retardo_instruccion > 0) {
+        //     usleep(CPU_CONF.retardo_instruccion);
+        // }
 
-        // Quantum check (managed by CPU counter here)
+        // ✅ Quantum check (gestionado por Kernel principalmente)
+        // Este contador es respaldo en caso de que el timer del Kernel no funcione
         if (ctx->quantum > 0) {
              ctx->quantum--;
              if (ctx->quantum == 0) {

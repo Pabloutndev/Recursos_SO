@@ -7,7 +7,6 @@
 
 #include <conexiones/cpu.h>
 #include <conexiones/memoria.h>
-#include <conexiones/fs.h>
 
 extern t_log* logger;
 extern t_log* loggerError;
