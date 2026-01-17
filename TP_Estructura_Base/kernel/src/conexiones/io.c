@@ -5,6 +5,7 @@
 #include <protocolo/op_code.h>
 #include <commons/collections/list.h>
 #include <stdlib.h>
+#include <string.h>
 #include <pthread.h>
 
 static int socket_server_io = -1;
@@ -13,10 +14,10 @@ static t_list* lista_interfaces = NULL;
 typedef struct {
     char* nombre;
     int socket;
-    // Tipos de operaciones soportadas?
 } t_interfaz_io;
 
 static void* handler_io_connection(void* arg);
+static bool _find_interfaz_por_nombre(void* elemento, void* criterio);
 
 void server_io_init(char* puerto) {
     socket_server_io = iniciar_servidor(puerto);
@@ -28,12 +29,7 @@ void server_io_init(char* puerto) {
 
     lista_interfaces = list_create();
 
-    // Lanzar hilo de escucha general (o usar server_escuchar que es bloqueante?)
-    // server_escuchar es bloqueante. Deberiamos lanzarlo en un hilo aparte si queremos seguir haciendo cosas.
-    // O si kernel main loop es solo esto...
-    // Usualmente Kernel corre Planificacion + Consola + Server.
-    // Lzaremos un thread para el server.
-    
+    // Lanzar hilo de escucha
     pthread_t th;
     pthread_create(&th, NULL, (void*)server_listen_loop_io, NULL);
     pthread_detach(th);
@@ -44,11 +40,44 @@ void* server_listen_loop_io(void* arg) {
     return NULL;
 }
 
+/**
+ * obtener_socket_interfaz
+ * Busca una interfaz IO por nombre y retorna su socket.
+ * Usada por kernel_io_adapter para enviar requests.
+ */
+int obtener_socket_interfaz(const char* nombre_interfaz)
+{
+    if (!nombre_interfaz || !lista_interfaces) {
+        return -1;
+    }
+
+    t_interfaz_io* iface = list_find(lista_interfaces, 
+                                     _find_interfaz_por_nombre, 
+                                     (void*)nombre_interfaz);
+    
+    if (iface) {
+        log_info(logger, "Socket IO encontrado para: %s (FD=%d)", 
+                nombre_interfaz, iface->socket);
+        return iface->socket;
+    }
+
+    log_warning(logger, "Interfaz IO no encontrada: %s", nombre_interfaz);
+    return -1;
+}
+
+static bool _find_interfaz_por_nombre(void* elemento, void* criterio)
+{
+    t_interfaz_io* iface = (t_interfaz_io*)elemento;
+    const char* nombre = (const char*)criterio;
+    
+    return strcmp(iface->nombre, nombre) == 0;
+}
+
 static void* handler_io_connection(void* arg) {
     int fd = *(int*)arg;
     free(arg);
 
-    // Esperamos Handshake OP_HANDSHAKE_IO
+    // Esperamos Handshake con nombre de interfaz
     t_paquete* p = recibir_paquete(fd);
     if (!p) {
         close(fd);
@@ -56,39 +85,49 @@ static void* handler_io_connection(void* arg) {
     }
 
     if (p->codigo_operacion == OP_HANDSHAKE) {
-        // Leer nombre
+        // Leer nombre de la interfaz
         char* nombre = paquete_read_string(p);
-        log_info(logger, "Nueva interfaz conectada: %s (FD: %d)", nombre, fd);
+        log_info(logger, "Nueva interfaz IO conectada: %s (FD: %d)", nombre, fd);
         
         t_interfaz_io* io = malloc(sizeof(t_interfaz_io));
         io->nombre = nombre;
         io->socket = fd;
         list_add(lista_interfaces, io);
-
-        //send_ok(fd);
     } else {
-        log_warning(logger, "Handshake invalido de IO");
+        log_warning(logger, "Handshake inválido de IO");
     }
     paquete_destroy(p);
 
-    // Loop de atencion a esta interfaz?
-    // O la interfaz solo espera peticiones del Kernel?
-    // Usualmente la interfaz se queda bloqueada esperando ordenes del Kernel,
-    // salvo que quiera notificar fin de operacion.
-    // SI la interfaz notifica fin de operacion, necesitamos un loop aqui recibiendo.
-    // Asumamos que si.
-    
+    // Loop de atención a esta interfaz
+    // IO puede notificar fin de operación
     while(1) {
         t_paquete* msg = recibir_paquete(fd);
-        if(!msg) {
-             // Desconexion
+        if (!msg) {
+             // Desconexión
              break;
         }
-        // Manejar mensajes (e.g. FIN DE OPERACION IO)
+
+        // Manejar mensajes (e.g. OP_IO_FIN_OPERACION)
+        switch(msg->codigo_operacion) {
+            case OP_IO_FIN_OPERACION: {
+                // IO notifica fin de operación
+                // Kernel debe desbloquear el proceso
+                uint32_t pid = recibir_pid_fin_io(msg);
+                log_info(logger, "IO notifica FIN_OPERACION para PID %u", pid);
+                // TODO: Llamar función para desbloquear proceso (manejar_fin_io_operacion)
+                break;
+            }
+            default:
+                log_warning(logger, "Mensaje desconocido de IO: %d", msg->codigo_operacion);
+                break;
+        }
+
         paquete_destroy(msg);
     }
 
     // Limpieza
+    log_info(logger, "Interfaz IO desconectada (FD=%d)", fd);
     close(fd);
     return NULL;
 }
+

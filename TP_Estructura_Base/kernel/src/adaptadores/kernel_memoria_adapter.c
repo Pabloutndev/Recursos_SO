@@ -1,11 +1,27 @@
 #include "kernel_memoria_adapter.h"
+#include <protocolo/mensajes.h>
+#include <protocolo/op_code.h>
+#include <conexion/conexion.h>
+#include <paquete/paquete.h>
 #include <stdlib.h>
+#include <commons/log.h>
+#include <sys/socket.h>
+
+extern int socket_memoria;
+extern t_log* logger;
+extern t_log* loggerError;
+
+/* ========================================
+ * TRANSFORMACIÓN DE ESTRUCTURAS
+ * ======================================== */
 
 t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 {
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
     req->pid = pcb->pid;
     req->tamanio = pcb->tam_proceso;
+    req->instrucciones = NULL;  // Memoria carga del disco
+    req->size_instrucciones = 0;
     return req;
 }
 
@@ -15,3 +31,52 @@ t_mem_fin_proceso* pcb_a_mem_fin(t_pcb* pcb)
     req->pid = pcb->pid;
     return req;
 }
+
+/* ========================================
+ * OPERACIONES COMPLETAS (CON RESPUESTA)
+ * ======================================== */
+
+bool kernel_init_proceso(t_pcb* pcb)
+{
+    if (!pcb) {
+        log_error(loggerError, "ADAPTER: PCB nulo en init_proceso");
+        return false;
+    }
+
+    // Paso 1: Convertir PCB a estructura compartida
+    t_mem_init_proceso* req = pcb_a_mem_init(pcb);
+
+    // Paso 2: Enviar request a Memoria usando protocolo
+    log_info(logger, "ADAPTER: Enviando OP_MEM_INIT_PROCESO (PID=%u, TAM=%u)",
+             req->pid, req->tamanio);
+    enviar_init_proceso(socket_memoria, req, OP_MEM_INIT_PROCESO);
+
+    // Paso 3: Esperar respuesta simple (int: 1=OK, 0=FAIL)
+    int respuesta = 0;
+    int bytes_recibidos = recv(socket_memoria, &respuesta, sizeof(int), MSG_WAITALL);
+
+    free(req);
+
+    if (bytes_recibidos < 0) {
+        log_error(loggerError, "ADAPTER: Error recibiendo respuesta de Memoria");
+        return false;
+    }
+
+    bool exito = (respuesta == 1);  // OP_OK = 1
+    log_info(logger, "ADAPTER: Respuesta Memoria init_proceso: %s",
+             exito ? "OK" : "FAIL");
+
+    return exito;
+}
+
+void kernel_fin_proceso(uint32_t pid)
+{
+    // Paso 1: Preparar estructura
+    t_mem_fin_proceso req = {.pid = pid};
+
+    // Paso 2: Enviar (one-way, no espera respuesta)
+    log_info(logger, "ADAPTER: Enviando OP_MEM_FIN_PROCESO (PID=%u)", pid);
+    enviar_fin_proceso(socket_memoria, &req, OP_MEM_FIN_PROCESO);
+    // Memoria procesa y libera recursos, no responde
+}
+
