@@ -3,6 +3,7 @@
 #include <commons/collections/dictionary.h>
 #include <commons/string.h>
 #include <commons/log.h>
+#include <shared.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -12,12 +13,26 @@ extern t_log* logger;
 extern t_log* loggerError;
 
 /* =========================
+ * CONFIGURACION
+ * ========================= */
+
+// MEMORIA se ejecuta desde /memoria, los procesos están en ./procesos/
+#define RUTA_BASE_PROCESOS_MEMORIA "procesos/"
+
+/* =========================
  * ESTRUCTURAS INTERNAS
  * ========================= */
 
 static t_dictionary* procesos; // key = PID (string)
-static char** leer_instrucciones(const char* path, uint32_t* cantidad);
 static char* pid_key(uint32_t pid);
+
+// HELPER: Construye ruta desde perspectiva de MEMORIA
+static char* construir_ruta_proceso_memoria(const char* nombre_proceso) {
+    char* ruta = malloc(512);
+    if (!ruta) return NULL;
+    snprintf(ruta, 512, "%s%s", RUTA_BASE_PROCESOS_MEMORIA, nombre_proceso);
+    return ruta;
+}
 
 /* =========================
  * API PUBLICA
@@ -37,11 +52,25 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
         return false;
     }
 
+    // 'path' recibido desde Kernel es en realidad el NOMBRE del proceso
+    // Memoria construye su propia ruta relativa
+    char* ruta_memoria = construir_ruta_proceso_memoria(path);
+    if (!ruta_memoria) {
+        log_error(loggerError, "MEMORIA: No se pudo construir ruta para proceso");
+        free(key);
+        return false;
+    }
+
+    log_info(logger, "MEMORIA: Leyendo instrucciones - Nombre: %s, Ruta local: %s, PID: %u", path, ruta_memoria, pid);
+
     t_proceso_memoria* proc = malloc(sizeof(t_proceso_memoria));
     proc->pid = pid;
-    proc->instrucciones = leer_instrucciones(path, &proc->cantidad);
+    proc->instrucciones = leer_instrucciones(ruta_memoria, &proc->cantidad);
+    free(ruta_memoria);
+
 
     if (!proc->instrucciones) {
+        log_error(loggerError, "MEMORIA: No se pudieron leer instrucciones de %s", path);
         free(proc);
         free(key);
         return false;
@@ -49,7 +78,7 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
 
     dictionary_put(procesos, key, proc);
 
-    log_info(logger, "MEMORIA: Proceso %u cargado (%u instrucciones)",
+    log_info(logger, "MEMORIA: Proceso %u cargado correctamente (%u instrucciones)",
              pid, proc->cantidad);
     return true;
 }
@@ -94,39 +123,6 @@ const char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
 /* =========================
  * UTILS INTERNOS
  * ========================= */
-
-static char** leer_instrucciones(const char* path, uint32_t* cantidad) {
-    FILE* f = fopen(path, "r");
-    if (!f) {
-        log_error(loggerError, "MEMORIA: No se pudo abrir archivo %s", path);
-        *cantidad = 0;
-        return NULL;
-    }
-
-    char** instrucciones = NULL;
-    size_t cap = 0;
-    *cantidad = 0;
-
-    char* line = NULL;
-    size_t len = 0;
-
-    while (getline(&line, &len, f) != -1) {
-        string_trim(&line);
-
-        if (*cantidad >= cap) {
-            cap = cap == 0 ? 8 : cap * 2;
-            instrucciones = realloc(instrucciones, cap * sizeof(char*));
-        }
-
-        instrucciones[*cantidad] = strdup(line);
-        (*cantidad)++;
-    }
-
-    free(line);
-    fclose(f);
-
-    return instrucciones;
-}
 
 static char* pid_key(uint32_t pid) {
     return string_itoa(pid); // usar con cuidado, se libera al final

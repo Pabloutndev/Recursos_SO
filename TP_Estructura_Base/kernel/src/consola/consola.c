@@ -156,7 +156,10 @@ void mensaje_inicial(void)
 {
     printf("=== Consola del Kernel ===\n");
     printf("Comandos disponibles:\n");
-    printf("  RUN <path>               - Crear y ejecutar proceso\n");
+    printf("  RUN <nombre>             - Crear y ejecutar proceso\n");
+    printf("                             (ej: RUN process1 o RUN process1.txt)\n");
+    printf("                             Busca en: memoria/procesos/\n");
+    printf("                             Kernel valida localmente desde ../memoria/procesos/\n");
     printf("  KILL <pid>               - Terminar proceso\n");
     printf("  PS                       - Listar procesos por estado\n");
     printf("  ALGORITMO <FIFO|RR|HRRN> - Cambiar algoritmo de planificación\n");

@@ -1,10 +1,12 @@
 #include <peticiones/proceso.h>
+#include <peticiones/ruta_procesos.h>
 #include <planificacion/planificacion.h>
 #include <pcb/pcb.h>
 #include <loggers/logger.h>
 #include <mod_kernel.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include <pthread.h>
 #include <commons/collections/list.h>
 #include <adaptadores/kernel_memoria_adapter.h>
@@ -32,32 +34,41 @@ extern t_list* cola_new;
  * 4. Señalizar planificador largo plazo
  * 5. El planificador largo plazo se encarga de hablar con Memoria
  * =============================== */
-void ejecutar_proceso(char* path)
+void ejecutar_proceso(char* nombre_archivo)
 {
-    if (!path || strlen(path) == 0) {
-        log_error(loggerError, "Kernel: Path de proceso inválido");
+    if (!nombre_archivo || strlen(nombre_archivo) == 0) {
+        log_error(loggerError, "Kernel: Nombre de archivo de proceso inválido");
         return;
     }
 
-    log_info(logger, "Kernel: Creación de Proceso solicitada - Path: %s", path);
+    // ✅ PASO 0: Normalizar nombre (agregar .txt si falta)
+    char* nombre_proceso = construir_nombre_proceso(nombre_archivo);
+    if (!nombre_proceso) {
+        log_error(loggerError, "Kernel: No se pudo construir nombre para proceso");
+        return;
+    }
+
+    // ✅ PASO 0.5: Validar que existe en la perspectiva de KERNEL
+    if (!validar_existe_proceso_kernel(nombre_proceso)) {
+        log_error(loggerError, "Kernel: Archivo de proceso no encontrado: %s", nombre_proceso);
+        free(nombre_proceso);
+        return;
+    }
+
+    log_info(logger, "Kernel: Creación de Proceso solicitada - Nombre: %s", nombre_proceso);
     
     // ✅ PASO 1: Crear PCB (genera PID, estado NEW)
     t_pcb* pcb = pcb_crear();
     if (!pcb) {
         log_error(loggerError, "Kernel: No se pudo crear PCB");
+        free(nombre_proceso);
         return;
     }
     
-    // ✅ PASO 2: Asignar path
-    pcb->path = malloc(strlen(path) + 1);
-    if (!pcb->path) {
-        log_error(loggerError, "Kernel: No se pudo asignar memoria para path");
-        pcb_destruir(pcb);
-        return;
-    }
-    strcpy(pcb->path, path);
+    // ✅ PASO 2: Asignar nombre del proceso (Memoria lo usará para construir su propia ruta)
+    pcb->path = nombre_proceso;  // Es el NOMBRE, no la ruta completa
     
-    log_info(logger, "Kernel: PCB creado - PID=%u, Path=%s", pcb->pid, path);
+    log_info(logger, "Kernel: PCB creado - PID=%u, Proceso=%s", pcb->pid, pcb->path);
     
     // ✅ PASO 3: Encolar en NEW (bajo lock)
     pthread_mutex_lock(&mutex_new);
