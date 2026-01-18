@@ -5,15 +5,24 @@
 #include <serializacion/serializacion.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
+#include <peticiones/interrupciones.h>
+#include <peticiones/dispatch.h>
+#include <planificacion/planificacion.h>
+#include <conexiones/memoria.h>
 #include <pthread.h>
 #include <pcb/pcb.h>
+#include <commons/log.h>
+#include <stdlib.h>
 
 // Variables globales para sockets match mod_kernel.c
 extern int socket_dispatch;
 extern int socket_interrupt;
 extern t_log* logger;
+extern t_log* loggerError;
 
 extern t_list* cola_exit;
+extern t_list* cola_exec;
+extern pthread_mutex_t mutex_exec;
 
 static pthread_t hilo_dispatch;
 static pthread_t hilo_interrupt;
@@ -41,7 +50,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
     // 1. Dispatch
     socket_dispatch = crear_conexion(ip, puerto_dispatch);
     if(socket_dispatch < 0) {
-        log_error(logger, "Error conectando a CPU dispatch");
+        log_error(loggerError, "Error conectando a CPU dispatch");
         exit(EXIT_FAILURE);
     }
     // Handshake
@@ -50,7 +59,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
     // 2. Interrupt
     socket_interrupt = crear_conexion(ip, puerto_interrupt);
     if(socket_interrupt < 0) {
-        log_error(logger, "Error conectando a CPU interrupt");
+        log_error(loggerError, "Error conectando a CPU interrupt");
         exit(EXIT_FAILURE);
     }
     // Handshake
@@ -68,7 +77,7 @@ static void* escuchar_dispatch(void* _)
     while (1) {
         t_paquete* paquete = recibir_paquete(socket_dispatch);
         if (paquete == NULL) {
-            log_error(logger, "CPU Dispatch desconectado");
+            log_error(loggerError, "CPU Dispatch desconectado");
             break;
         }
 
@@ -76,63 +85,55 @@ static void* escuchar_dispatch(void* _)
 
         case OP_FIN_DE_QUANTUM: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "Fin de Quantum: PID %d", ctx->pid);
-            // manejar_fin_quantum(ctx);
-            free(ctx);
+            if (ctx) {
+                manejar_fin_quantum_static(ctx);
+                free(ctx);
+            }
             break;
         }
 
         case OP_CPU_FIN_PROCESO: {
-            // Asumiendo que devuelve contexto o solo PID?
-            // Generalmente devuelve contexto actualizado
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "Fin de Proceso: PID %d", ctx->pid);
-            // manejar_fin_proceso(ctx);
-            free(ctx);
+            if (ctx) {
+                manejar_fin_proceso_static(ctx);
+                free(ctx);
+            }
             break;
         }
 
         case OP_IO_SLEEP: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "Bloqueo IO: PID %d. Param: %s", ctx->pid, "ctx->parametros");
-            manejar_bloqueo_io(ctx);
-            free(ctx);
+            if (ctx) {
+                manejar_bloqueo_io_static(ctx);
+                free(ctx);
+            }
             break;
         }
 
         case OP_WAIT_RECURSO: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "WAIT Recurso: %s PID %d", "ctx->parametros", ctx->pid);
-            manejar_wait_recurso(ctx);
-            free(ctx);
+            if (ctx) {
+                manejar_wait_recurso_static(ctx);
+                free(ctx);
+            }
             break;
         }
 
         case OP_SIGNAL_RECURSO: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "SIGNAL Recurso: %s PID %d", "TODO: ", ctx->pid);
-            manejar_signal_recurso(ctx);
-            free(ctx);
+            if (ctx) {
+                manejar_signal_recurso_static(ctx);
+                free(ctx);
+            }
             break;
         }
 
         case OP_SEGFAULT: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_error(logger, "Page Fault / Segmentation Fault: PID %d, PC %u", ctx->pid, ctx->pc);
-            
-            // Manejar error de página
-            // 1. Buscar PCB en EXEC
-            // 2. Mover a cola de errores o finalizar
-            //t_pcb* pcb = buscar_pcb_por_pid(ctx->pid);
-            t_pcb* pcb;
-            if (pcb) {
-                pcb->estado = EXIT;
-                ///TODO: cola_exit
-                list_add(cola_exit, pcb);
-                log_error(logger, "PID %d finalizado por segfault", ctx->pid);
+            if (ctx) {
+                manejar_segfault_static(ctx);
+                free(ctx);
             }
-            
-            free(ctx);
             break;
         }
 
@@ -152,7 +153,7 @@ static void* escuchar_interrupt(void* _)
     while (1) {
         t_paquete* paquete = recibir_paquete(socket_interrupt);
         if (paquete == NULL) {
-            log_error(logger, "CPU Interrupt desconectado");
+            log_error(loggerError, "CPU Interrupt desconectado");
             break;
         }
 
@@ -163,4 +164,93 @@ static void* escuchar_interrupt(void* _)
     }
 
     return NULL;
+}
+
+/* ========================================
+ * MANEJADORES DE EVENTOS DE CPU
+ * ======================================== */
+
+static void manejar_fin_quantum(t_contexto_cpu* ctx)
+{
+    if (!ctx) return;
+    
+    log_info(logger, "CPU: Fin de Quantum para PID=%d", ctx->pid);
+    
+    // Desalojar por quantum (pasar a READY)
+    manejar_interrupcion(ctx->pid, "QUANTUM");
+}
+
+static void manejar_fin_proceso(t_contexto_cpu* ctx)
+{
+    if (!ctx) return;
+    
+    log_info(logger, "CPU: Fin de Proceso PID=%d", ctx->pid);
+    
+    // Actualizar contexto en PCB antes de finalizar
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
+        if (pcb && pcb->pid == (uint32_t)ctx->pid) {
+            pcb->program_counter = ctx->pc;
+            pcb->registros = ctx->registros;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+    
+    // Finalizar proceso (mover a EXIT)
+    manejar_interrupcion(ctx->pid, "EXIT");
+    
+    // Liberar recursos en Memoria
+    solicitar_fin_proceso_memoria(ctx->pid);
+}
+
+static void manejar_fin_quantum_static(t_contexto_cpu* ctx)
+{
+    manejar_fin_quantum(ctx);
+}
+
+static void manejar_fin_proceso_static(t_contexto_cpu* ctx)
+{
+    manejar_fin_proceso(ctx);
+}
+
+static void manejar_bloqueo_io_static(t_contexto_cpu* ctx)
+{
+    manejar_bloqueo_io(ctx);
+}
+
+static void manejar_wait_recurso_static(t_contexto_cpu* ctx)
+{
+    manejar_wait_recurso(ctx);
+}
+
+static void manejar_signal_recurso_static(t_contexto_cpu* ctx)
+{
+    manejar_signal_recurso(ctx);
+}
+
+static void manejar_segfault_static(t_contexto_cpu* ctx)
+{
+    if (!ctx) return;
+    
+    log_error(loggerError, "CPU: Segmentation Fault para PID=%d, PC=%u", ctx->pid, ctx->pc);
+    
+    // Actualizar PC en PCB
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
+        if (pcb && pcb->pid == (uint32_t)ctx->pid) {
+            pcb->program_counter = ctx->pc;
+            pcb->registros = ctx->registros;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+    
+    // Finalizar por segfault
+    manejar_interrupcion(ctx->pid, "EXIT");
+    
+    // Liberar recursos
+    solicitar_fin_proceso_memoria(ctx->pid);
 }

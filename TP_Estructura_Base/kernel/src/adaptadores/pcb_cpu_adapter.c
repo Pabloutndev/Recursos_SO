@@ -7,8 +7,8 @@
 #include <commons/log.h>
 #include <mod_kernel.h>
 
-extern int socket_cpu_dispatch;
-extern int socket_cpu_interrupt;
+extern int socket_dispatch;
+extern int socket_interrupt;
 extern t_log* logger;
 
 /* ========================================
@@ -50,7 +50,7 @@ void kernel_dispatch(t_pcb* pcb)
     // Paso 2: Enviar a CPU usando protocolo
     log_info(logger, "ADAPTER: Enviando OP_PROCESO_EXEC a CPU (PID=%u, PC=%u)",
              ctx->pid, ctx->pc);
-    enviar_contexto(socket_cpu_dispatch, ctx, OP_PROCESO_EXEC);
+    enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC);
 
     // Nota: La respuesta se maneja en el hilo de escucha de CPU Dispatch
     // (ver conexiones/cpu.c - escuchar_dispatch())
@@ -62,7 +62,7 @@ void kernel_interrupt(void)
 {
     // Enviar interrupción simple (sin payload)
     log_info(logger, "ADAPTER: Enviando OP_INTERRUPCION_CPU");
-    enviar_interrupcion_cpu(socket_cpu_interrupt);
+    enviar_interrupcion_cpu(socket_interrupt);
     // CPU Interrupt es un socket separado, recibe la "señal" y desaloja
 }
 

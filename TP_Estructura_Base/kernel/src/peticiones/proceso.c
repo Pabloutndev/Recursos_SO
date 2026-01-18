@@ -7,14 +7,18 @@
 #include <string.h>
 #include <pthread.h>
 #include <commons/collections/list.h>
-#include <conexiones/memoria.h>
+#include <adaptadores/kernel_memoria_adapter.h>
 #include <conexion/conexion.h>
 #include <paquete/paquete.h>
 #include <protocolo/mensajes.h>
 
 extern int socket_memoria;
 extern t_kernel_config KCONF;
-extern int pid;
+extern t_log* logger;
+extern t_log* loggerError;
+extern pthread_mutex_t mutex_ready;
+extern sem_t sem_hay_ready;
+extern t_list* cola_ready;
 /* ===============================
  * COMMAND: START PROCESS (RUN)
  * 
@@ -29,7 +33,7 @@ extern int pid;
 void ejecutar_proceso(char* path)
 {
     if (!path || strlen(path) == 0) {
-        log_error(logger, "Kernel: Path de proceso inválido");
+        log_error(loggerError, "Kernel: Path de proceso inválido");
         return;
     }
 
@@ -40,34 +44,38 @@ void ejecutar_proceso(char* path)
         log_warning(logger, "Kernel: Reconectando con memoria...");
         conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
         if (socket_memoria < 0) {
-            log_error(logger, "Kernel: No se pudo conectar a memoria");
+            log_error(loggerError, "Kernel: No se pudo conectar a memoria");
             return;
         }
     }
 
-    // ✅ PASO 1: Crear proceso en memoria
-    t_mem_init_proceso req;
-    req.pid = pid;  // Memoria asignará PID
-    snprintf(req.path, sizeof(req.path), "%s", path);
-    
-    bool creado_en_memoria = kernel_init_proceso_path(&req);
-    
-    if (!creado_en_memoria) {
-        log_error(logger, "Kernel: No se pudo crear proceso en memoria para %s", path);
+    // ✅ PASO 1: Crear PCB primero (genera PID)
+    t_pcb* pcb = pcb_crear();
+    if (!pcb) {
+        log_error(loggerError, "Kernel: No se pudo crear PCB");
         return;
     }
-
-    // ✅ PASO 2: Crear PCB local
-    t_pcb* pcb = pcb_crear(req.pid, KCONF.quantum);
     
-    if (!pcb) {
-        log_error(logger, "Kernel: No se pudo crear PCB para PID %u", req.pid);
-        // TODO: Liberar proceso en memoria
+    pcb->path = malloc(strlen(path) + 1);
+    if (!pcb->path) {
+        log_error(loggerError, "Kernel: No se pudo asignar memoria para path");
+        pcb_destruir(pcb);
+        return;
+    }
+    strcpy(pcb->path, path);
+    pcb->tam_proceso = 1024;  // Tamaño por defecto o desde config
+    
+    // ✅ PASO 2: Crear proceso en memoria
+    bool creado_en_memoria = kernel_init_proceso(pcb);
+    if (!creado_en_memoria) {
+        log_error(loggerError, "Kernel: No se pudo crear proceso en memoria para %s", path);
+        pcb_destruir(pcb);
         return;
     }
 
     // ✅ PASO 3: Encolar en READY
     pthread_mutex_lock(&mutex_ready);
+    pcb->estado = READY;
     list_add(cola_ready, pcb);
     pthread_mutex_unlock(&mutex_ready);
     
@@ -75,9 +83,6 @@ void ejecutar_proceso(char* path)
     
     // ✅ PASO 4: Señalizar planificador
     sem_post(&sem_hay_ready);
-    
-    /// NOTE: CERRAR??
-    //liberar_conexion(socket_memoria);
 }
 
 /* ===============================

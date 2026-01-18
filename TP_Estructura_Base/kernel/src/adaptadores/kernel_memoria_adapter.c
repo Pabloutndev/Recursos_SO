@@ -14,10 +14,14 @@ extern t_log* loggerError;
 /* ========================================
  * TRANSFORMACIÓN DE ESTRUCTURAS
  * ======================================== */
-/*
+
 t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 {
+    if (!pcb) return NULL;
+    
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
+    if (!req) return NULL;
+    
     req->pid = pcb->pid;
     // El path se construye a partir del PID para este ejemplo
     snprintf(req->path, 256, "proceso_%u.txt", pcb->pid);
@@ -27,9 +31,11 @@ t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 t_mem_fin_proceso* pcb_a_mem_fin(uint32_t pid)
 {
     t_mem_fin_proceso* req = malloc(sizeof(t_mem_fin_proceso));
+    if (!req) return NULL;
+    
     req->pid = pid;
     return req;
-}*/
+}
 
 /* ========================================
  * OPERACIONES COMPLETAS (CON RESPUESTA)
