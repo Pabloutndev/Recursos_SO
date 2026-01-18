@@ -29,6 +29,12 @@ static pthread_t hilo_interrupt;
 
 static void* escuchar_dispatch(void* arg);
 static void* escuchar_interrupt(void* arg);
+static void manejar_segfault_static(t_contexto_cpu* ctx);
+static void manejar_fin_quantum_static(t_contexto_cpu* ctx);
+static void manejar_fin_proceso_static(t_contexto_cpu* ctx);
+static void manejar_bloqueo_io_static(t_contexto_cpu* ctx);
+static void manejar_wait_recurso_static(t_contexto_cpu* ctx);
+static void manejar_signal_recurso_static(t_contexto_cpu* ctx);
 
 void enviar_contexto_a_cpu(t_contexto_cpu* ctx) {
     // Usamos el helper de protocolo que refactorizamos
