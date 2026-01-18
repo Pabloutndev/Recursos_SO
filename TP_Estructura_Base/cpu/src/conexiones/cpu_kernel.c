@@ -93,6 +93,10 @@ static void* handler_dispatch(void* arg)
         if (paquete == NULL) break;
 
         switch (paquete->codigo_operacion) {
+            case OP_HANDSHAKE:
+                log_info(logger, "Handshake recibido en DISPATCH");
+                handshake_servidor(fd, OP_OK, logger);
+                break;
             case OP_PROCESO_EXEC:
                 cpu_handler_atender_ejecucion(fd, paquete);
                 break;
@@ -119,8 +123,17 @@ static void* handler_interrupt(void* arg)
         t_paquete* paquete = recibir_paquete(fd);
         if (paquete == NULL) break;
 
-        if (paquete->codigo_operacion == OP_INTERRUPCION_CPU) {
-            //cpu_handler_atender_interrupcion(fd, paquete);
+        switch (paquete->codigo_operacion) {
+            case OP_HANDSHAKE:
+                log_info(logger, "Handshake recibido en INTERRUPT");
+                handshake_servidor(fd, OP_OK, logger);
+                break;
+            case OP_INTERRUPCION_CPU:
+                //cpu_handler_atender_interrupcion(fd, paquete);
+                break;
+            default:
+                log_warning(logger, "CPU Interrupt: OpCode inválido: %d", paquete->codigo_operacion);
+                break;
         }
 
         paquete_destroy(paquete);

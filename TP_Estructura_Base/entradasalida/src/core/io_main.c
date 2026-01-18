@@ -4,15 +4,10 @@
 #include <interfaces/stdin.h>
 #include <interfaces/dialfs.h>
 
-t_log* logger;
-t_io_config* config;
-int socket_kernel;
-int socket_memoria;
-char* io_name;
-
 #include <protocolo/op_code.h>
 #include <protocolo/mensajes.h>
 #include <paquete/paquete.h>
+#include <conexion/conexion.h>
 
 void conectar_modulos() {
     // Conectar Kernel
@@ -63,6 +58,11 @@ void io_loop() {
         }
 
         switch (paquete->codigo_operacion) {
+            case OP_HANDSHAKE:
+                log_info(logger, "Handshake recibido desde Kernel");
+                handshake_servidor(socket_kernel, OP_OK, logger);
+                break;
+
             case OP_IO_SLEEP:
                 io_adapter_atender_sleep(socket_kernel, paquete);
                 break;

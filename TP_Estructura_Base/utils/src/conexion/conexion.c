@@ -109,3 +109,30 @@ bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t
         return false;
     }
 }
+
+// ============================================================================
+// HANDSHAKE SERVIDOR
+// ============================================================================
+// Maneja la recepción y validación del handshake en el servidor.
+// Recibe el código del cliente, valida y envía respuesta (handshake_response).
+// Uso: Llamar cuando se recibe OP_HANDSHAKE en el handler del servidor.
+bool handshake_servidor(int socket, int handshake_response, t_log* logger) {
+    int handshake_recibido;
+    
+    // Recibir handshake del cliente
+    if (recv(socket, &handshake_recibido, sizeof(int), MSG_WAITALL) < 0) {
+        if(logger) log_error(logger, "Error al recibir handshake del cliente");
+        return false;
+    }
+
+    if(logger) log_info(logger, "Handshake recibido: %d", handshake_recibido);
+
+    // Enviar respuesta
+    if (send(socket, &handshake_response, sizeof(int), 0) < 0) {
+        if(logger) log_error(logger, "Error al enviar respuesta de handshake");
+        return false;
+    }
+
+    if(logger) log_info(logger, "Handshake validado y respuesta enviada: %d", handshake_response);
+    return true;
+}

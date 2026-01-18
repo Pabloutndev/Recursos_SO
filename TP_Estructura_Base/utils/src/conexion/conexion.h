@@ -35,4 +35,10 @@ void liberar_conexion(int socket_cliente);
 // Retorna true/false o checkea protocolo
 bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t_log* logger);
 
+// Maneja la recepción y validación del handshake en el servidor
+// socket: fd del cliente conectado
+// handshake_response: código a enviar como respuesta (típicamente OP_OK o el mismo op_code)
+// logger: logger del módulo (puede ser NULL)
+bool handshake_servidor(int socket, int handshake_response, t_log* logger);
+
 #endif /* UTILS_CON_H */
