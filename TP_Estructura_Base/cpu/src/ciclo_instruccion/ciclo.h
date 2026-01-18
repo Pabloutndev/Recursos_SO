@@ -1,7 +1,7 @@
 #ifndef CICLO_H
 #define CICLO_H
 
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 #include <instrucciones/instrucciones.h>
 
 /**

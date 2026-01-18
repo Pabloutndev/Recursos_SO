@@ -83,87 +83,15 @@ static void* handler_dispatch(void* arg)
 
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
-        
-        if (paquete == NULL) {
-            log_warning(logger, "Kernel Dispatch desconectado");
-            break;
-        }
+        if (paquete == NULL) break;
 
         switch (paquete->codigo_operacion) {
-
-        case OP_PROCESO_EXEC: {
-            t_contexto_cpu* ctx = recibir_contexto(paquete);
-            
-            if (!ctx) {
-                log_error(logger, "Error deserializando contexto");
+            case OP_PROCESO_EXEC:
+                cpu_handler_atender_ejecucion(fd, paquete);
                 break;
-            }
-            
-            log_info(logger, "CPU Dispatch: Ejecutando PID %u, PC=%u, Quantum=%u", 
-                     ctx->pid, ctx->pc, ctx->quantum);
-
-            // ✅ CICLO PRINCIPAL DE CPU
-            ciclo_instruccion_ejecutar(ctx);
-
-            // ✅ DETERMINAR MOTIVO DE DEVOLUCIÓN
-            op_code rs_code = OP_DESALOJO;  // Default
-
-            if (ctx->finalizado) {
-                // Proceso finalizó normalmente (EXIT o EOF)
-                rs_code = OP_MEM_FIN_PROCESO;
-                log_info(logger, "CPU Dispatch: PID %u finalizó normalmente", ctx->pid);
-                
-            } else if (interrupcion_pendiente()) {
-                // Fue interrumpido por Kernel (quantum vencido)
-                rs_code = OP_FIN_DE_QUANTUM;
-                interrupcion_reset();  // Limpiar flag
-                log_info(logger, "CPU Dispatch: PID %u interrumpido por quantum", ctx->pid);
-                
-            } else if (ctx->bloqueado) {
-                // Proceso se bloqueó (IO, WAIT, SIGNAL, etc.)
-                switch(ctx->motivo_desalojo) {
-                    case INST_WAIT: 
-                        rs_code = OP_WAIT_RECURSO;
-                        log_info(logger, "CPU Dispatch: PID %u bloqueado por WAIT", ctx->pid);
-                        break;
-                        
-                    case INST_SIGNAL: 
-                        rs_code = OP_SIGNAL_RECURSO;
-                        log_info(logger, "CPU Dispatch: PID %u bloqueado por SIGNAL", ctx->pid);
-                        break;
-                        
-                    case INST_IO_GEN_SLEEP: 
-                    case INST_IO_STDIN_READ: 
-                    case INST_IO_STDOUT_WRITE: 
-                    case INST_IO_FS_CREATE: 
-                    case INST_IO_FS_DELETE: 
-                    case INST_IO_FS_TRUNCATE: 
-                    case INST_IO_FS_WRITE: 
-                    case INST_IO_FS_READ: 
-                        rs_code = OP_BLOQUEO_IO;
-                        log_info(logger, "CPU Dispatch: PID %u bloqueado por IO (%u)", 
-                                 ctx->pid, ctx->motivo_desalojo);
-                        break;
-                        
-                    default: 
-                        rs_code = OP_BLOQUEO_IO;
-                        log_warning(logger, "CPU Dispatch: PID %u motivo desalojo desconocido (%u)",
-                                    ctx->pid, ctx->motivo_desalojo);
-                        break;
-                }
-            }
-
-            // ✅ ENVIAR RESPUESTA A KERNEL
-            enviar_contexto(fd, ctx, rs_code);
-            log_info(logger, "CPU Dispatch: Contexto retornado PID %u (Code: %d)", ctx->pid, rs_code);
-
-            free(ctx); 
-            break;
-        }
-
-        default:
-            log_warning(logger, "CPU Dispatch: OpCode inválido: %d", paquete->codigo_operacion);
-            break;
+            default:
+                log_warning(logger, "CPU Dispatch: OpCode inválido: %d", paquete->codigo_operacion);
+                break;
         }
 
         paquete_destroy(paquete);
@@ -173,28 +101,17 @@ static void* handler_dispatch(void* arg)
     return NULL;
 }
 
-/* ================= INTERRUPT ================= */
-
 static void* handler_interrupt(void* arg)
 {
     int fd = *(int*)arg;
     free(arg);
 
-    log_info(logger, "Kernel conectado a CPU INTERRUPT (fd=%d)", fd);
-
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
-
-        if (paquete == NULL) {
-            log_warning(logger, "Kernel Interrupt desconectado");
-            break;
-        }
+        if (paquete == NULL) break;
 
         if (paquete->codigo_operacion == OP_INTERRUPCION_CPU) {
-            log_info(logger, "Interrupcion recibida de Kernel");
-            interrupcion_disparar(0); 
-        } else {
-            log_warning(logger, "OpCode invalido en INTERRUPT: %d", paquete->codigo_operacion);
+            cpu_handler_atender_interrupcion(fd, paquete);
         }
 
         paquete_destroy(paquete);

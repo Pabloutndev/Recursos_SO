@@ -20,15 +20,15 @@ t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
     req->pid = pcb->pid;
     req->tamanio = pcb->tam_proceso;
-    req->instrucciones = NULL;  // Memoria carga del disco
-    req->size_instrucciones = 0;
+    // Provisoriamente: pcb_ficticio a path
+    snprintf(req->path, 256, "proceso_%u.txt", pcb->pid);
     return req;
 }
 
-t_mem_fin_proceso* pcb_a_mem_fin(t_pcb* pcb)
+t_mem_fin_proceso* pcb_a_mem_fin(uint32_t pid)
 {
     t_mem_fin_proceso* req = malloc(sizeof(t_mem_fin_proceso));
-    req->pid = pcb->pid;
+    req->pid = pid;
     return req;
 }
 

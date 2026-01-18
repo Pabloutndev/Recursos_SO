@@ -2,7 +2,7 @@
 #define INTERRUPCIONES_H
 
 #include <stdint.h>
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 
 /**
  * @brief Desaloja un proceso que está en ejecución

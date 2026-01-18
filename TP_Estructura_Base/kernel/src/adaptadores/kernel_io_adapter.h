@@ -1,7 +1,7 @@
 #ifndef KERNEL_IO_ADAPTER_H
 #define KERNEL_IO_ADAPTER_H
 
-#include <common/io/io_ops.h>
+#include <model/model.h>
 #include <pcb/pcb.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -43,5 +43,11 @@ void kernel_fs_operation(t_pcb* pcb,
                                                      const char* nombre_archivo,
                                                      uint32_t tamanio,
                                                      char* interfaz_io);
+
+/**
+ * kernel_io_adapter_atender_fin_operacion
+ * IO notifica que terminó su tarea.
+ */
+void kernel_io_adapter_atender_fin_operacion(int fd, t_paquete* p);
 
 #endif

@@ -2,7 +2,7 @@
 #define OPERACIONES_H
 
 #include <instrucciones/instrucciones.h>
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 
 static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx);

@@ -1,7 +1,7 @@
 #include <mod_memoria.h>
 #include <server/server_mem.h>
 #include <paquete/paquete.h>
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <adaptadores/memoria_adapter.h>
@@ -55,78 +55,35 @@ void* memoria_client_handler(void* arg)
             break;
         }
 
-        // ========================================
-        // GESTIÓN DE PROCESOS (Kernel)
-        // ========================================
-        case OP_MEM_INIT_PROCESO: {
-            log_info(logger, "Servidor: OP_MEM_INIT_PROCESO");
-            t_mem_init_proceso* req = recibir_init_proceso(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_init_proceso(req, fd);
-                free(req);
-            }
-            break;
-        }
+            // =============================================================
+            // GESTION PROCESOS
+            // =============================================================
+            case OP_MEM_INIT_PROCESO:
+                memoria_adapter_atender_init_proceso(fd, paquete);
+                break;
 
-        case OP_MEM_FIN_PROCESO: {
-            log_info(logger, "Servidor: OP_MEM_FIN_PROCESO");
-            t_mem_fin_proceso* req = recibir_fin_proceso(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_fin_proceso(req, fd);
-                free(req);
-            }
-            break;
-        }
+            case OP_MEM_FIN_PROCESO:
+                memoria_adapter_atender_fin_proceso(fd, paquete);
+                break;
 
-        // ========================================
-        // ACCESO A MEMORIA (CPU)
-        // ========================================
-        case OP_MEM_TRADUCIR_PAGINA: {
-            log_info(logger, "Servidor: OP_MEM_TRADUCIR_PAGINA");
-            t_mem_traducir* req = recibir_mem_traducir_pagina(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_traducir_pagina(req, fd);
-                free(req);
-            }
-            break;
-        }
+            // =============================================================
+            // ACCESOS
+            // =============================================================
+            case OP_MEM_TRADUCIR_PAGINA:
+                memoria_adapter_atender_traducir_pagina(fd, paquete);
+                break;
+            
+            case OP_MEM_FETCH_INSTRUCCION:
+                memoria_adapter_atender_fetch_instruccion(fd, paquete);
+                break;
+            
+            case OP_MEM_LEER:
+                memoria_adapter_atender_leer(fd, paquete);
+                break;
 
-        case OP_MEM_FETCH_INSTRUCCION: {
-            log_info(logger, "Servidor: OP_MEM_FETCH_INSTRUCCION");
-            t_mem_fetch* req = recibir_fetch(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_fetch_instruccion(req, fd);
-                free(req);
-            }
-            break;
-        }
-
-        case OP_MEM_LEER: {
-            log_info(logger, "Servidor: OP_MEM_LEER");
-            t_mem_read* req = recibir_lectura_memoria(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_leer(req, fd);
-                free(req);
-            }
-            break;
-        }
-
-        case OP_MEM_ESCRIBIR: {
-            log_info(logger, "Servidor: OP_MEM_ESCRIBIR");
-            t_mem_write* req = recibir_escritura_memoria(paquete);
-            if (req) {
-                // DELEGA AL ADAPTADOR
-                memoria_adapter_escribir(req, fd);
-                if (req->buffer) free(req->buffer);
-                free(req);
-            }
-            break;
-        }
+            case OP_MEM_ESCRIBIR:
+                memoria_adapter_atender_escribir(fd, paquete);
+                break;
 
         default:
             log_warning(logger, "Operacion desconocida: %d", 

@@ -1,7 +1,4 @@
-#include <common/memoria/memoria.h>
-#include <common/cpu/contexto.h>
-#include <common/kernel/kernel.h>
-#include <common/io/io_ops.h>
+#include <model/model.h>
 
 #include <paquete/paquete.h>
 #include <serializacion/serializacion.h>

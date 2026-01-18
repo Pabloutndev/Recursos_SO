@@ -59,6 +59,15 @@ void kernel_sleep(t_pcb* pcb, uint32_t tiempo_ms,
     free(io_req);
 }
 
+void kernel_io_adapter_atender_fin_operacion(int fd, t_paquete* p)
+{
+    uint32_t pid = recibir_pid_fin_io(p);
+    log_info(logger, "ADAPTER: IO notifica FIN_OPERACION para PID %u", pid);
+    
+    // Aquí el Kernel debería llamar a la planificación para desbloquear el proceso
+    // manejar_fin_io_operacion(pid); 
+}
+
 void kernel_fs_operation(t_pcb* pcb, 
                                      const char* tipo_operacion,
                                      const char* path,

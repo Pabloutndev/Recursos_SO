@@ -1,6 +1,6 @@
 #include <mod_memoria.h>
 #include <gestion/paginas.h>
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 #include <commons/collections/dictionary.h>
 #include <string.h>
 

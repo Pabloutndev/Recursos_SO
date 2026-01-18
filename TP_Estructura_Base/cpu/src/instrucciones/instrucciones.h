@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <registros/registros.h>
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 
 typedef enum {
     INST_SET,

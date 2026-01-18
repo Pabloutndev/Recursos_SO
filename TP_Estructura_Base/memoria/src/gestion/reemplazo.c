@@ -2,7 +2,7 @@
 #include <commons/collections/dictionary.h>
 #include <gestion/paginas.h>
 #include <mod_memoria.h>
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 
 static uint32_t clock_pid_victima;
 static int clock_pagina_victima;

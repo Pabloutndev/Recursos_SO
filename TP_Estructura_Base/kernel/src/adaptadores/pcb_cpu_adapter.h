@@ -1,7 +1,7 @@
 #ifndef KERNEL_PCB_CONTEXTO_H
 #define KERNEL_PCB_CONTEXTO_H
 
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 #include <pcb/pcb.h>
 
 /* ========================================

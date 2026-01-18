@@ -3,7 +3,7 @@
 
 #include <commons/log.h>
 #include <instrucciones/instrucciones.h>
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 #include <stdint.h>
 
 extern t_log* logger;

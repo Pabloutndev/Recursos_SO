@@ -1,7 +1,7 @@
 #ifndef CPU_CONTEXTO_ADAPTER_H
 #define CPU_CONTEXTO_ADAPTER_H
 
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 
 /* ========================================
  * ADAPTADOR: CPU - Contexto Local
@@ -31,5 +31,10 @@ void cpu_contexto_adapter_cargar(t_contexto_cpu* ctx);
  * @return Contexto actualizado (debe liberarse)
  */
 t_contexto_cpu* cpu_contexto_adapter_extraer(void);
+
+#include <paquete/paquete.h>
+
+void cpu_handler_atender_ejecucion(int fd, t_paquete* p);
+void cpu_handler_atender_interrupcion(int fd, t_paquete* p);
 
 #endif

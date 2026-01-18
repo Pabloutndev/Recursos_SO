@@ -1,5 +1,5 @@
 #include "pcb_cpu_adapter.h"
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 #include <pcb/pcb.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>

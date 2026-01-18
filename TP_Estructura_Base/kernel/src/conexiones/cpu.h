@@ -2,7 +2,7 @@
 #ifndef KERNEL_CON_CPU_H
 #define KERNEL_CON_CPU_H
 
-#include <common/cpu/contexto.h>
+#include <model/model.h>
 #include <stdbool.h>
 
 // Inicializa conexion con CPU (Dispatch y Interrupt)

@@ -99,32 +99,22 @@ static void* handler_io_connection(void* arg) {
     }
     paquete_destroy(p);
 
-    // Loop de atención a esta interfaz
-    // IO puede notificar fin de operación
-    while(1) {
-        t_paquete* msg = recibir_paquete(fd);
-        if (!msg) {
-             // Desconexión
-             break;
-        }
+        // Loop de atención a esta interfaz
+        while(1) {
+            t_paquete* msg = recibir_paquete(fd);
+            if (!msg) break;
 
-        // Manejar mensajes (e.g. OP_IO_FIN_OPERACION)
-        switch(msg->codigo_operacion) {
-            case OP_IO_FIN_OPERACION: {
-                // IO notifica fin de operación
-                // Kernel debe desbloquear el proceso
-                uint32_t pid = recibir_pid_fin_io(msg);
-                log_info(logger, "IO notifica FIN_OPERACION para PID %u", pid);
-                // TODO: Llamar función para desbloquear proceso (manejar_fin_io_operacion)
-                break;
+            switch(msg->codigo_operacion) {
+                case OP_IO_FIN_OPERACION:
+                    kernel_io_adapter_atender_fin_operacion(fd, msg);
+                    break;
+                default:
+                    log_warning(logger, "Mensaje desconocido de IO: %d", msg->codigo_operacion);
+                    break;
             }
-            default:
-                log_warning(logger, "Mensaje desconocido de IO: %d", msg->codigo_operacion);
-                break;
-        }
 
-        paquete_destroy(msg);
-    }
+            paquete_destroy(msg);
+        }
 
     // Limpieza
     log_info(logger, "Interfaz IO desconectada (FD=%d)", fd);

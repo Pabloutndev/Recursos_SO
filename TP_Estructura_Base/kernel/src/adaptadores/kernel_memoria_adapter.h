@@ -2,7 +2,7 @@
 #define KERNEL_MEMORIA_ADAPTER_H
 
 #include <pcb/pcb.h>
-#include <common/memoria/memoria.h>
+#include <model/model.h>
 
 /* ========================================
  * ADAPTADOR: Kernel → Memoria
