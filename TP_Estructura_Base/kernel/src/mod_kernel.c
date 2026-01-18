@@ -62,6 +62,9 @@ int kernel_init(const char* config_path)
     recursos_init(&KCONF);
 
     planificacion_init();
+    
+    // Iniciar planificadores (largo y corto plazo)
+    planificacion_start();
 
     iniciar_consola();
     

@@ -106,7 +106,6 @@ bool procesar_linea(char* linea)
 
         case CMD_EXIT:
             log_info(logger, "Cerrando consola...");
-            kernel_shutdown();
             void* f = free;
             string_iterate_lines(tokens, f);
             free(tokens);
