@@ -30,8 +30,6 @@ static pthread_t hilo_interrupt;
 static void* escuchar_dispatch(void* arg);
 static void* escuchar_interrupt(void* arg);
 static void manejar_segfault_static(t_contexto_cpu* ctx);
-static void manejar_fin_quantum_static(t_contexto_cpu* ctx);
-static void manejar_fin_proceso_static(t_contexto_cpu* ctx);
 static void manejar_bloqueo_io_static(t_contexto_cpu* ctx);
 static void manejar_wait_recurso_static(t_contexto_cpu* ctx);
 static void manejar_signal_recurso_static(t_contexto_cpu* ctx);
@@ -92,7 +90,7 @@ static void* escuchar_dispatch(void* _)
         case OP_FIN_DE_QUANTUM: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
             if (ctx) {
-                manejar_fin_quantum_static(ctx);
+                manejar_fin_quantum(ctx);
                 free(ctx);
             }
             break;
@@ -101,7 +99,7 @@ static void* escuchar_dispatch(void* _)
         case OP_CPU_FIN_PROCESO: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
             if (ctx) {
-                manejar_fin_proceso_static(ctx);
+                manejar_fin_proceso(ctx);
                 free(ctx);
             }
             break;
@@ -175,51 +173,6 @@ static void* escuchar_interrupt(void* _)
 /* ========================================
  * MANEJADORES DE EVENTOS DE CPU
  * ======================================== */
-
-static void manejar_fin_quantum(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-    
-    log_info(logger, "CPU: Fin de Quantum para PID=%d", ctx->pid);
-    
-    // Desalojar por quantum (pasar a READY)
-    manejar_interrupcion(ctx->pid, "QUANTUM");
-}
-
-static void manejar_fin_proceso(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-    
-    log_info(logger, "CPU: Fin de Proceso PID=%d", ctx->pid);
-    
-    // Actualizar contexto en PCB antes de finalizar
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
-        if (pcb && pcb->pid == (uint32_t)ctx->pid) {
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-    
-    // Finalizar proceso (mover a EXIT)
-    manejar_interrupcion(ctx->pid, "EXIT");
-    
-    // Liberar recursos en Memoria
-    solicitar_fin_proceso_memoria(ctx->pid);
-}
-
-static void manejar_fin_quantum_static(t_contexto_cpu* ctx)
-{
-    manejar_fin_quantum(ctx);
-}
-
-static void manejar_fin_proceso_static(t_contexto_cpu* ctx)
-{
-    manejar_fin_proceso(ctx);
-}
 
 static void manejar_bloqueo_io_static(t_contexto_cpu* ctx)
 {

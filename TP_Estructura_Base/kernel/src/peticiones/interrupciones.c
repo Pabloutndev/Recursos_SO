@@ -174,3 +174,54 @@ void manejar_signal_recurso(t_contexto_cpu* ctx) {
     // Simil Wait exitoso.
     manejar_interrupcion(ctx->pid, "QUANTUM");
 }
+
+void manejar_fin_quantum(t_contexto_cpu* ctx)
+{
+    if (!ctx) return;
+    
+    log_info(logger, "CPU: Fin de Quantum para PID=%u, PC=%u", ctx->pid, ctx->pc);
+    
+    // ✅ PASO 1: Actualizar contexto en el PCB
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
+        if (pcb && pcb->pid == ctx->pid) {
+            pcb->program_counter = ctx->pc;
+            pcb->registros = ctx->registros;
+            log_info(logger, "Contexto actualizado para PID=%u (PC=%u)", pcb->pid, pcb->program_counter);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+    
+    // ✅ PASO 2: Notificar a Memoria para actualizar su copia
+    // TODO: Implementar solicitud de actualización de contexto en Memoria si es necesario
+    
+    // ✅ PASO 3: Desalojar por quantum (pasar a READY)
+    manejar_interrupcion(ctx->pid, "QUANTUM");
+}
+
+void manejar_fin_proceso(t_contexto_cpu* ctx)
+{
+    if (!ctx) return;
+    
+    log_info(logger, "CPU: Fin de Proceso PID=%u", ctx->pid);
+    
+    // ✅ PASO 1: Actualizar contexto en PCB
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
+        if (pcb && pcb->pid == ctx->pid) {
+            pcb->program_counter = ctx->pc;
+            pcb->registros = ctx->registros;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+    
+    // ✅ PASO 2: Finalizar proceso (mover a EXIT)
+    manejar_interrupcion(ctx->pid, "EXIT");
+    
+    // ✅ PASO 3: Liberar recursos en Memoria
+    solicitar_fin_proceso_memoria(ctx->pid);
+}
