@@ -5,7 +5,7 @@
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <adaptadores/memoria_adapter.h>
-#include <server/server.h>
+#include <conexion/conexion.h>
 
 static int server_socket = -1;
 

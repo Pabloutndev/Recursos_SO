@@ -2,6 +2,7 @@
 #include <model/model.h>
 
 // net
+#include <conexion/conexion.h>
 #include <paquete/paquete.h>
 
 // serializacion / deserializacion

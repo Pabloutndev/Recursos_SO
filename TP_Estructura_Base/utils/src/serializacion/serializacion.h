@@ -60,13 +60,12 @@ t_paquete* serializar_mem_fetch(t_mem_fetch* req, op_code code);
 t_mem_fetch* deserializar_mem_fetch(t_paquete* p);
 
 /// ##### RESPONSES - DESERIALIZACION #####
-/*
 t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res);
 t_mem_respuesta_traduccion* deserializar_mem_respuesta_traduccion(t_paquete* p);
 
 t_paquete* serializar_mem_respuesta_lectura(t_mem_respuesta_lectura* res);
 t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p);
-*/
+
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion);
 char* deserializar_mem_respuesta_instruccion(t_paquete* p);
 

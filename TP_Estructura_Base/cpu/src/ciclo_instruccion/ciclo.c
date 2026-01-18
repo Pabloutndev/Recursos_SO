@@ -4,12 +4,13 @@
 #include <instrucciones/operaciones.h>
 #include <mmu/mmu.h>
 #include <cpu.h>
-#include <cpu/contexto.h>
+#include <model/model.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <interrupciones/interrupciones.h>
 
 extern t_log* loggerError;
+extern t_motivo_desalojo motivo_desalojo;
 
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
 
@@ -27,24 +28,21 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
 
         if (interrupcion_pendiente()) {
             log_info(logger, "CPU PID %d: Interrupción detectada", ctx->pid);
-            cpu_set_motivo(CPU_FIN_QUANTUM);
             break;
         }
 
         char* linea = fetch_instruccion(ctx);
         if (!linea) {
             log_info(logger, "CPU PID %d: Fin de archivo/instrucciones", ctx->pid);
-            cpu_set_motivo(CPU_EXIT);
             break;
         }
 
         instruccion_t inst = decode_instruccion(linea);        
         free(linea); 
 
-        t_cpu_motivo motivo = execute_instruccion(&inst, ctx);
+        motivo_desalojo = execute_instruccion(&inst, ctx);
         
-        if (motivo != CPU_CONTINUAR) {
-            cpu_set_motivo(motivo);
+        if (motivo_desalojo != CPU_CONTINUAR) {
             break;
         }
     }
@@ -52,7 +50,7 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
 
 char* fetch_instruccion(t_contexto_cpu* ctx)
 {
-    uint32_t pc = ctx->registros.PC;
+    uint32_t pc = ctx->pc;
     // MMU translation removed as Memory handles PC -> Instruction logic
     
     char* linea = memoria_fetch_instruccion(ctx->pid, pc);

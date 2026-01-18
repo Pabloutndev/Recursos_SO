@@ -1,18 +1,23 @@
-#include <conexiones/cpu_kernel.h>
-#include <server/server.h>
-#include <commons/log.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
+
+#include <commons/log.h>
+#include <paquete/paquete.h>
+#include <serializacion/serializacion.h>
+#include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
+#include <adaptadores/contexto_cpu_adapter.h>
 
 #include <cpu.h>   // logger, config
+#include <conexion/conexion.h>
+#include <conexiones/cpu_kernel.h>
 #include <ciclo_instruccion/ciclo.h>
-#include <paquete/paquete.h>
-#include <protocolo/mensajes.h>
-#include <interrupciones/interrupciones.h>
-#include <protocolo/op_code.h>
-#include <serializacion/serializacion.h>
 #include <instrucciones/instrucciones.h> // For INST_ constants
+#include <interrupciones/interrupciones.h>
+
+extern int socket_dispatch;
+extern int socket_interrupt;
 
 /* ================= Handlers ================= */
 
@@ -79,6 +84,8 @@ static void* handler_dispatch(void* arg)
     int fd = *(int*)arg;
     free(arg);
 
+    socket_dispatch = fd;
+
     log_info(logger, "Kernel conectado a CPU DISPATCH (fd=%d)", fd);
 
     while (1) {
@@ -106,12 +113,14 @@ static void* handler_interrupt(void* arg)
     int fd = *(int*)arg;
     free(arg);
 
+    socket_interrupt = fd;
+
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
         if (paquete == NULL) break;
 
         if (paquete->codigo_operacion == OP_INTERRUPCION_CPU) {
-            cpu_handler_atender_interrupcion(fd, paquete);
+            //cpu_handler_atender_interrupcion(fd, paquete);
         }
 
         paquete_destroy(paquete);
@@ -135,18 +144,15 @@ bool kernel_recibir_contexto(t_contexto_cpu* ctx)
     t_contexto_cpu* recibido = recibir_contexto(p);
     paquete_destroy(p);
 
-    adaptar_contexto_kernel_a_cpu(ctx, recibido);
+    //adaptar_contexto_kernel_a_cpu(ctx, recibido);
     free(recibido);
 
     log_info(logger, "CPU recibió contexto PID=%d", ctx->pid);
     return true;
 }
 
-void kernel_enviar_contexto(t_contexto_cpu* ctx, t_cpu_motivo motivo)
+void kernel_enviar_contexto(t_contexto_cpu* ctx, t_motivo_desalojo motivo)
 {
-    // Guardar motivo dentro del contexto (opcional pero útil)
-    ctx->motivo_desalojo = motivo;
-
     enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC);
 
     log_info(logger,

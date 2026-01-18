@@ -1,6 +1,7 @@
 #include <ciclo_instruccion/decode.h>
 #include <instrucciones/instrucciones.h>
 #include <commons/string.h>
+#include <model/model.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -16,7 +17,7 @@ static reg_id_t parse_registro(char* r)
     if (!strcmp(r,"EDX")) return REG_EDX;
     if (!strcmp(r,"SI")) return REG_SI;
     if (!strcmp(r,"DI")) return REG_DI;
-    return REG_PC;
+    return REG_AX;
 }
 
 instruccion_t decoder_parsear(char* linea)

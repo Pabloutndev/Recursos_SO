@@ -11,17 +11,19 @@ static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx);
-static void ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx);
 static void ejecutar_exit(t_contexto_cpu* ctx);
+static t_motivo_desalojo ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx);
+static t_motivo_desalojo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx);
+static t_motivo_desalojo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx);
 
-t_cpu_motivo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
+t_motivo_desalojo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
 {
     switch (inst->opcode) {
         case INST_SET: ejecutar_set(inst, ctx); return CPU_CONTINUAR; break;
         case INST_SUM: ejecutar_sum(inst, ctx); return CPU_CONTINUAR; break;
         case INST_SUB: ejecutar_sub(inst, ctx); return CPU_CONTINUAR; break;
         case INST_JNZ: ejecutar_jnz(inst, ctx); return CPU_CONTINUAR; break;
-        case INST_EXIT: ejecutar_exit(ctx); return CPU_EXIT; break;
+        case INST_EXIT: ejecutar_exit(ctx); return MOTIVO_EXIT; break;
         
         // Desalojos
         case INST_WAIT:
@@ -45,13 +47,13 @@ t_cpu_motivo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
         case INST_RESIZE:
              // TODO: memoria resize request (enviar a Memoria resize, esperar respuesta)
              // Ajustar tamaño proceso.
-            return CPU_IO;
+            return MOTIVO_IO;
 
         case INST_COPY_STRING:
             // Complejo: Leer string de memoria (SI) y escribir en memoria (DI).
             // Requiere loop de lectura escritura byte a byte o bloque.
             // Por simplicidad del snippet, dejamos TODO o implementamos basico.
-            return CPU_IO;
+            return MOTIVO_IO;
             
         default:
             return CPU_CONTINUAR;
@@ -61,7 +63,7 @@ t_cpu_motivo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
 static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx)
 {
     registros_escribir(&ctx->registros, i->r1, i->inmediato);
-    ctx->registros.PC++;
+    ctx->pc++;
 }
 
 static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx)
@@ -69,7 +71,7 @@ static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx)
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
     registros_escribir(&ctx->registros, i->r1, a + b);
-    ctx->registros.PC++;
+    ctx->pc++;
 }
 
 static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx)
@@ -77,27 +79,27 @@ static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx)
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
     registros_escribir(&ctx->registros, i->r1, a - b);
-    ctx->registros.PC++;
+    ctx->pc++;
 }
 
 static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx)
 {
     // Fix: Validar registro != 0
     if (registros_leer(&ctx->registros, i->r1) != 0) {
-        ctx->registros.PC = i->inmediato;
+        ctx->pc = i->inmediato;
     } else {
-        ctx->registros.PC++;
+        ctx->pc++;
     }
 }
 
-static t_cpu_motivo ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx)
+static t_motivo_desalojo ejecutar_io(instruccion_t* i, t_contexto_cpu* ctx)
 {
-    ctx->registros.PC++;
-    strcpy(ctx->parametros, i->parametros);
-    return CPU_IO;
+    ctx->pc++;
+    //strcpy(ctx->registros, i->parametros);
+    return MOTIVO_IO;
 }
 
-static t_cpu_motivo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
+static t_motivo_desalojo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
 {
     // MOV_IN (Registro, Dirección Lógica)
     // Lee de memoria (Dir Logica) y guarda en Registro
@@ -105,7 +107,7 @@ static t_cpu_motivo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
     uint32_t dir_fisica = mmu_traducir(dir_logica, false);
     
     if (!dir_fisica) {
-        return CPU_SEGFAULT;
+        return MOTIVO_SEGFAULT;
     }
 
     uint32_t valor_leido = 0;
@@ -114,16 +116,16 @@ static t_cpu_motivo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
         // Si MMU falló (PF o error), deberia desalojar?
         // mmu_traducir deberia setear flag de desalojo? 
         // Revisar mmu.c. MMU devuelve 0.
-        return CPU_SEGFAULT;
+        return MOTIVO_SEGFAULT;
     }
     
-    registros_escribir(&ctx->registros, inst->r1, valor_leido);
-    ctx->registros.PC++;
+    registros_escribir(&ctx->registros, i->r1, valor_leido);
+    ctx->pc++;
     
     return CPU_CONTINUAR;
 }
 
-static t_cpu_motivo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx)
+static t_motivo_desalojo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx)
 {
     // MOV_OUT (Dirección Lógica, Registro)
     // Escribe valor de Registro en Memoria (Dir Logica)
@@ -133,13 +135,17 @@ static t_cpu_motivo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx)
     uint32_t dir_fisica = mmu_traducir(dir_logica_val, true);
 
     if (!dir_fisica) {
-        return CPU_SEGFAULT;
+        return MOTIVO_SEGFAULT;
     }
 
     if (!memoria_escribir(ctx->pid, dir_fisica, &valor_escribir, sizeof(uint32_t))) {
-        return CPU_SEGFAULT;
+        return MOTIVO_SEGFAULT;
     }
     
-    ctx->registros.PC++;
+    ctx->pc++;
     return CPU_CONTINUAR;
+}
+
+void ejecutar_exit(t_contexto_cpu* ctx)  {
+    
 }

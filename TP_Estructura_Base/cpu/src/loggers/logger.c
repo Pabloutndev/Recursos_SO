@@ -2,6 +2,7 @@
 #include <commons/string.h>
 #include <protocolo/op_code.h>
 #include <instrucciones/instrucciones.h>
+#include <loggers/logger.h>
 
 extern t_log* logger;
 
@@ -35,7 +36,6 @@ static const char* reg_to_str(reg_id_t r)
         case REG_EDX:return "EDX";
         case REG_SI: return "SI";
         case REG_DI: return "DI";
-        case REG_PC: return "PC";
         default:     return "UNK";
     }
 }

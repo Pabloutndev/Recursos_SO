@@ -7,6 +7,11 @@
 /* =========================
    REGISTROS Y CONTEXTO
    ========================= */
+typedef enum {
+    REG_AX, REG_BX, REG_CX, REG_DX,
+    REG_EAX, REG_EBX, REG_ECX, REG_EDX,
+    REG_SI, REG_DI,
+} reg_id_t;
 
 typedef struct {
     uint8_t  AX, BX, CX, DX;
@@ -29,7 +34,8 @@ typedef enum {
     MOTIVO_IO,
     MOTIVO_EXIT,
     MOTIVO_SEGFAULT,
-    MOTIVO_DESALOJO
+    MOTIVO_DESALOJO,
+    CPU_CONTINUAR
 } t_motivo_desalojo;
 
 

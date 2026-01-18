@@ -2,6 +2,7 @@
 #define CPU_CONTEXTO_ADAPTER_H
 
 #include <model/model.h>
+#include <paquete/paquete.h>
 
 /* ========================================
  * ADAPTADOR: CPU - Contexto Local
@@ -11,6 +12,9 @@
  * - Extraer contexto después de ejecución
  * - Mantener estado CPU sincronizado
  * ======================================== */
+
+bool recibir_contexto_kernel(t_contexto_cpu* ctx);
+void enviar_contexto_kernel(t_contexto_cpu* ctx, t_motivo_desalojo motivo);
 
 /**
  * cpu_contexto_adapter_cargar
@@ -31,8 +35,6 @@ void cpu_contexto_adapter_cargar(t_contexto_cpu* ctx);
  * @return Contexto actualizado (debe liberarse)
  */
 t_contexto_cpu* cpu_contexto_adapter_extraer(void);
-
-#include <paquete/paquete.h>
 
 void cpu_handler_atender_ejecucion(int fd, t_paquete* p);
 void cpu_handler_atender_interrupcion(int fd, t_paquete* p);

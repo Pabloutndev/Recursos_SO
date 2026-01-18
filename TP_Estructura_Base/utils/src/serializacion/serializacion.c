@@ -68,7 +68,7 @@ void serializar_registros(t_paquete* p, registros_t* r) {
     paquete_write_uint32(p, r->EDX);
     paquete_write_uint32(p, r->SI);
     paquete_write_uint32(p, r->DI);
-    paquete_write_uint32(p, r->PC);
+    //paquete_write_uint32(p, r->PC);
 }
 
 void deserializar_registros(t_paquete* p, registros_t* r) {
@@ -85,7 +85,7 @@ void deserializar_registros(t_paquete* p, registros_t* r) {
     paquete_read_uint32(p, &r->EDX);
     paquete_read_uint32(p, &r->SI);
     paquete_read_uint32(p, &r->DI);
-    paquete_read_uint32(p, &r->PC);
+    //paquete_read_uint32(p, &r->PC);
 }
 
 /// ===========
@@ -185,8 +185,8 @@ t_mem_fetch* deserializar_mem_fetch(t_paquete* p) {
     return req;
 }
 
-/// ##### RESPONSES - DESERIALIZACION #####
-/*
+/// ##### RESPONSES - SERIALIZACION y DESERIALIZACION #####
+
 t_paquete* serializar_mem_respuesta_traduccion(t_mem_respuesta_traduccion* res) {
     t_paquete* p = paquete_create(OP_MEM_RESP_TRADUCCION);
     paquete_write_bool(p, res->ok);
@@ -216,7 +216,7 @@ t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p) {
 }
 
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion) {
-    t_paquete* p = paquete_create(OP_MEM_FETCH_INSTRUCCION);
+    t_paquete* p = paquete_create(OP_MEM_RESP_INSTRUCCION);
     paquete_write_string(p, instruccion);
     return p;
 }
@@ -224,7 +224,7 @@ t_paquete* serializar_mem_respuesta_instruccion(char* instruccion) {
 char* deserializar_mem_respuesta_instruccion(t_paquete* p) {
     return paquete_read_string(p);
 }
-*/
+
 // ================================
 // IO - SLEEP
 // ================================

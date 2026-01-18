@@ -9,7 +9,7 @@
 
 bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)
 {
-    char* linea = memoria_fetch_instruccion(ctx->pid, ctx->registros.PC);
+    char* linea = memoria_fetch_instruccion(ctx->pid, ctx->pc);
     if (!linea) {
         return false;
     }

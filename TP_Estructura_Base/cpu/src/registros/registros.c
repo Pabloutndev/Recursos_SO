@@ -1,4 +1,4 @@
-#include "registros.h"
+#include <registros/registros.h>
 
 uint32_t registros_leer(registros_t* r, reg_id_t reg)
 {
@@ -13,7 +13,6 @@ uint32_t registros_leer(registros_t* r, reg_id_t reg)
         case REG_EDX: return r->EDX;
         case REG_SI:  return r->SI;
         case REG_DI:  return r->DI;
-        case REG_PC:  return r->PC;
         default:      return 0;
     }
 }
@@ -31,7 +30,6 @@ void registros_escribir(registros_t* r, reg_id_t reg, uint32_t valor)
         case REG_EDX: r->EDX = valor; break;
         case REG_SI:  r->SI  = valor; break;
         case REG_DI:  r->DI  = valor; break;
-        case REG_PC:  r->PC  = valor; break;
     }
 }
 

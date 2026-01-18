@@ -12,6 +12,7 @@
 #include <gestion/memoria_ram.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
+#include <adaptadores/memoria_adapter.h>
 
 #include <sys/socket.h>
 #include <stdlib.h>

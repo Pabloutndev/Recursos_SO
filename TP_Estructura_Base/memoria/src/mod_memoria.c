@@ -1,9 +1,12 @@
 #include <gestion/memoria_core.h>
 #include <gestion/memoria_ram.h>
 #include <frames/frames.h>
+#include <configs/memoria_config.h>
 #include <swap/swap.h>
 #include <server/server_mem.h>
 #include <unistd.h>
+#include <commons/log.h>
+#include <stdlib.h>
 
 t_log* logger;
 t_log* loggerError;
