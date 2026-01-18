@@ -18,7 +18,7 @@ void cpu_conexiones_memoria_init(char* ip, char* puerto)
     log_info(logger, "Conectado a Memoria (FD=%d)", fd_memoria);
 
     // Handshake
-    handshake_cliente(fd_memoria, OP_HANDSHAKE, OP_HANDSHAKE, logger);
+    handshake_cliente(fd_memoria, OP_HANDSHAKE, OP_OK, logger);
     
     // Inicializar adapter con el file descriptor
     cpu_memoria_adapter_init(fd_memoria);

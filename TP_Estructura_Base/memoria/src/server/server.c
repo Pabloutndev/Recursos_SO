@@ -49,10 +49,13 @@ void* memoria_client_handler(void* arg)
         // HANDSHAKE
         // ========================================
         case OP_HANDSHAKE: {
-            log_info(logger, "Handshake recibido");
-            // Usar función global de handshake servidor
-            int tam_pag = get_tamanio_pagina();
-            handshake_servidor(fd, tam_pag, logger);
+            log_info(logger, "Handshake recibido de cliente (FD=%d)", fd);
+            // Enviar respuesta OP_OK como paquete
+            {
+                t_paquete* resp = paquete_create(OP_OK);
+                enviar_paquete(fd, resp);
+                paquete_destroy(resp);
+            }
             break;
         }
 

@@ -1,5 +1,7 @@
 #include <conexion/conexion.h>
 #include <protocolo/op_code.h>
+#include <paquete/paquete.h>
+#include <commons/log.h>
 
 int iniciar_servidor(char* puerto)
 {
@@ -92,47 +94,46 @@ void liberar_conexion(int socket_cliente)
 }
 
 bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t_log* logger) {
-    // Envio mi handshake
-    int hs = handshake_code;
-    send(socket, &hs, sizeof(int), 0);
+    // Enviar OP_HANDSHAKE como paquete
+    t_paquete* p = paquete_create(handshake_code);
+    enviar_paquete(socket, p);
+    paquete_destroy(p);
 
-    // Recibo respuesta
-    int response;
-    recv(socket, &response, sizeof(int), MSG_WAITALL);
-
-    if (response == handshake_expected || response == OP_OK) {
-        // Logica flexible: a veces validamos que nos devuelvan OK o el mismo handshake
-        if(logger) log_info(logger, "Handshake exitoso");
-        return true;
-    } else {
-        if(logger) log_error(logger, "Handshake fallido. Esperado: %d. Recibido: %d", handshake_expected, response);
+    // Recibir respuesta
+    t_paquete* resp = recibir_paquete(socket);
+    if (!resp) {
+        if(logger) log_error(logger, "Error recibiendo respuesta de handshake");
         return false;
     }
+
+    bool resultado = (resp->codigo_operacion == handshake_expected || resp->codigo_operacion == OP_OK);
+    
+    if (resultado) {
+        if(logger) log_info(logger, "Handshake cliente exitoso");
+    } else {
+        if(logger) log_error(logger, "Handshake cliente fallido. Esperado: %d. Recibido: %d", handshake_expected, resp->codigo_operacion);
+    }
+    
+    paquete_destroy(resp);
+    return resultado;
 }
 
 // ============================================================================
 // HANDSHAKE SERVIDOR
 // ============================================================================
-// Maneja la recepción y validación del handshake en el servidor.
-// Recibe el código del cliente, valida y envía respuesta (handshake_response).
+// Maneja el envío de respuesta OP_OK cuando recibe OP_HANDSHAKE.
 // Uso: Llamar cuando se recibe OP_HANDSHAKE en el handler del servidor.
 bool handshake_servidor(int socket, int handshake_response, t_log* logger) {
-    int handshake_recibido;
-    
-    // Recibir handshake del cliente
-    if (recv(socket, &handshake_recibido, sizeof(int), MSG_WAITALL) < 0) {
-        if(logger) log_error(logger, "Error al recibir handshake del cliente");
-        return false;
-    }
+    // Enviar respuesta como paquete (típicamente OP_OK)
+    t_paquete* p = paquete_create(handshake_response);
+    bool resultado = enviar_paquete(socket, p);
+    paquete_destroy(p);
 
-    if(logger) log_info(logger, "Handshake recibido: %d", handshake_recibido);
-
-    // Enviar respuesta
-    if (send(socket, &handshake_response, sizeof(int), 0) < 0) {
+    if (resultado) {
+        if(logger) log_info(logger, "Handshake servidor respondido con OP_OK");
+    } else {
         if(logger) log_error(logger, "Error al enviar respuesta de handshake");
-        return false;
     }
 
-    if(logger) log_info(logger, "Handshake validado y respuesta enviada: %d", handshake_response);
-    return true;
+    return resultado;
 }
