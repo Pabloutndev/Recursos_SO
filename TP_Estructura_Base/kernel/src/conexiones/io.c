@@ -1,6 +1,6 @@
 #include <conexiones/io.h>
 #include <mod_kernel.h>
-#include <server/server.h>
+#include <conexion/conexion.h>
 #include <paquete/paquete.h>
 #include <protocolo/op_code.h>
 #include <commons/collections/list.h>

@@ -128,7 +128,7 @@ void manejar_wait_recurso(t_contexto_cpu* ctx) {
     pcb->registros = ctx->registros;
 
     // 2. Intentar adquirir recurso
-    bool bloqueo = recurso_wait(pcb, ctx->parametros);
+    bool bloqueo = recurso_wait(pcb, ctx->registros);
 
     if (bloqueo) {
         // Bloquear proceso
@@ -140,7 +140,7 @@ void manejar_wait_recurso(t_contexto_cpu* ctx) {
 }
 
 void manejar_signal_recurso(t_contexto_cpu* ctx) {
-    t_pcb* desbloqueado = recurso_signal(ctx->parametros);
+    t_pcb* desbloqueado = recurso_signal(ctx->registros);
     
     if (desbloqueado) {
         // El proceso desbloqueado estaba en BLOCKED y en la cola del recurso.

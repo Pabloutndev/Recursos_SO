@@ -15,6 +15,9 @@
 t_log* logger;
 t_log* loggerError;
 t_kernel_config KCONF;
+int socket_dispatch = -1;
+int socket_interrupt = -1;
+int socket_memoria = -1;
 
 void conexiones_init()
 {

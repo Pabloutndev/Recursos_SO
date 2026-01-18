@@ -91,7 +91,7 @@ void kernel_fs_operation(t_pcb* pcb,
     if (strcmp(tipo_operacion, "CREATE") == 0) {
         t_io_fs_create* req = malloc(sizeof(t_io_fs_create));
         req->pid = pcb->pid;
-        req->path = strdup(path);
+        snprintf(req->path, sizeof(req->path), "%s", path);
         
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_CREATE (PID=%u, ARCHIVO=%s) a %s",
                  pcb->pid, path, interfaz_io);
@@ -119,7 +119,7 @@ void kernel_fs_operation(t_pcb* pcb,
     else if (strcmp(tipo_operacion, "WRITE") == 0) {
         t_io_fs_write* req = malloc(sizeof(t_io_fs_write));
         req->pid = pcb->pid;
-        req->path = strdup(path);
+        snprintf(req->path, sizeof(req->path), "%s", path);
         req->size = tamanio;
         
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_WRITE (PID=%u, ARCHIVO=%s, TAM=%u) a %s",

@@ -1,4 +1,4 @@
-#include "kernel_memoria_adapter.h"
+#include <adaptadores/kernel_memoria_adapter.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 #include <conexion/conexion.h>
@@ -14,7 +14,7 @@ extern t_log* loggerError;
 /* ========================================
  * TRANSFORMACIÓN DE ESTRUCTURAS
  * ======================================== */
-
+/*
 t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 {
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
@@ -29,7 +29,7 @@ t_mem_fin_proceso* pcb_a_mem_fin(uint32_t pid)
     t_mem_fin_proceso* req = malloc(sizeof(t_mem_fin_proceso));
     req->pid = pid;
     return req;
-}
+}*/
 
 /* ========================================
  * OPERACIONES COMPLETAS (CON RESPUESTA)

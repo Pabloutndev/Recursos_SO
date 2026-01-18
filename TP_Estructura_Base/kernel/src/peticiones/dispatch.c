@@ -11,10 +11,7 @@ extern t_log* logger;
 static void pcb_to_contexto(t_pcb* pcb, t_contexto_cpu* ctx) {
     ctx->pid = pcb->pid;
     ctx->pc = pcb->program_counter;
-    ctx->quantum = pcb->quantum;
     ctx->registros = pcb->registros;
-    ctx->finalizado = 0; // Flags iniciales?
-    ctx->bloqueado = 0;
     // IO time field?
 }
 

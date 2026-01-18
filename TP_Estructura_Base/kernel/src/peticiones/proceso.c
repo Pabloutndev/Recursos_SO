@@ -48,7 +48,7 @@ void ejecutar_proceso(char* path)
     // ✅ PASO 1: Crear proceso en memoria
     t_mem_init_proceso req;
     req.pid = pid;  // Memoria asignará PID
-    strcpy(req.instrucciones, path);
+    snprintf(req.path, sizeof(req.path), "%s", path);
     
     bool creado_en_memoria = kernel_init_proceso_path(&req);
     
@@ -112,7 +112,6 @@ void initialize_process(t_pcb* p, int pid, int quantum)
     p->registros.EDX = 0;
     p->registros.SI = 0;
     p->registros.DI = 0;
-    p->registros.PC = 0;
 }
 /*
 t_list* get_listOfProcesses(char* name)

@@ -3,6 +3,7 @@
 
 #include <model/model.h>
 #include <pcb/pcb.h>
+#include <paquete/paquete.h>
 #include <stdbool.h>
 #include <stdint.h>
 

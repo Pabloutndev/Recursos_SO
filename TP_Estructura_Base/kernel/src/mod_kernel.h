@@ -11,6 +11,8 @@
 extern t_log* logger;
 extern t_log* loggerError;
 extern t_kernel_config KCONF;
+extern int socket_dispatch;
+extern int socket_interrupt;
 
 ///TODO: utiliza utils/conexiones y conexiones/
 // server_kernel

@@ -9,8 +9,8 @@
 #include <pcb/pcb.h>
 
 // Variables globales para sockets match mod_kernel.c
-extern int socket_cpu_dispatch;
-extern int socket_cpu_interrupt;
+extern int socket_dispatch;
+extern int socket_interrupt;
 extern t_log* logger;
 
 extern t_list* cola_exit;
@@ -23,12 +23,12 @@ static void* escuchar_interrupt(void* arg);
 
 void enviar_contexto_a_cpu(t_contexto_cpu* ctx) {
     // Usamos el helper de protocolo que refactorizamos
-    enviar_contexto(socket_cpu_dispatch, ctx, OP_PROCESO_EXEC);
+    enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC);
 }
 
 void enviar_interrupcion_a_cpu(int pid, int motivo) {
     // TODO: Confirmar si CPU espera payload. Por ahora usamos helper simple.
-    enviar_interrupcion_cpu(socket_cpu_interrupt);
+    enviar_interrupcion_cpu(socket_interrupt);
 }
 
 t_contexto_cpu* recibir_contexto_de_cpu(void) {
@@ -39,22 +39,22 @@ t_contexto_cpu* recibir_contexto_de_cpu(void) {
 void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
 {
     // 1. Dispatch
-    socket_cpu_dispatch = crear_conexion(ip, puerto_dispatch);
-    if(socket_cpu_dispatch < 0) {
+    socket_dispatch = crear_conexion(ip, puerto_dispatch);
+    if(socket_dispatch < 0) {
         log_error(logger, "Error conectando a CPU dispatch");
         exit(EXIT_FAILURE);
     }
     // Handshake
-    handshake_cliente(socket_cpu_dispatch, OP_HANDSHAKE, OP_OK, logger);
+    handshake_cliente(socket_dispatch, OP_HANDSHAKE, OP_OK, logger);
 
     // 2. Interrupt
-    socket_cpu_interrupt = crear_conexion(ip, puerto_interrupt);
-    if(socket_cpu_interrupt < 0) {
+    socket_interrupt = crear_conexion(ip, puerto_interrupt);
+    if(socket_interrupt < 0) {
         log_error(logger, "Error conectando a CPU interrupt");
         exit(EXIT_FAILURE);
     }
     // Handshake
-    handshake_cliente(socket_cpu_interrupt, OP_HANDSHAKE, OP_OK, logger);
+    handshake_cliente(socket_interrupt, OP_HANDSHAKE, OP_OK, logger);
 
     // 3. Threads
     pthread_create(&hilo_dispatch, NULL, escuchar_dispatch, NULL);
@@ -66,7 +66,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
 static void* escuchar_dispatch(void* _)
 {
     while (1) {
-        t_paquete* paquete = recibir_paquete(socket_cpu_dispatch);
+        t_paquete* paquete = recibir_paquete(socket_dispatch);
         if (paquete == NULL) {
             log_error(logger, "CPU Dispatch desconectado");
             break;
@@ -94,7 +94,7 @@ static void* escuchar_dispatch(void* _)
 
         case OP_IO_SLEEP: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "Bloqueo IO: PID %d. Param: %s", ctx->pid, ctx->parametros);
+            log_info(logger, "Bloqueo IO: PID %d. Param: %s", ctx->pid, "ctx->parametros");
             manejar_bloqueo_io(ctx);
             free(ctx);
             break;
@@ -102,7 +102,7 @@ static void* escuchar_dispatch(void* _)
 
         case OP_WAIT_RECURSO: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "WAIT Recurso: %s PID %d", ctx->parametros, ctx->pid);
+            log_info(logger, "WAIT Recurso: %s PID %d", "ctx->parametros", ctx->pid);
             manejar_wait_recurso(ctx);
             free(ctx);
             break;
@@ -110,7 +110,7 @@ static void* escuchar_dispatch(void* _)
 
         case OP_SIGNAL_RECURSO: {
             t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-            log_info(logger, "SIGNAL Recurso: %s PID %d", ctx->parametros, ctx->pid);
+            log_info(logger, "SIGNAL Recurso: %s PID %d", "TODO: ", ctx->pid);
             manejar_signal_recurso(ctx);
             free(ctx);
             break;
@@ -123,7 +123,8 @@ static void* escuchar_dispatch(void* _)
             // Manejar error de página
             // 1. Buscar PCB en EXEC
             // 2. Mover a cola de errores o finalizar
-            t_pcb* pcb = buscar_pcb_por_pid(ctx->pid);
+            //t_pcb* pcb = buscar_pcb_por_pid(ctx->pid);
+            t_pcb* pcb;
             if (pcb) {
                 pcb->estado = EXIT;
                 ///TODO: cola_exit
@@ -149,7 +150,7 @@ static void* escuchar_dispatch(void* _)
 static void* escuchar_interrupt(void* _)
 {
     while (1) {
-        t_paquete* paquete = recibir_paquete(socket_cpu_interrupt);
+        t_paquete* paquete = recibir_paquete(socket_interrupt);
         if (paquete == NULL) {
             log_error(logger, "CPU Interrupt desconectado");
             break;
