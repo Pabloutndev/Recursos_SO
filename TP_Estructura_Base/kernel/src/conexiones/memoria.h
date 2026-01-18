@@ -8,7 +8,7 @@
 void conectar_memoria(char* ip, char* puerto);
 
 // Solicita crear proceso en memoria
-bool solicitar_creacion_proceso_memoria(uint32_t pid, int size);
+bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path);
 
 // Solicita fin de proceso
 void solicitar_fin_proceso_memoria(uint32_t pid);

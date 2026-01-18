@@ -18,13 +18,13 @@ extern t_log* loggerError;
 t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 {
     if (!pcb) return NULL;
+    if (!pcb->path) return NULL;
     
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
     if (!req) return NULL;
     
     req->pid = pcb->pid;
-    // El path se construye a partir del PID para este ejemplo
-    snprintf(req->path, 256, "proceso_%u.txt", pcb->pid);
+    snprintf(req->path, sizeof(req->path), "%s", pcb->path);
     return req;
 }
 

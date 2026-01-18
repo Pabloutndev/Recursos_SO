@@ -17,18 +17,20 @@ extern t_kernel_config KCONF;
 extern t_log* logger;
 extern t_log* loggerError;
 extern pthread_mutex_t mutex_ready;
+extern pthread_mutex_t mutex_new;
 extern sem_t sem_hay_ready;
+extern sem_t sem_hay_new;
 extern t_list* cola_ready;
+extern t_list* cola_new;
 /* ===============================
  * COMMAND: START PROCESS (RUN)
  * 
  * Responsabilidades:
  * 1. Validar path del archivo de instrucciones
- * 2. Conectar a memoria si no está conectado
- * 3. Crear proceso en memoria (OP_MEM_INIT_PROCESO)
- * 4. Crear PCB con PID retornado
- * 5. Encolar en READY
- * 6. Señalizar planificador (sem_post)
+ * 2. Crear PCB con estado NEW
+ * 3. Encolar en NEW
+ * 4. Señalizar planificador largo plazo
+ * 5. El planificador largo plazo se encarga de hablar con Memoria
  * =============================== */
 void ejecutar_proceso(char* path)
 {
@@ -39,23 +41,14 @@ void ejecutar_proceso(char* path)
 
     log_info(logger, "Kernel: Creación de Proceso solicitada - Path: %s", path);
     
-    // Validar conexión con memoria
-    if (socket_memoria < 0) {
-        log_warning(logger, "Kernel: Reconectando con memoria...");
-        conectar_memoria(KCONF.ip_memoria, KCONF.puerto_memoria);
-        if (socket_memoria < 0) {
-            log_error(loggerError, "Kernel: No se pudo conectar a memoria");
-            return;
-        }
-    }
-
-    // ✅ PASO 1: Crear PCB primero (genera PID)
+    // ✅ PASO 1: Crear PCB (genera PID, estado NEW)
     t_pcb* pcb = pcb_crear();
     if (!pcb) {
         log_error(loggerError, "Kernel: No se pudo crear PCB");
         return;
     }
     
+    // ✅ PASO 2: Asignar path
     pcb->path = malloc(strlen(path) + 1);
     if (!pcb->path) {
         log_error(loggerError, "Kernel: No se pudo asignar memoria para path");
@@ -63,26 +56,18 @@ void ejecutar_proceso(char* path)
         return;
     }
     strcpy(pcb->path, path);
-    pcb->tam_proceso = 1024;  // Tamaño por defecto o desde config
     
-    // ✅ PASO 2: Crear proceso en memoria
-    bool creado_en_memoria = kernel_init_proceso(pcb);
-    if (!creado_en_memoria) {
-        log_error(loggerError, "Kernel: No se pudo crear proceso en memoria para %s", path);
-        pcb_destruir(pcb);
-        return;
-    }
-
-    // ✅ PASO 3: Encolar en READY
-    pthread_mutex_lock(&mutex_ready);
-    pcb->estado = READY;
-    list_add(cola_ready, pcb);
-    pthread_mutex_unlock(&mutex_ready);
+    log_info(logger, "Kernel: PCB creado - PID=%u, Path=%s", pcb->pid, path);
     
-    log_info(logger, "Kernel: Proceso creado PID=%u, Path=%s", pcb->pid, path);
+    // ✅ PASO 3: Encolar en NEW (bajo lock)
+    pthread_mutex_lock(&mutex_new);
+    list_add(cola_new, pcb);
+    pthread_mutex_unlock(&mutex_new);
     
-    // ✅ PASO 4: Señalizar planificador
-    sem_post(&sem_hay_ready);
+    // ✅ PASO 4: Señalizar planificador largo plazo
+    sem_post(&sem_hay_new);
+    
+    log_info(logger, "Kernel: Proceso PID=%u encolado en NEW para inicialización", pcb->pid);
 }
 
 /* ===============================

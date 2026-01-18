@@ -25,20 +25,25 @@ void conectar_memoria(char* ip, char* puerto) {
     handshake_cliente(socket_memoria, OP_HANDSHAKE, OP_OK, logger);
 }
 
-bool solicitar_creacion_proceso_memoria(uint32_t pid, int size)
+bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
 {
     if (socket_memoria < 0) {
         log_error(loggerError, "Socket Memoria no válido");
         return false;
     }
 
+    if (!path) {
+        log_error(loggerError, "Path de proceso inválido");
+        return false;
+    }
+
     // Crear estructura de request
     t_mem_init_proceso req;
     req.pid = pid;
-    req.size = size > 0 ? size : 1024;
+    snprintf(req.path, sizeof(req.path), "%s", path);
 
     // Enviar a Memoria
-    log_info(logger, "Solicitando creación proceso en Memoria: PID=%u, SIZE=%d", pid, size);
+    log_info(logger, "Solicitando creación proceso en Memoria: PID=%u, PATH=%s", pid, path);
     enviar_init_proceso(socket_memoria, &req, OP_MEM_INIT_PROCESO);
 
     // Esperar respuesta (bloqueante)

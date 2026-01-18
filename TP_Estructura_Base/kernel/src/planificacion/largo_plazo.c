@@ -35,9 +35,8 @@ void* planificador_largo_plazo(void* _) {
         pthread_mutex_unlock(&mutex_new);
 
         // Solicitar inicialización de estructuras en Memoria
-        // TODO: size? pcb->tam_proceso? 
-        // Assuming pcb has this field initialized.
-        if (!solicitar_creacion_proceso_memoria(pcb->pid, pcb->tam_proceso)) {
+        // Enviar PID y PATH (Memoria calculará el tamaño)
+        if (!solicitar_creacion_proceso_memoria(pcb->pid, pcb->path)) {
             log_error(logger, "Fallo inicializar memoria para proceso %u. Finalizando.", pcb->pid);
             // Liberar PID/Multiprog?
             // Movemos a EXIT
