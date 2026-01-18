@@ -16,6 +16,8 @@ extern t_log* loggerError;
  * ========================= */
 
 static t_dictionary* procesos; // key = PID (string)
+static char** leer_instrucciones(const char* path, uint32_t* cantidad);
+static char* pid_key(uint32_t pid);
 
 /* =========================
  * API PUBLICA

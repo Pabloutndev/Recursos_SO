@@ -3,6 +3,12 @@
 #include <cpu.h>    // Acceso a cpu_estado global
 #include <stdlib.h>
 #include <commons/log.h>
+#include <protocolo/mensajes.h>
+#include <protocolo/op_code.h>
+#include <ciclo_instruccion/ciclo.h>
+#include <interrupciones/interrupciones.h>
+#include <instrucciones/instrucciones.h>
+#include <string.h>
 
 extern t_contexto_cpu cpu_estado;
 extern t_log* logger;
@@ -18,17 +24,10 @@ void cpu_contexto_adapter_cargar(t_contexto_cpu* ctx)
         return;
     }
 
-    memcpy(cpu_estado, ctx, sizeof(t_contexto_cpu));
+    memcpy(&cpu_estado, ctx, sizeof(t_contexto_cpu));
     
-    if (ctx->parametros[0] != '\0') {
-        // Copiar parámetros si existen (recurso, archivo, etc.)
-        for (int i = 0; i < 256 && ctx->parametros[i] != '\0'; i++) {
-            cpu_estado.parametros[i] = ctx->parametros[i];
-        }
-    }
-
-    log_info(logger, "ADAPTER CONTEXTO: Contexto cargado - PID=%u, PC=%u, Q=%u",
-             ctx->pid, ctx->pc, ctx->quantum);
+    log_info(logger, "ADAPTER CONTEXTO: Contexto cargado - PID=%u, PC=%u",
+             ctx->pid, ctx->pc);
 }
 
 t_contexto_cpu* cpu_contexto_adapter_extraer(void)
@@ -37,23 +36,11 @@ t_contexto_cpu* cpu_contexto_adapter_extraer(void)
     t_contexto_cpu* ctx = malloc(sizeof(t_contexto_cpu));
     memcpy(ctx, &cpu_estado, sizeof(t_contexto_cpu));
 
-    // Copiar parámetros
-    for (int i = 0; i < 256 && cpu_estado.parametros[i] != '\0'; i++) {
-        ctx->parametros[i] = cpu_estado.parametros[i];
-    }
-    ctx->parametros[255] = '\0';
-
-    log_info(logger, "ADAPTER CONTEXTO: Contexto extraído - PID=%u, PC=%u, MOTIVO=%u",
-             ctx->pid, ctx->pc, ctx->motivo_desalojo);
+    log_info(logger, "ADAPTER CONTEXTO: Contexto extraído - PID=%u, PC=%u",
+             ctx->pid, ctx->pc);
 
     return ctx;
 }
-#include <protocolo/mensajes.h>
-#include <protocolo/op_code.h>
-#include <ciclo_instruccion/ciclo.h>
-#include <interrupciones/interrupciones.h>
-#include <instrucciones/instrucciones.h>
-#include <string.h>
 
 void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
 {
@@ -67,12 +54,10 @@ void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
 
     // ✅ DETERMINAR MOTIVO
     op_code rs_code = OP_DESALOJO;
-    if (ctx->finalizado) rs_code = OP_MEM_FIN_PROCESO;
-    else if (interrupcion_pendiente()) {
+    if (interrupcion_pendiente()) {
         rs_code = OP_FIN_DE_QUANTUM;
         interrupcion_reset();
     }
-    // ... simplificado para demo, pero debería mapear ctx->motivo_desalojo ...
 
     // ✅ RESPONDER
     enviar_contexto(fd, ctx, rs_code);

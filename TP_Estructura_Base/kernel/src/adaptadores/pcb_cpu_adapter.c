@@ -21,16 +21,8 @@ t_contexto_cpu* pcb_a_contexto_cpu(t_pcb* pcb)
 
     ctx->pid = pcb->pid;
     ctx->pc = pcb->program_counter;
-    ctx->quantum = pcb->quantum;
     ctx->registros = pcb->registros;
     
-    // Inicializar campos de estado
-    ctx->finalizado = 0;
-    ctx->bloqueado = 0;
-    ctx->io_time = 0;
-    ctx->motivo_desalojo = 0;
-    ctx->parametros[0] = '\0';
-
     return ctx;
 }
 

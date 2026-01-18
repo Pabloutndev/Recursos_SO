@@ -1,8 +1,8 @@
-#include <mod_memoria.h>
 #include <gestion/memoria_core.h>
+#include <gestion/memoria_ram.h>
 #include <frames/frames.h>
 #include <swap/swap.h>
-#include <server/server.h>
+#include <server/server_mem.h>
 #include <unistd.h>
 
 t_log* logger;
@@ -25,6 +25,9 @@ int memoria_init(const char* path_config) {
     if (memoria_ram_init() != 0) {
         return EXIT_FAILURE;
     }
+
+    // 2. Iniciar Estructuras Administrativas
+    memoria_core_init();
 
     // 2. Iniciar Frames (Bitmaps)
     if (frames_init() != 0) {

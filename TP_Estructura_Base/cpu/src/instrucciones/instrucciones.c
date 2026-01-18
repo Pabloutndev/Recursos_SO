@@ -11,7 +11,6 @@ bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)
 {
     char* linea = memoria_fetch_instruccion(ctx->pid, ctx->registros.PC);
     if (!linea) {
-        ctx->finalizado = 1;
         return false;
     }
 
@@ -19,7 +18,6 @@ bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx)
     free(linea);
     
     if (inst.opcode==INST_EXIT) {
-        ctx->finalizado = 1;
         return false;
     }
 

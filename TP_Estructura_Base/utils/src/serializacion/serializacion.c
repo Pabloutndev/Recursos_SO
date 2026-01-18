@@ -97,14 +97,19 @@ void deserializar_registros(t_paquete* p, registros_t* r) {
 t_paquete* serializar_mem_init_proceso(t_mem_init_proceso* req, op_code code) {
     t_paquete* p = paquete_create(code);
     paquete_write_uint32(p, req->pid);
-    paquete_write_uint32(p, req->tamanio);
+    paquete_write_string(p, req->path);
     return p;
 }
 
 t_mem_init_proceso* deserializar_mem_init_proceso(t_paquete* p) {
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
     paquete_read_uint32(p, &req->pid);
-    paquete_read_uint32(p, &req->tamanio);
+    char* path = paquete_read_string(p);
+    if (path) {
+        strncpy(req->path, path, 255);
+        req->path[255] = '\0';
+        free(path);
+    }
     return req;
 }
 

@@ -19,8 +19,7 @@ t_mem_init_proceso* pcb_a_mem_init(t_pcb* pcb)
 {
     t_mem_init_proceso* req = malloc(sizeof(t_mem_init_proceso));
     req->pid = pcb->pid;
-    req->tamanio = pcb->tam_proceso;
-    // Provisoriamente: pcb_ficticio a path
+    // El path se construye a partir del PID para este ejemplo
     snprintf(req->path, 256, "proceso_%u.txt", pcb->pid);
     return req;
 }
@@ -47,8 +46,8 @@ bool kernel_init_proceso(t_pcb* pcb)
     t_mem_init_proceso* req = pcb_a_mem_init(pcb);
 
     // Paso 2: Enviar request a Memoria usando protocolo
-    log_info(logger, "ADAPTER: Enviando OP_MEM_INIT_PROCESO (PID=%u, TAM=%u)",
-             req->pid, req->tamanio);
+    log_info(logger, "ADAPTER: Enviando OP_MEM_INIT_PROCESO (PID=%u)",
+             req->pid);
     enviar_init_proceso(socket_memoria, req, OP_MEM_INIT_PROCESO);
 
     // Paso 3: Esperar respuesta (paquete con OP_OK o OP_FAIL)

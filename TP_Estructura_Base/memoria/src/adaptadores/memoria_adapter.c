@@ -9,7 +9,7 @@
 #include <gestion/memoria_core.h>
 #include <frames/frames.h>
 #include <gestion/paginas.h>
-#include <model/model.h>
+#include <gestion/memoria_ram.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
 
@@ -39,8 +39,8 @@ void memoria_adapter_atender_init_proceso(int fd, t_paquete* paquete)
     /* 1. Crear estructuras de paginación (suponemos tamaño viene de config o está en struct) 
      * Nota: Si el TP requiere un tamaño específico, debería estar en t_mem_init_proceso.
      * Por ahora usamos un valor por defecto o el que venga en el struct si lo actualizamos. */
-    uint32_t tamanio = req->tamanio; 
-
+    uint32_t tamanio = 0; // Debería venir en el mensaje si es dinámico. Revertido por el usuario.
+    
     if (!paginacion_crear_proceso(req->pid, tamanio)) {
         log_error(loggerError, "ADAPTER: Fallo creando paginación PID=%u", req->pid);
         enviar_respuesta_fail(fd);
