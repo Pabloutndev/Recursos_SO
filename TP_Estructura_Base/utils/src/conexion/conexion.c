@@ -93,6 +93,8 @@ void liberar_conexion(int socket_cliente)
     close(socket_cliente);
 }
 
+
+/// HANDSHAKE
 bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t_log* logger) {
     // Enviar OP_HANDSHAKE como paquete
     t_paquete* p = paquete_create(handshake_code);
@@ -118,11 +120,6 @@ bool handshake_cliente(int socket, int handshake_code, int handshake_expected, t
     return resultado;
 }
 
-// ============================================================================
-// HANDSHAKE SERVIDOR
-// ============================================================================
-// Maneja el envío de respuesta OP_OK cuando recibe OP_HANDSHAKE.
-// Uso: Llamar cuando se recibe OP_HANDSHAKE en el handler del servidor.
 bool handshake_servidor(int socket, int handshake_response, t_log* logger) {
     // Enviar respuesta como paquete (típicamente OP_OK)
     t_paquete* p = paquete_create(handshake_response);

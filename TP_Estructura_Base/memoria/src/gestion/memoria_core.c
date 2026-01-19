@@ -3,7 +3,7 @@
 #include <commons/collections/dictionary.h>
 #include <commons/string.h>
 #include <commons/log.h>
-#include <shared.h>
+#include <common/shared.h>
 
 #include <stdlib.h>
 #include <stdio.h>
