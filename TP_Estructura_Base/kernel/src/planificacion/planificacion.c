@@ -212,11 +212,15 @@ void planificacion_finalizar_proceso(uint32_t pid)
 {
     pcb_search_pid = pid; // Usamos el static para list_find
     t_pcb* encontrado = NULL;
+    bool estaba_en_new = false;
 
     // 1. Intentar NEW
     pthread_mutex_lock(&mutex_new);
     encontrado = list_find(cola_new, pcb_equals_pid);
-    if (encontrado) list_remove_element(cola_new, encontrado);
+    if (encontrado) {
+        list_remove_element(cola_new, encontrado);
+        estaba_en_new = true;
+    }
     pthread_mutex_unlock(&mutex_new);
 
     // 2. Intentar READY
@@ -233,11 +237,6 @@ void planificacion_finalizar_proceso(uint32_t pid)
         encontrado = list_find(cola_blocked, pcb_equals_pid);
         if (encontrado) list_remove_element(cola_blocked, encontrado);
         pthread_mutex_unlock(&mutex_blocked);
-        // OJO: Si estaba en blocked de recurso, sigue ahi?
-        // recurso_destroy/release se encargará? 
-        // Idealmente deberiamos sacarlo de la cola del recurso también. 
-        // Pero Kernel no sabe en qué recurso está bloqueado fácil (salvo iterar todos).
-        // UTN Hack: Al liberar recursos del proceso, se limpia.
     }
 
     // 4. Intentar EXEC
@@ -246,7 +245,6 @@ void planificacion_finalizar_proceso(uint32_t pid)
         encontrado = list_find(cola_exec, pcb_equals_pid);
         if (encontrado) {
             list_remove_element(cola_exec, encontrado);
-            // Si estaba en exec, hay que mandar interrupt para que CPU suelte
             enviar_interrupt_cpu(encontrado->pid);
         }
         pthread_mutex_unlock(&mutex_exec);
@@ -254,10 +252,10 @@ void planificacion_finalizar_proceso(uint32_t pid)
 
     if (encontrado) {
         encontrado->estado = EXIT;
-        pthread_mutex_lock(&mutex_exec); // Reusamos mutex exec para cola exit por simplicidad o mutex_exit si existiera
+        pthread_mutex_lock(&mutex_exec);
         list_add(cola_exit, encontrado);
         pthread_mutex_unlock(&mutex_exec);
-        
+
         log_fin_proceso(pid, "KILL/EXIT");
 
         // Solicitar a Memoria fin de estructuras
@@ -266,8 +264,11 @@ void planificacion_finalizar_proceso(uint32_t pid)
         // Liberar recursos retenidos
         recursos_liberar_proceso(pid);
 
-        // Liberar slot de multiprogramacion para que procesos en NEW avancen
-        sem_post(&sem_mp);
+        // Solo liberar slot si el proceso consumio uno (READY/EXEC/BLOCKED)
+        // Los de NEW nunca pasaron por sem_wait(&sem_mp)
+        if (!estaba_en_new) {
+            sem_post(&sem_mp);
+        }
     } else {
         log_error(KERNEL_CTX.logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
     }
