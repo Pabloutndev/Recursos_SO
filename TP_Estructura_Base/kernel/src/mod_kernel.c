@@ -19,6 +19,9 @@ t_kernel_context KERNEL_CTX;
 // Globals para extern en sub-modulos (apuntan a KERNEL_CTX)
 t_log* logger = NULL;
 t_log* loggerError = NULL;
+int socket_dispatch = -1;
+int socket_interrupt = -1;
+int socket_memoria = -1;
 
 void conexiones_init()
 {
