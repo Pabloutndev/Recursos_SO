@@ -30,6 +30,7 @@ typedef enum {
     CMD_PAUSE,
     CMD_DESALOJAR,
     CMD_EXIT,
+    CMD_HELP,
     CMD_UNKNOWN
 } comando_t;
 
@@ -55,6 +56,7 @@ static void init_comandos(void)
     dictionary_put(comandos_dict, "PAUSE",     (void*) CMD_PAUSE);
     dictionary_put(comandos_dict, "DESALOJAR", (void*) CMD_DESALOJAR);
     dictionary_put(comandos_dict, "EXIT",      (void*) CMD_EXIT);
+    dictionary_put(comandos_dict, "HELP",      (void*) CMD_HELP);
 }
 
 static comando_t obtener_comando(const char* palabra)
@@ -91,6 +93,7 @@ static void mensaje_inicial(void)
     printf("  START                    - Iniciar planificacion\n");
     printf("  PAUSE                    - Pausar planificacion\n");
     printf("  DESALOJAR <pid>          - Desalojar proceso en ejecucion\n");
+    printf("  HELP                     - Mostrar esta ayuda\n");
     printf("  EXIT                     - Salir\n");
     printf("=================================\n");
 }
@@ -216,9 +219,13 @@ static bool procesar_linea(char* linea)
             free(tokens);
             return true;
 
+        case CMD_HELP:
+            mensaje_inicial();
+            break;
+
         case CMD_UNKNOWN:
         default:
-            log_error(logger_consola, "Comando no reconocido");
+            log_error(logger_consola, "Comando no reconocido. Escriba HELP para ver los comandos disponibles.");
             break;
     }
 

@@ -35,6 +35,7 @@ extern pthread_mutex_t mutex_ready;
 extern pthread_mutex_t mutex_exec;
 extern pthread_mutex_t mutex_blocked;
 extern pthread_mutex_t mutex_estado_planif;
+extern pthread_cond_t cond_planif_resume;
 
 /* Semaforos */
 extern sem_t sem_hay_new;
@@ -61,6 +62,7 @@ extern t_pcb* (*proximoAEjecutar)(void);
 void planificacion_init(void);
 void planificacion_start(void);
 void planificacion_pause(void);
+void planificacion_check_pause(void);
 void planificacion_destroy(void);
 
 void planificacion_ingresar_proceso(t_pcb* pcb);

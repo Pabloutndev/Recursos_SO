@@ -37,6 +37,7 @@ void* planificador_corto_plazo(void* _) {
     while (1) {
         // ✅ ESPERAR procesos disponibles
         sem_wait(&sem_hay_ready);
+        planificacion_check_pause();
 
         // ✅ SELECCIONAR según algoritmo (FIFO/RR/HRRN)
         t_pcb* pcb = proximoAEjecutar();

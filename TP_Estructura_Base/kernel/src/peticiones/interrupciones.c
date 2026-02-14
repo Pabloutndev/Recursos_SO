@@ -108,6 +108,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         pthread_mutex_unlock(&mutex_exec);
         log_info(logger, "PID: %u - Finalizado (EXIT) - Movido a cola EXIT", pid);
         log_fin_proceso(pid, "SUCCESS");
+        sem_post(&sem_mp); // Liberar slot de multiprogramacion
     }
 }
 

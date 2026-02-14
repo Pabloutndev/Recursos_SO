@@ -23,6 +23,7 @@ extern t_log* logger;
 void* planificador_largo_plazo(void* _) {
     while (1) {
         sem_wait(&sem_hay_new);
+        planificacion_check_pause();
         sem_wait(&sem_mp);
 
         pthread_mutex_lock(&mutex_new);

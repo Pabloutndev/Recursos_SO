@@ -51,6 +51,7 @@ static pthread_t hilo_largo, hilo_corto;
 /* Estado de planificación */
 static planif_state_t estado_planificacion = PLANIF_STOPPED;
 pthread_mutex_t mutex_estado_planif;
+pthread_cond_t cond_planif_resume;
 
 /* Algoritmo */
 static algoritmo_t algoritmo_actual = ALG_FIFO;
@@ -79,6 +80,7 @@ void planificacion_init(void)
     pthread_mutex_init(&mutex_exec, NULL);
     pthread_mutex_init(&mutex_blocked, NULL);
     pthread_mutex_init(&mutex_estado_planif, NULL);
+    pthread_cond_init(&cond_planif_resume, NULL);
 
     sem_init(&sem_hay_new, 0, 0);
     sem_init(&sem_hay_ready, 0, 0);
@@ -116,6 +118,7 @@ void planificacion_destroy(void)
     pthread_mutex_destroy(&mutex_exec);
     pthread_mutex_destroy(&mutex_blocked);
     pthread_mutex_destroy(&mutex_estado_planif);
+    pthread_cond_destroy(&cond_planif_resume);
 
     sem_destroy(&sem_mp);
 
@@ -165,6 +168,17 @@ void listar_procesos_por_estado(void)
     if (pids_exit) free(pids_exit);
 }
 
+/* Chequear si la planificacion esta pausada; bloquea hasta que se reanude */
+void planificacion_check_pause(void)
+{
+    pthread_mutex_lock(&mutex_estado_planif);
+    while (estado_planificacion == PLANIF_PAUSED) {
+        log_info(KERNEL_CTX.logger, "Planificacion pausada - esperando START...");
+        pthread_cond_wait(&cond_planif_resume, &mutex_estado_planif);
+    }
+    pthread_mutex_unlock(&mutex_estado_planif);
+}
+
 /* Iniciar planificación */
 void planificacion_start(void)
 {
@@ -174,6 +188,10 @@ void planificacion_start(void)
         pthread_create(&hilo_largo, NULL, planificador_largo_plazo, NULL);
         pthread_create(&hilo_corto, NULL, planificador_corto_plazo, NULL);
         log_inicio_planificacion();
+    } else if (estado_planificacion == PLANIF_PAUSED) {
+        estado_planificacion = PLANIF_RUNNING;
+        pthread_cond_broadcast(&cond_planif_resume);
+        log_info(KERNEL_CTX.logger, "Planificacion reanudada");
     }
     pthread_mutex_unlock(&mutex_estado_planif);
 }
@@ -240,13 +258,16 @@ void planificacion_finalizar_proceso(uint32_t pid)
         list_add(cola_exit, encontrado);
         pthread_mutex_unlock(&mutex_exec);
         
-        log_fin_proceso(pid, "KILL/EXIT"); 
-        
+        log_fin_proceso(pid, "KILL/EXIT");
+
         // Solicitar a Memoria fin de estructuras
         solicitar_fin_proceso_memoria(pid);
-        
+
         // Liberar recursos retenidos
         recursos_liberar_proceso(pid);
+
+        // Liberar slot de multiprogramacion para que procesos en NEW avancen
+        sem_post(&sem_mp);
     } else {
         log_error(KERNEL_CTX.logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
     }
