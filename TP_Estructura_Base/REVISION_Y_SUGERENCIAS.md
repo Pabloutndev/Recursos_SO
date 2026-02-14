@@ -122,8 +122,14 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 
 | Archivo | Linea | Problema |
 |---------|-------|----------|
+| `io_adapter.c` | 131 | **Bug logico**: `io_adapter_atender_fs_delete()` usa `recibir_io_fs_create(p)` en vez de un deserializador propio. Funciona porque los structs son identicos pero es semanticamente incorrecto |
+| `io_adapter.c` | 205 | **Bug logico**: `io_adapter_atender_fs_read()` usa `recibir_io_fs_write(p)`. Mismo problema |
+| `io_adapter.c` | 49,83,168 | Operaciones bloqueantes con Memoria sin timeout. Si Memoria se cae, IO se traba |
+| `generic.c`, `stdin.c`, `stdout.c` | - | Funciones handler (`io_generic_handler`, `io_stdin_handler`, `io_stdout_handler`) nunca se llaman. El dispatch real va por `io_adapter.c`. Codigo muerto |
+| `stdin.c` | 24-35 | Bloque de codigo mockup comentado con pseudocodigo de escritura a memoria |
+| `stdout.c` | 13-24 | Handler con datos mock hardcodeados ("Hola desde Memoria (Mock)") |
+| `io_main.c` | 15-53 | `conectar_modulos()` mezcla conexion, handshake y logica condicional. Separar en funciones |
 | `dialfs.h` | - | Estructuras y funciones declaradas pero implementacion parcial |
-| `io_main.c` | - | El switch de tipo de interfaz es largo. Podria usar un dispatch table |
 | `generica.c` | - | `usleep(unidades * 1000)` - el TP tipicamente pide que las unidades de trabajo se multipliquen por un valor de config, no hardcodeado a 1ms |
 
 ---
@@ -139,8 +145,11 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 
 | Archivo | Linea | Problema |
 |---------|-------|----------|
-| `op_code.h` | - | Mezcla op_codes de todos los modulos en un solo enum. Funciona pero crece indefinidamente. Considerar agrupar por rangos (100-199 kernel, 200-299 cpu, 300-399 memoria) - ya se hace parcialmente |
-| `shared.c` | - | `leer_instrucciones` abre archivo y lee linea por linea. No valida lineas vacias al final del archivo |
+| `serializacion.c` | 30-54 | Bloque grande de codigo comentado (`serializar_process`, `deserializar_process`, `serializar_fin_quatum`). Eliminar |
+| `paquete.c` | 100-111 | `paquete_read_string()` retorna memoria allocada que el caller debe liberar. No hay documentacion de ownership |
+| `conexion.c` | 129 | Accede a `resp->codigo_operacion` fuera del bloque de NULL check (linea 124 chequea NULL pero el acceso esta fuera) |
+| `op_code.h` | - | Mezcla op_codes de todos los modulos en un solo enum. Ya se agrupan por rangos (200s cpu, 300s memoria, 400s io) lo cual esta bien |
+| `shared.c` | - | `leer_instrucciones` no valida lineas vacias al final del archivo |
 
 ---
 
@@ -152,7 +161,14 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 - HELP funcional
 - Manejo limpio de shutdown
 
-**Sin problemas criticos.**
+**A corregir:**
+
+| Archivo | Linea | Problema |
+|---------|-------|----------|
+| `main.c` | 5 | Config path hardcodeado `"consola.config"`. Deberia aceptar argumento por linea de comandos como hace entradasalida |
+| `consola.c` | 51-59 | Dictionary almacena enums casteados a `void*`. Funciona pero no es type-safe |
+| `consola.c` | 76-83 | `obtener_pid` usa `atoi()` que retorna 0 en input invalido. Usar `strtol()` para mejor validacion |
+| `consola_config.c` | 10-12 | Hace `exit(EXIT_FAILURE)` directo si no encuentra el config. Deberia retornar error |
 
 ---
 
