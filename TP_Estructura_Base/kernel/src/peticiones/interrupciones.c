@@ -84,6 +84,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         list_add(cola_ready, pcb);
         pthread_mutex_unlock(&mutex_ready);
         sem_post(&sem_hay_ready);
+        log_info(logger, "PID: %u - Movido EXEC -> READY (Fin Quantum)", pid);
     } else if (strcmp(motivo, "IO") == 0 || strcmp(motivo, "WAIT") == 0) {
         // Bloqueo por I/O o wait - VRR: calcular quantum consumido y guardar restante
         if (pcb->tiempo_ready) {
@@ -105,7 +106,8 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         pthread_mutex_lock(&mutex_exec);
         list_add(cola_exit, pcb);
         pthread_mutex_unlock(&mutex_exec);
-        log_fin_proceso(pid, "EXIT");
+        log_info(logger, "PID: %u - Finalizado (EXIT) - Movido a cola EXIT", pid);
+        log_fin_proceso(pid, "SUCCESS");
     }
 }
 

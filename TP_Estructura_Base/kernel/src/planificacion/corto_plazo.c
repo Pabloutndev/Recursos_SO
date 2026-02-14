@@ -55,7 +55,7 @@ void* planificador_corto_plazo(void* _) {
         pthread_mutex_unlock(&mutex_exec);
 
         log_cambio_estado(pcb->pid, "READY", "EXEC");
-        log_info(logger, "Planificador: READY → EXEC PID=%u, Quantum=%u", pcb->pid, pcb->quantum);
+        log_info(logger, "PID: %u - Movido READY -> EXEC (Algoritmo: %s, Quantum: %u)", pcb->pid, KERNEL_CTX.config.algoritmo_planificacion, pcb->quantum);
 
         // ✅ DESPACHAR A CPU para ejecución
         int sock = enviar_proceso_a_cpu(pcb);

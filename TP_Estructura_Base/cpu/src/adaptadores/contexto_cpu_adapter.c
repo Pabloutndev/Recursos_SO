@@ -132,7 +132,19 @@ void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
         rs_code = OP_DESALOJO;
     }
 
-    log_info(logger, "ADAPTER: Finalizando PID %u - MOTIVO: %d", ctx->pid, rs_code);
+    const char* motivo_str;
+    switch(rs_code) {
+        case OP_CPU_FIN_PROCESO: motivo_str = "EXIT"; break;
+        case OP_FIN_DE_QUANTUM: motivo_str = "FIN_QUANTUM"; break;
+        case OP_SEGFAULT: motivo_str = "SEGFAULT"; break;
+        case OP_IO_SLEEP: motivo_str = "IO_SLEEP"; break;
+        case OP_IO_STDIN_READ: motivo_str = "IO_STDIN"; break;
+        case OP_IO_STDOUT_WRITE: motivo_str = "IO_STDOUT"; break;
+        case OP_WAIT_RECURSO: motivo_str = "WAIT"; break;
+        case OP_SIGNAL_RECURSO: motivo_str = "SIGNAL"; break;
+        default: motivo_str = "DESALOJO"; break;
+    }
+    log_info(logger, "PID: %u - Desalojo: %s", ctx->pid, motivo_str);
 
     // ✅ RESPONDER
     if (rs_code == OP_WAIT_RECURSO || rs_code == OP_SIGNAL_RECURSO) {

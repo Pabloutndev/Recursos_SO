@@ -66,9 +66,21 @@ t_motivo_desalojo execute_instruccion(instruccion_t* inst, t_contexto_cpu* ctx)
     }
 }
 
+static const char* reg_nombre(reg_id_t r) {
+    switch(r) {
+        case REG_AX: return "AX"; case REG_BX: return "BX";
+        case REG_CX: return "CX"; case REG_DX: return "DX";
+        case REG_EAX: return "EAX"; case REG_EBX: return "EBX";
+        case REG_ECX: return "ECX"; case REG_EDX: return "EDX";
+        case REG_SI: return "SI"; case REG_DI: return "DI";
+        default: return "?";
+    }
+}
+
 static void ejecutar_set(instruccion_t* i, t_contexto_cpu* ctx)
 {
     registros_escribir(&ctx->registros, i->r1, i->inmediato);
+    log_info(logger, "PID: %u - SET %s = %u", ctx->pid, reg_nombre(i->r1), i->inmediato);
     ctx->pc++;
 }
 
@@ -76,7 +88,9 @@ static void ejecutar_sum(instruccion_t* i, t_contexto_cpu* ctx)
 {
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
-    registros_escribir(&ctx->registros, i->r1, a + b);
+    uint32_t resultado = a + b;
+    registros_escribir(&ctx->registros, i->r1, resultado);
+    log_info(logger, "PID: %u - SUM %s(%u) + %s(%u) = %u", ctx->pid, reg_nombre(i->r1), a, reg_nombre(i->r2), b, resultado);
     ctx->pc++;
 }
 
@@ -84,15 +98,20 @@ static void ejecutar_sub(instruccion_t* i, t_contexto_cpu* ctx)
 {
     uint32_t a = registros_leer(&ctx->registros, i->r1);
     uint32_t b = registros_leer(&ctx->registros, i->r2);
-    registros_escribir(&ctx->registros, i->r1, a - b);
+    uint32_t resultado = a - b;
+    registros_escribir(&ctx->registros, i->r1, resultado);
+    log_info(logger, "PID: %u - SUB %s(%u) - %s(%u) = %u", ctx->pid, reg_nombre(i->r1), a, reg_nombre(i->r2), b, resultado);
     ctx->pc++;
 }
 
 static void ejecutar_jnz(instruccion_t* i, t_contexto_cpu* ctx)
 {
-    if (registros_leer(&ctx->registros, i->r1) != 0) {
+    uint32_t val = registros_leer(&ctx->registros, i->r1);
+    if (val != 0) {
+        log_info(logger, "PID: %u - JNZ %s=%u != 0 -> salto a PC=%u", ctx->pid, reg_nombre(i->r1), val, i->inmediato);
         ctx->pc = i->inmediato;
     } else {
+        log_info(logger, "PID: %u - JNZ %s=0 -> continua PC=%u", ctx->pid, reg_nombre(i->r1), ctx->pc + 1);
         ctx->pc++;
     }
 }
