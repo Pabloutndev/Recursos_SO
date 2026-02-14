@@ -3,7 +3,10 @@
 #include <mmu/mmu.h>
 #include <conexiones/cpu_memoria.h>
 #include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
+#include <paquete/paquete.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include <string.h>
 #include <cpu.h>
 

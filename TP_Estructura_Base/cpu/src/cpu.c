@@ -6,6 +6,8 @@
 #include <adaptadores/contexto_cpu_adapter.h>
 #include <protocolo/mensajes.h>
 #include <tlb/tlb.h>
+#include <server/cpu_server.h>
+#include <conexiones/cpu_memoria.h>
 #include <unistd.h>
 #include <string.h>
 
