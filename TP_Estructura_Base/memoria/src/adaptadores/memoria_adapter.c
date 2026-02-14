@@ -38,22 +38,9 @@ void memoria_adapter_atender_init_proceso(int fd, t_paquete* paquete)
 
     log_info(logger, "ADAPTER: OP_MEM_INIT_PROCESO - PID=%u PATH=%s", req->pid, req->path);
 
-    /* 1. Crear estructuras de paginación (suponemos tamaño viene de config o está en struct) 
-     * Nota: Si el TP requiere un tamaño específico, debería estar en t_mem_init_proceso.
-     * Por ahora usamos un valor por defecto o el que venga en el struct si lo actualizamos. */
-    uint32_t tamanio = 0; // Debería venir en el mensaje si es dinámico. Revertido por el usuario.
-    
-    if (!paginacion_crear_proceso(req->pid, tamanio)) {
-        log_error(loggerError, "ADAPTER: Fallo creando paginación PID=%u", req->pid);
-        enviar_respuesta_fail(fd);
-        free(req);
-        return;
-    }
-
-    /* 2. Cargar instrucciones en memoria lógica */
+    /* memoria_crear_proceso carga instrucciones, crea paginacion y escribe a paginas */
     if (!memoria_crear_proceso(req->pid, req->path)) {
-        log_error(loggerError, "ADAPTER: Fallo cargando instrucciones PID=%u", req->pid);
-        paginacion_destruir_proceso(req->pid);
+        log_error(loggerError, "ADAPTER: Fallo inicializando proceso PID=%u", req->pid);
         enviar_respuesta_fail(fd);
         free(req);
         return;

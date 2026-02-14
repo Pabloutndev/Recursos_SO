@@ -72,7 +72,6 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     proc->instrucciones = leer_instrucciones(ruta_memoria, &proc->cantidad);
     free(ruta_memoria);
 
-
     if (!proc->instrucciones) {
         log_error(loggerError, "MEMORIA: No se pudieron leer instrucciones de %s", path);
         free(proc);
@@ -81,12 +80,24 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     }
 
     dictionary_put(procesos, key, proc);
-    
-    /* ✅ UNIFICACIÓN: Cargar instrucciones en el espacio de memoria (RAM/Swap) */
+
+    // Crear paginacion con el tamanio correcto: cada instruccion ocupa 64 bytes
+    uint32_t tamanio = proc->cantidad * 64;
+    if (!paginacion_crear_proceso(pid, tamanio)) {
+        log_error(loggerError, "MEMORIA: Fallo creando paginacion para PID %u (tamanio=%u)", pid, tamanio);
+        // Rollback: remover del diccionario
+        dictionary_remove(procesos, key);
+        for (uint32_t i = 0; i < proc->cantidad; i++) free(proc->instrucciones[i]);
+        free(proc->instrucciones);
+        free(proc);
+        free(key);
+        return false;
+    }
+
+    // Cargar instrucciones en paginas
     log_info(logger, "MEMORIA: Cargando %d instrucciones en RAM para PID %u", proc->cantidad, pid);
     for (int i = 0; i < proc->cantidad; i++) {
-        // Mapeamos el índice i a la dirección lógica i * 64
-        uint32_t dir_logica = i * 64; 
+        uint32_t dir_logica = i * 64;
         paginacion_escribir(pid, dir_logica, proc->instrucciones[i], strlen(proc->instrucciones[i]) + 1);
     }
 
