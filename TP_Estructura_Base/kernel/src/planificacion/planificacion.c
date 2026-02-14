@@ -4,8 +4,11 @@
 #include <planificacion/algoritmo.h>
 #include <planificacion/corto_plazo.h>
 #include <planificacion/largo_plazo.h>
+#include <mod_kernel.h>
+#include <conexiones/memoria.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <stdlib.h>
 #include <commons/log.h>
 #include <commons/temporal.h>
 #include <string.h>

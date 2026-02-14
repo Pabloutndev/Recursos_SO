@@ -1,5 +1,6 @@
 #include <peticiones/interrupciones.h>
 #include <peticiones/dispatch.h>
+#include <peticiones/recursos.h>
 #include <planificacion/planificacion.h>
 #include <pcb/pcb.h>
 #include <loggers/logger.h>
