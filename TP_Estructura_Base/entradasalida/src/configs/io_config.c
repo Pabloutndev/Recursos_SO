@@ -15,8 +15,15 @@ t_io_config* io_config_create(const char* path) {
     io_cfg->ip_kernel = strdup(config_get_string_value(cfg, "IP_KERNEL"));
     io_cfg->puerto_kernel = strdup(config_get_string_value(cfg, "PUERTO_KERNEL"));
     
-    io_cfg->ip_memoria = strdup(config_get_string_value(cfg, "IP_MEMORIA"));
-    io_cfg->puerto_memoria = strdup(config_get_string_value(cfg, "PUERTO_MEMORIA"));
+    if (config_has_property(cfg, "IP_MEMORIA"))
+        io_cfg->ip_memoria = strdup(config_get_string_value(cfg, "IP_MEMORIA"));
+    else
+        io_cfg->ip_memoria = NULL;
+
+    if (config_has_property(cfg, "PUERTO_MEMORIA"))
+        io_cfg->puerto_memoria = strdup(config_get_string_value(cfg, "PUERTO_MEMORIA"));
+    else
+        io_cfg->puerto_memoria = NULL;
     
     // Optional fields (DialFS)
     if (config_has_property(cfg, "PATH_BASE_DIALFS"))
