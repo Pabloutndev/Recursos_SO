@@ -6,6 +6,11 @@
 #include <protocolo/op_code.h>
 #include <adaptadores/memoria_adapter.h>
 #include <conexion/conexion.h>
+#include <commons/log.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+extern t_log* logger;
 
 static int server_socket = -1;
 

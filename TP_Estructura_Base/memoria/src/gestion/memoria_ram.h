@@ -1,5 +1,5 @@
-#ifndef MEMORIA_CORE_H_
-#define MEMORIA_CORE_H_
+#ifndef MEMORIA_RAM_H_
+#define MEMORIA_RAM_H_
 
 #include <stdint.h>
 #include <stdbool.h>
