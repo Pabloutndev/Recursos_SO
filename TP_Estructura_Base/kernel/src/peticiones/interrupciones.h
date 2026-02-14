@@ -17,8 +17,8 @@ void desalojar_proceso(uint32_t pid);
  */
 void manejar_interrupcion(uint32_t pid, const char* motivo);
 
-void manejar_wait_recurso(t_contexto_cpu* ctx);
-void manejar_signal_recurso(t_contexto_cpu* ctx);
+void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso);
+void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso);
 void manejar_bloqueo_io(t_contexto_cpu* ctx);
 void manejar_fin_quantum(t_contexto_cpu* ctx);
 void manejar_fin_proceso(t_contexto_cpu* ctx);

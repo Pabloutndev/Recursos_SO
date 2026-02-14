@@ -33,8 +33,6 @@ static void* escuchar_dispatch(void* arg);
 static void* escuchar_interrupt(void* arg);
 static void manejar_segfault_static(t_contexto_cpu* ctx);
 static void manejar_bloqueo_io_static(t_contexto_cpu* ctx);
-static void manejar_wait_recurso_static(t_contexto_cpu* ctx);
-static void manejar_signal_recurso_static(t_contexto_cpu* ctx);
 static void manejar_io_stdin_read(t_contexto_cpu* ctx);
 static void manejar_io_stdout_write(t_contexto_cpu* ctx);
 
@@ -137,19 +135,25 @@ void atender_dispatch_cpu(void)
 
     case OP_WAIT_RECURSO: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
+        char* nombre_recurso = NULL;
+        paquete_read_string(paquete, &nombre_recurso);
         if (ctx) {
-            manejar_wait_recurso_static(ctx);
+            manejar_wait_recurso(ctx, nombre_recurso);
             free(ctx);
         }
+        if (nombre_recurso) free(nombre_recurso);
         break;
     }
 
     case OP_SIGNAL_RECURSO: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
+        char* nombre_recurso = NULL;
+        paquete_read_string(paquete, &nombre_recurso);
         if (ctx) {
-            manejar_signal_recurso_static(ctx);
+            manejar_signal_recurso(ctx, nombre_recurso);
             free(ctx);
         }
+        if (nombre_recurso) free(nombre_recurso);
         break;
     }
 
@@ -197,15 +201,6 @@ static void manejar_bloqueo_io_static(t_contexto_cpu* ctx)
     manejar_bloqueo_io(ctx);
 }
 
-static void manejar_wait_recurso_static(t_contexto_cpu* ctx)
-{
-    manejar_wait_recurso(ctx);
-}
-
-static void manejar_signal_recurso_static(t_contexto_cpu* ctx)
-{
-    manejar_signal_recurso(ctx);
-}
 
 static void manejar_segfault_static(t_contexto_cpu* ctx)
 {

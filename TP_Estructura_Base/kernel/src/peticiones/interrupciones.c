@@ -115,7 +115,7 @@ void manejar_bloqueo_io(t_contexto_cpu* ctx) {
     manejar_interrupcion(ctx->pid, "IO");
 }
 
-void manejar_wait_recurso(t_contexto_cpu* ctx) {
+void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
     // 1. Buscar PCB en EXEC
     t_pcb* pcb = NULL;
     pthread_mutex_lock(&mutex_exec);
@@ -127,7 +127,7 @@ void manejar_wait_recurso(t_contexto_cpu* ctx) {
         }
     }
     pthread_mutex_unlock(&mutex_exec);
-    
+
     if (!pcb) {
         log_error(logger, "WAIT: PCB no encontrado para PID %d", ctx->pid);
         return;
@@ -138,19 +138,19 @@ void manejar_wait_recurso(t_contexto_cpu* ctx) {
     pcb->registros = ctx->registros;
 
     // 2. Intentar adquirir recurso
-    bool bloqueo = recurso_wait(pcb, ctx->registros);
+    bool bloqueo = recurso_wait(pcb, (char*)nombre_recurso);
 
     if (bloqueo) {
         // Bloquear proceso
-        manejar_interrupcion(ctx->pid, "WAIT"); 
+        manejar_interrupcion(ctx->pid, "WAIT");
     } else {
         // No bloquea - recurso adquirido, volver a Ready
         manejar_interrupcion(ctx->pid, "QUANTUM");
     }
 }
 
-void manejar_signal_recurso(t_contexto_cpu* ctx) {
-    t_pcb* desbloqueado = recurso_signal(ctx->registros);
+void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
+    t_pcb* desbloqueado = recurso_signal((char*)nombre_recurso);
     
     if (desbloqueado) {
         // El proceso desbloqueado estaba en BLOCKED y en la cola del recurso.

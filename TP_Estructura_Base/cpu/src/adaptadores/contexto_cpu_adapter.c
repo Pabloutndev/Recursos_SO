@@ -5,6 +5,9 @@
 #include <commons/log.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
+#include <paquete/paquete.h>
+#include <serializacion/serializacion.h>
+#include <conexion/conexion.h>
 #include <ciclo_instruccion/ciclo.h>
 #include <interrupciones/interrupciones.h>
 #include <instrucciones/instrucciones.h>
@@ -132,7 +135,15 @@ void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
     log_info(logger, "ADAPTER: Finalizando PID %u - MOTIVO: %d", ctx->pid, rs_code);
 
     // ✅ RESPONDER
-    enviar_contexto(fd, ctx, rs_code);
+    if (rs_code == OP_WAIT_RECURSO || rs_code == OP_SIGNAL_RECURSO) {
+        // Para WAIT/SIGNAL: enviar contexto + nombre del recurso
+        t_paquete* pkt = serializar_contexto_cpu(ctx, rs_code);
+        paquete_write_string(pkt, ultima_instruccion.parametros);
+        enviar_paquete(fd, pkt);
+        paquete_destroy(pkt);
+    } else {
+        enviar_contexto(fd, ctx, rs_code);
+    }
     free(ctx);
 }
 
