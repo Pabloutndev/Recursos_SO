@@ -6,6 +6,7 @@
 #include <cpu.h>
 #include <model/model.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <interrupciones/interrupciones.h>
 

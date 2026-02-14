@@ -12,6 +12,8 @@
 
 extern t_log* logger;
 extern t_log* loggerError;
+extern int socket_dispatch;
+extern int socket_interrupt;
 
 typedef struct {
     char* puerto;
