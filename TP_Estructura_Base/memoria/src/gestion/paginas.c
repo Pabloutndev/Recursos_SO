@@ -1,7 +1,12 @@
 #include <mod_memoria.h>
 #include <gestion/paginas.h>
+#include <gestion/memoria_ram.h>
+#include <gestion/reemplazo.h>
+#include <frames/frames.h>
+#include <swap/swap.h>
 #include <model/model.h>
 #include <commons/collections/dictionary.h>
+#include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 
