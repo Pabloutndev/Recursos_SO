@@ -1,6 +1,9 @@
 #include "kernel_io_adapter.h"
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
+#include <serializacion/serializacion.h>
+#include <paquete/paquete.h>
+#include <conexion/conexion.h>
 #include <planificacion/planificacion.h>
 #include <commons/log.h>
 #include <commons/temporal.h>
