@@ -5,6 +5,7 @@
 
 static t_tlb tlb;
 static uint64_t clock_lru = 0;
+static uint32_t fifo_ptr = 0;
 
 void tlb_init(uint32_t entradas, bool lru) {
     tlb.entradas = calloc(entradas, sizeof(t_tlb_entry));
@@ -37,8 +38,6 @@ static uint32_t elegir_victima() {
     }
     return min;
 }
-
-static uint32_t fifo_ptr = 0;
 
 void tlb_update(uint32_t pid, uint32_t pagina, uint32_t marco) {
     if (tlb.size < tlb.max) {
