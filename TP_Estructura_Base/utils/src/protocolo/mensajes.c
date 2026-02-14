@@ -22,10 +22,10 @@ static void enviar_y_destruir(int fd, t_paquete* p)
 /// ==============================
 /// CONTEXTO - PROCESO (KERNEL <-> CPU)
 /// ==============================
-void enviar_contexto(int socket_dispatch, t_contexto_cpu* ctx, op_code code)
+void enviar_contexto(int skt, t_contexto_cpu* ctx, op_code code)
 {
     t_paquete* p = serializar_contexto_cpu(ctx, code);
-    enviar_y_destruir(socket_dispatch, p);
+    enviar_y_destruir(skt, p);
 }
 
 t_contexto_cpu* recibir_contexto(t_paquete* p)
@@ -95,7 +95,7 @@ void enviar_traduccion_pagina(int socket_memoria, t_mem_traducir* req, op_code c
     enviar_y_destruir(socket_memoria, p);
 }
 
-t_mem_traducir* recibir_mem_traducir_pagina(t_paquete* p) 
+t_mem_traducir* recibir_mem_traducir_pagina(t_paquete* p)
 {
     return deserializar_mem_traducir_pagina(p);
 }
@@ -111,7 +111,7 @@ void enviar_lectura_memoria(int socket_memoria, t_mem_read* req, op_code code)
 
 void enviar_escritura_memoria(int socket_memoria, t_mem_write* req, op_code code)
 {
-    t_paquete* p = serializar_mem_write(req, code); 
+    t_paquete* p = serializar_mem_write(req, code);
     enviar_y_destruir(socket_memoria, p);
 }
 
@@ -153,7 +153,7 @@ t_mem_respuesta_traduccion* recibir_respuesta_traduccion(t_paquete* p)
 }
 
 /// ==============================
-/// RESPUESTA INSTRUCCION 
+/// RESPUESTA INSTRUCCION
 /// ==============================
 void enviar_respuesta_instruccion(int socket_memoria, char* instruccion) {
     t_paquete* p = serializar_mem_respuesta_instruccion(instruccion);
@@ -256,7 +256,7 @@ t_mem_resize* recibir_resize(t_paquete* p)
 void enviar_io_fin(int socket_kernel, uint32_t pid, bool success)
 {
     t_paquete* p = (success == true) ?
-        paquete_create(OP_IO_FIN_OPERACION) : 
+        paquete_create(OP_IO_FIN_OPERACION) :
         paquete_create(OP_FAIL);
     paquete_write_uint32(p, pid);
     enviar_y_destruir(socket_kernel, p);
