@@ -39,6 +39,19 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 | `decode.c` | - | `parse_registro` usa cadena de if/else en vez de diccionario. Es claro pero ineficiente para muchos registros |
 | `contexto_cpu_adapter.c` | 56 | `enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC)` envia siempre `OP_PROCESO_EXEC` como opcode de respuesta, pero el kernel determina el motivo por el opcode que recibe. Esto funciona pero el opcode enviado deberia ser el `rs_code` ya calculado |
 
+**Codigo muerto a eliminar:**
+- `instrucciones/instrucciones.c` - funcion `ejecutar_siguiente_instruccion()` duplica el ciclo de `ciclo.c`, nunca se llama
+- `loggers/logger.c` - 13 funciones de log (log_cpu_fetch, log_cpu_inicio_pid, etc.) declaradas pero nunca usadas. Los logs se hacen con `log_info()` directo
+- `mmu.c:9` - `#define PAGE_FAULT_CODE OP_SEGFAULT` nunca referenciado
+
+**Otros hallazgos CPU:**
+- `config/cpu_config.c:26` - `config_destroy(config_archivo)` comentado = memory leak
+- `mmu.c:17` - `tlb_flush()` vacia toda la TLB en context switch, pero existe `tlb_clear_pid()` que solo limpia la del PID viejo (mas eficiente). Usar esa
+- `decode.c:23-138` - No valida cantidad de tokens antes de acceder a `t[1]`, `t[2]`, etc. Una instruccion malformada causaria segfault
+- `mmu.c:11` - `static uint32_t pid_actual = -1` asigna -1 a un unsigned (overflow a UINT32_MAX)
+- `server/cpu_server.c:121-125` - Hilos de servidor creados y detachados, nunca se hace join ni cleanup
+- `decode.c:45-48` - Comentarios de duda sobre semantica de JNZ ("Or JNZ 10 check status flag?"). Limpiar
+
 **Comentarios sueltos a limpiar:**
 - `ciclo.c:52` - "// MMU translation removed as Memory handles PC -> Instruction logic"
 - `dispatch.h/dispatch.c` - "// Deprecated?" en `recibir_contexto_actualizado`
