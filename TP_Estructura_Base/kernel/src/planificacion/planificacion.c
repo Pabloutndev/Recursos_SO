@@ -258,15 +258,10 @@ void planificacion_finalizar_proceso(uint32_t pid)
 
         log_fin_proceso(pid, "KILL/EXIT");
 
-        // Solicitar a Memoria fin de estructuras
-        solicitar_fin_proceso_memoria(pid);
-
-        // Liberar recursos retenidos
-        recursos_liberar_proceso(pid);
-
-        // Solo liberar slot si el proceso consumio uno (READY/EXEC/BLOCKED)
-        // Los de NEW nunca pasaron por sem_wait(&sem_mp)
         if (!estaba_en_new) {
+            // Solo notificar a memoria y liberar slot si el proceso fue inicializado
+            solicitar_fin_proceso_memoria(pid);
+            recursos_liberar_proceso(pid);
             sem_post(&sem_mp);
         }
     } else {

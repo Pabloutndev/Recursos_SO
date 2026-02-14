@@ -8,10 +8,13 @@
 #include <commons/log.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <pthread.h>
 
 extern int socket_memoria;
 extern t_log* logger;
 extern t_log* loggerError;
+
+static pthread_mutex_t mutex_socket_memoria = PTHREAD_MUTEX_INITIALIZER;
 
 void conectar_memoria(char* ip, char* puerto) {
     socket_memoria = crear_conexion(ip, puerto);
@@ -42,12 +45,17 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
     req.pid = pid;
     snprintf(req.path, sizeof(req.path), "%s", path);
 
-    // Enviar a Memoria
+    // Enviar a Memoria (protegido por mutex)
+    pthread_mutex_lock(&mutex_socket_memoria);
+
     log_info(logger, "Solicitando creación proceso en Memoria: PID=%u, PATH=%s", pid, path);
     enviar_init_proceso(socket_memoria, &req, OP_MEM_INIT_PROCESO);
 
     // Esperar respuesta (bloqueante)
     t_paquete* resp = recibir_paquete(socket_memoria);
+
+    pthread_mutex_unlock(&mutex_socket_memoria);
+
     if (!resp) {
         log_error(loggerError, "Error recibiendo respuesta de Memoria");
         return false;
@@ -76,9 +84,11 @@ void solicitar_fin_proceso_memoria(uint32_t pid)
     t_mem_fin_proceso req;
     req.pid = pid;
 
-    // Enviar a Memoria (one-way, sin esperar respuesta)
+    // Enviar a Memoria (one-way, protegido por mutex)
+    pthread_mutex_lock(&mutex_socket_memoria);
+
     log_info(logger, "Notificando fin de proceso a Memoria: PID=%u", pid);
     enviar_fin_proceso(socket_memoria, &req, OP_MEM_FIN_PROCESO);
-    
-    // Memoria procesará y liberará recursos sin responder
+
+    pthread_mutex_unlock(&mutex_socket_memoria);
 }
