@@ -5,6 +5,7 @@
 #include <commons/log.h>
 #include <common/shared.h>
 #include <swap/swap.h>
+#include <gestion/paginas.h>
 
 #include <stdlib.h>
 #include <stdio.h>

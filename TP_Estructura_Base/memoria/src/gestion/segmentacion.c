@@ -2,7 +2,12 @@
 #include <mod_memoria.h>
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
+#include <commons/log.h>
+#include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
+
+extern t_log* logger;
 
 /* Estructura de Segmento (Base / Limite) */
 typedef struct {
