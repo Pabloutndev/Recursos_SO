@@ -13,6 +13,7 @@
 extern t_contexto_cpu cpu_estado;
 extern t_log* logger;
 extern int socket_dispatch;
+extern instruccion_t ultima_instruccion;
 
 bool recibir_contexto_kernel(t_contexto_cpu* ctx)
 {
