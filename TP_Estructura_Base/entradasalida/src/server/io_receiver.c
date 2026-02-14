@@ -2,6 +2,7 @@
 #include <commons/log.h>
 #include <paquete/paquete.h>
 #include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
 #include <conexion/conexion.h>
 #include <adaptadores/io_adapter.h>
 #include <core/io_main.h>

@@ -2,7 +2,7 @@
 #include <string.h>
 
 t_io_config* io_config_create(const char* path) {
-    t_config* cfg = config_create(path);
+    t_config* cfg = config_create((char*)path);
     if (!cfg) return NULL;
 
     t_io_config* io_cfg = malloc(sizeof(t_io_config));
