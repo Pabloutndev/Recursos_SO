@@ -77,6 +77,8 @@ bool procesar_linea(char* linea)
                 set_algoritmo(ALG_FIFO);
             else if (strcmp(tokens[1], "RR") == 0)
                 set_algoritmo(ALG_RR);
+            else if (strcmp(tokens[1], "VRR") == 0)
+                set_algoritmo(ALG_VRR);
             else if (strcmp(tokens[1], "HRRN") == 0)
                 set_algoritmo(ALG_HRRN);
             else {
@@ -162,7 +164,7 @@ void mensaje_inicial(void)
     printf("                             Kernel valida localmente desde ../memoria/procesos/\n");
     printf("  KILL <pid>               - Terminar proceso\n");
     printf("  PS                       - Listar procesos por estado\n");
-    printf("  ALGORITMO <FIFO|RR|HRRN> - Cambiar algoritmo de planificación\n");
+    printf("  ALGORITMO <FIFO|RR|VRR|HRRN> - Cambiar algoritmo de planificación\n");
     printf("  START                    - Iniciar planificación\n");
     printf("  PAUSE                    - Pausar planificación\n");
     printf("  DESALOJAR <pid>          - Desalojar proceso en ejecución\n");

@@ -7,9 +7,13 @@
 #include "configs/memoria_config.h"
 
 /* Variables Globales */
-extern t_log* logger;
-extern t_log* loggerError;
-extern t_memoria_config* memoria_config;
+typedef struct {
+    t_log* logger;
+    t_log* logger_error;
+    t_memoria_config* config;
+} t_memoria_context;
+
+extern t_memoria_context MEMORIA_CTX;
 
 /* Funciones de ciclo de vida */
 int memoria_init(const char* path_config);

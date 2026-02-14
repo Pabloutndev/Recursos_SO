@@ -50,12 +50,7 @@ void* memoria_client_handler(void* arg)
         // ========================================
         case OP_HANDSHAKE: {
             log_info(logger, "Handshake recibido de cliente (FD=%d)", fd);
-            // Enviar respuesta OP_OK como paquete
-            {
-                t_paquete* resp = paquete_create(OP_OK);
-                enviar_paquete(fd, resp);
-                paquete_destroy(resp);
-            }
+            handshake_servidor(fd, OP_OK, logger);
             break;
         }
 
@@ -68,6 +63,10 @@ void* memoria_client_handler(void* arg)
 
             case OP_MEM_FIN_PROCESO:
                 memoria_adapter_atender_fin_proceso(fd, paquete);
+                break;
+
+            case OP_MEM_AJUSTAR_TAMANIO:
+                memoria_adapter_atender_resize(fd, paquete);
                 break;
 
             // =============================================================

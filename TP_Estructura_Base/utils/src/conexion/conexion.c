@@ -13,9 +13,18 @@ int iniciar_servidor(char* puerto)
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_flags = AI_PASSIVE;
 
-    getaddrinfo(NULL, puerto, &hints, &servinfo);
+    int rv = getaddrinfo(NULL, puerto, &hints, &servinfo);
+    if (rv != 0) {
+        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(rv));
+        return -1;
+    }
 
     socket_servidor = socket(servinfo->ai_family, servinfo->ai_socktype, servinfo->ai_protocol);
+    if (socket_servidor == -1) {
+        perror("Error creando socket servidor");
+        freeaddrinfo(servinfo);
+        return -1;
+    }
     
     // Setsockopt to reuse address (Important for fast restarts)
     int yes=1;
@@ -74,9 +83,18 @@ int crear_conexion(char *ip, char* puerto)
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    getaddrinfo(ip, puerto, &hints, &server_info);
+    int rv = getaddrinfo(ip, puerto, &hints, &server_info);
+    if (rv != 0) {
+        fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(rv));
+        return -1;
+    }
 
     int socket_cliente = socket(server_info->ai_family, server_info->ai_socktype, server_info->ai_protocol);
+    if (socket_cliente == -1) {
+        perror("Error creando socket cliente");
+        freeaddrinfo(server_info);
+        return -1;
+    }
 
     if(connect(socket_cliente, server_info->ai_addr, server_info->ai_addrlen) == -1) {
         freeaddrinfo(server_info);

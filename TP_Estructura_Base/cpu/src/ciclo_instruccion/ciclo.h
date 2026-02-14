@@ -11,6 +11,6 @@
 */
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx);
 char* fetch_instruccion(t_contexto_cpu* ctx);
-instruccion_t decode_instruccion(const char* linea);
+instruccion_t decode_instruccion(t_contexto_cpu* ctx, const char* linea);
 
 #endif

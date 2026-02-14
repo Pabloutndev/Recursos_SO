@@ -22,5 +22,6 @@ void tlb_init(uint32_t entradas, bool lru);
 bool tlb_lookup(uint32_t pid, uint32_t pagina, uint32_t* marco);
 void tlb_update(uint32_t pid, uint32_t pagina, uint32_t marco);
 void tlb_clear_pid(uint32_t pid);
+void tlb_flush(void);
 
 #endif

@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* Sentinel para errores de traducción MMU (frame 0 es válido) */
+#define TRADUCCION_ERROR UINT32_MAX
+
 /* =========================
    REGISTROS Y CONTEXTO
    ========================= */
@@ -101,11 +104,33 @@ typedef struct {
     char path[256];
     uint32_t offset;
     uint32_t size;
+    uint32_t direccion_logica; // direccion de memoria para READ/WRITE
 } t_io_fs_write;
 
 typedef struct {
     uint32_t pid;
     char path[256];
 } t_io_fs_create;
+
+/* STDIN/STDOUT: dirección lógica + tamaño para leer/escribir en memoria */
+typedef struct {
+    uint32_t pid;
+    uint32_t direccion_logica;
+    uint32_t size;
+    char interfaz[64];
+} t_io_stdin_read;
+
+typedef struct {
+    uint32_t pid;
+    uint32_t direccion_logica;
+    uint32_t size;
+    char interfaz[64];
+} t_io_stdout_write;
+
+/* Resize de proceso */
+typedef struct {
+    uint32_t pid;
+    uint32_t nuevo_tamanio;
+} t_mem_resize;
 
 #endif

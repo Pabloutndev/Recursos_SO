@@ -1,39 +1,53 @@
 #include "shared.h"
 #include <string.h>
+#include <ctype.h>
+#include <sys/stat.h>
 
 int existe_archivo(char* path)
 {
-	int ret = 0;
-	FILE* f = fopen(path,"r");
-	if (f != NULL)
-	{
-		ret = 1;
-		fclose(f);
-	}
-	return ret;
+    FILE* f = fopen(path, "r");
+    if (f != NULL)
+    {
+        fclose(f);
+        return 1;
+    }
+    return 0;
 }
-/*
+
 int existe_dir(char* path)
 {
-	DIR* dir = opendir(path);
-	if (dir) {
-		closedir(dir);
-		return 1;
-	} else if (ENOENT == errno) {
-		return 0;
-	} else {
-		return -1;
-	}
+    struct stat st;
+    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        return 1;
+    }
+    return 0;
 }
-*/
-int string_arr_size(char** a)
+
+int string_arr_size(char** array)
 {
     int i = 0;
-    while(a[i] != NULL)
+    while(array && array[i] != NULL)
     {
         i++;
     }
     return i;
+}
+
+// ============================================================================
+// HELPERS INTERNOS
+// ============================================================================
+
+static char* trim(char* str) {
+    char* start = str;
+    while (isspace((unsigned char)*start)) start++;
+    
+    if (*start == 0) return start;
+
+    char* end = start + strlen(start) - 1;
+    while (end > start && isspace((unsigned char)*end)) end--;
+
+    *(end + 1) = '\0';
+    return start;
 }
 
 // ============================================================================
@@ -55,29 +69,28 @@ char** leer_instrucciones(const char* path, uint32_t* cantidad) {
     size_t len = 0;
 
     while (getline(&line, &len, f) != -1) {
-        // Trim whitespace
-        char* start = line;
-        while (*start == ' ' || *start == '\t' || *start == '\n' || *start == '\r') {
-            start++;
-        }
-        char* end = start + strlen(start) - 1;
-        while (end > start && (*end == ' ' || *end == '\t' || *end == '\n' || *end == '\r')) {
-            end--;
-        }
-        *(end + 1) = '\0';
+        char* trimmed = trim(line);
 
-        // Skip empty lines
-        if (strlen(start) == 0) {
+        if (strlen(trimmed) == 0) {
             continue;
         }
 
         if (*cantidad >= cap) {
-            cap = cap == 0 ? 8 : cap * 2;
-            instrucciones = realloc(instrucciones, cap * sizeof(char*));
+            size_t new_cap = (cap == 0) ? 8 : cap * 2;
+            char** temp = realloc(instrucciones, new_cap * sizeof(char*));
+            if (!temp) {
+                // Error de memoria: liberamos lo anterior para evitar leaks mayores
+                liberar_instrucciones(instrucciones, *cantidad);
+                free(line);
+                fclose(f);
+                *cantidad = 0;
+                return NULL;
+            }
+            instrucciones = temp;
+            cap = new_cap;
         }
 
-        instrucciones[*cantidad] = malloc(strlen(start) + 1);
-        strcpy(instrucciones[*cantidad], start);
+        instrucciones[*cantidad] = strdup(trimmed);
         (*cantidad)++;
     }
 

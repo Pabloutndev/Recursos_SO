@@ -23,5 +23,6 @@ void memoria_adapter_atender_traducir_pagina(int fd, t_paquete* paquete);
 void memoria_adapter_atender_fetch_instruccion(int fd, t_paquete* paquete);
 void memoria_adapter_atender_leer(int fd, t_paquete* paquete);
 void memoria_adapter_atender_escribir(int fd, t_paquete* paquete);
+void memoria_adapter_atender_resize(int fd, t_paquete* paquete);
 
 #endif

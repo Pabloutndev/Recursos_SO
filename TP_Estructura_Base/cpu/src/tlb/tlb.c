@@ -11,6 +11,7 @@ void tlb_init(uint32_t entradas, bool lru) {
     tlb.max = entradas;
     tlb.size = 0;
     tlb.lru = lru;
+    fifo_ptr = 0;
 }
 
 bool tlb_lookup(uint32_t pid, uint32_t pagina, uint32_t* marco) {
@@ -37,6 +38,8 @@ static uint32_t elegir_victima() {
     return min;
 }
 
+static uint32_t fifo_ptr = 0;
+
 void tlb_update(uint32_t pid, uint32_t pagina, uint32_t marco) {
     if (tlb.size < tlb.max) {
         tlb.entradas[tlb.size++] = (t_tlb_entry){
@@ -48,7 +51,14 @@ void tlb_update(uint32_t pid, uint32_t pagina, uint32_t marco) {
         return;
     }
 
-    uint32_t victima = elegir_victima();
+    uint32_t victima;
+    if (tlb.lru) {
+        victima = elegir_victima();
+    } else {
+        victima = fifo_ptr;
+        fifo_ptr = (fifo_ptr + 1) % tlb.max;
+    }
+
     tlb.entradas[victima] = (t_tlb_entry){
         .pid = pid,
         .pagina = pagina,
@@ -66,4 +76,10 @@ void tlb_clear_pid(uint32_t pid) {
             i--;
         }
     }
+}
+
+void tlb_flush(void) {
+    tlb.size = 0;
+    // Opcional: limpiar memoria
+    memset(tlb.entradas, 0, tlb.max * sizeof(t_tlb_entry));
 }

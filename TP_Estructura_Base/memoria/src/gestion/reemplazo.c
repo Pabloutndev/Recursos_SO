@@ -49,7 +49,7 @@ int elegir_victima_clock(uint32_t* pid_victima, int* pagina_victima)
     }
 
     if (!clock_encontrada) {
-        log_error(logger, "CLOCK: no se encontró página víctima");
+        log_error(MEMORIA_CTX.logger, "CLOCK: no se encontró página víctima");
         return -1;
     }
 

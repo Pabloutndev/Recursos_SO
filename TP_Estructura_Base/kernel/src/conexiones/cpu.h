@@ -14,6 +14,9 @@ void enviar_contexto_a_cpu(t_contexto_cpu* ctx);
 // Envia interrupcion a CPU Interrupt
 void enviar_interrupcion_a_cpu(int pid, int motivo);
 
+// Atiende la respuesta de CPU Dispatch (bloqueante)
+void atender_dispatch_cpu(void);
+
 // Recibe contexto devuelto por CPU
 t_contexto_cpu* recibir_contexto_de_cpu(void);
 

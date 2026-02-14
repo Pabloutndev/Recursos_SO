@@ -20,6 +20,8 @@ t_cpu_config cpu_cargar_config(const char* ruta)
     cpu.puerto_interrupt = config_get_string_value(config_archivo, "PUERTO_ESCUCHA_INTERRUPT");
     cpu.tlb_cant_ent     = config_get_int_value(config_archivo, "CANTIDAD_ENTRADAS_TLB");
     cpu.tlb_algoritmo    = config_get_string_value(config_archivo, "ALGORITMO_TLB");
+    cpu.tam_pagina       = config_get_int_value(config_archivo, "TAM_PAGINA");
+
 
     //config_destroy(config_archivo);
 

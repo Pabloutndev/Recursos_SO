@@ -12,6 +12,7 @@ typedef enum
 
     // Handshake
     OP_HANDSHAKE,
+    OP_HANDSHAKE_IO,
 
     // Kernel <-> CPU
     OP_PROCESO_EXEC = 200,
@@ -44,7 +45,20 @@ typedef enum
     OP_IO_FIN_OPERACION,
     OP_SIGNAL_RECURSO,
     OP_WAIT_RECURSO,
-    OP_BLOQUEO_IO
+    OP_BLOQUEO_IO,
+    OP_IO_STDIN_READ,
+    OP_IO_STDOUT_WRITE,
+
+    // Consola <-> Kernel
+    OP_CONSOLA_RUN = 500,
+    OP_CONSOLA_KILL,
+    OP_CONSOLA_PS,
+    OP_CONSOLA_ALGORITMO,
+    OP_CONSOLA_START,
+    OP_CONSOLA_PAUSE,
+    OP_CONSOLA_DESALOJAR,
+    OP_CONSOLA_PS_RESP,
+    OP_CONSOLA_EXIT
 
 } op_code;
 

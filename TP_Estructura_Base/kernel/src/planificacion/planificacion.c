@@ -14,8 +14,8 @@
 #include <peticiones/dispatch.h>
 #include <peticiones/recursos.h>
 
-extern t_log* logger;
-extern t_kernel_config KCONF;
+// extern t_log* logger;
+// extern t_kernel_config KCONF;
 
 /* Colas */
 t_list* cola_new;
@@ -35,10 +35,12 @@ sem_t sem_hay_new;
 sem_t sem_hay_ready;
 sem_t sem_mp;
 
+
 /* Prototipos (algoritmos implementados en algoritmo.c) */
 extern t_pcb* algoritmo_obtener_fifo(void);
 extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
+extern t_pcb* algoritmo_obtener_vrr(void);
 
 /* Hilos */
 static pthread_t hilo_largo, hilo_corto;
@@ -77,11 +79,13 @@ void planificacion_init(void)
 
     sem_init(&sem_hay_new, 0, 0);
     sem_init(&sem_hay_ready, 0, 0);
-    sem_init(&sem_mp, 0, KCONF.grado_multiprogramacion);
+    sem_init(&sem_mp, 0, KERNEL_CTX.config.grado_multiprogramacion);
+
 
     /* seleccionar algoritmo desde config */
-    if (strcmp(KCONF.algoritmo_planificacion, "RR") == 0) algoritmo_actual = ALG_RR;
-    else if (strcmp(KCONF.algoritmo_planificacion, "HRRN") == 0) algoritmo_actual = ALG_HRRN;
+    if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "RR") == 0) algoritmo_actual = ALG_RR;
+    else if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "VRR") == 0) algoritmo_actual = ALG_VRR;
+    else if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "HRRN") == 0) algoritmo_actual = ALG_HRRN;
     else algoritmo_actual = ALG_FIFO;
 
     set_algoritmo(algoritmo_actual);
@@ -92,8 +96,8 @@ void planificacion_init(void)
 /* Destrucción */
 void planificacion_destroy(void)
 {
-    sem_post(&sem_hay_new);   // despertar hilos si están bloqueados
     sem_post(&sem_hay_ready);
+
 
     pthread_join(hilo_largo, NULL);
     pthread_join(hilo_corto, NULL);
@@ -110,9 +114,8 @@ void planificacion_destroy(void)
     pthread_mutex_destroy(&mutex_blocked);
     pthread_mutex_destroy(&mutex_estado_planif);
 
-    sem_destroy(&sem_hay_new);
-    sem_destroy(&sem_hay_ready);
     sem_destroy(&sem_mp);
+
 }
 
 /* Ingresar a NEW */
@@ -131,10 +134,11 @@ void set_algoritmo(algoritmo_t a)
     switch (a) {
         case ALG_FIFO: proximoAEjecutar = algoritmo_obtener_fifo; break;
         case ALG_RR:   proximoAEjecutar = algoritmo_obtener_rr;   break;
+        case ALG_VRR:  proximoAEjecutar = algoritmo_obtener_vrr;  break;
         case ALG_HRRN: proximoAEjecutar = algoritmo_obtener_hrrn; break;
         default:       proximoAEjecutar = algoritmo_obtener_fifo; break;
     }
-    log_info(logger, "Algoritmo seteado: %d", algoritmo_actual);
+    log_info(KERNEL_CTX.logger, "Algoritmo seteado: %d", algoritmo_actual);
 }
 
 void listar_procesos_por_estado(void)
@@ -145,11 +149,11 @@ void listar_procesos_por_estado(void)
     char* pids_blocked = lista_pids(cola_blocked);
     char* pids_exit = lista_pids(cola_exit);
     
-    log_info(logger, "Estado: NEW - Procesos: [%s]", pids_new ? pids_new : "");
-    log_info(logger, "Estado: READY - Procesos: [%s]", pids_ready ? pids_ready : "");
-    log_info(logger, "Estado: EXEC - Procesos: [%s]", pids_exec ? pids_exec : "");
-    log_info(logger, "Estado: BLOCKED - Procesos: [%s]", pids_blocked ? pids_blocked : "");
-    log_info(logger, "Estado: EXIT - Procesos: [%s]", pids_exit ? pids_exit : "");
+    log_info(KERNEL_CTX.logger, "Estado: NEW - Procesos: [%s]", pids_new ? pids_new : "");
+    log_info(KERNEL_CTX.logger, "Estado: READY - Procesos: [%s]", pids_ready ? pids_ready : "");
+    log_info(KERNEL_CTX.logger, "Estado: EXEC - Procesos: [%s]", pids_exec ? pids_exec : "");
+    log_info(KERNEL_CTX.logger, "Estado: BLOCKED - Procesos: [%s]", pids_blocked ? pids_blocked : "");
+    log_info(KERNEL_CTX.logger, "Estado: EXIT - Procesos: [%s]", pids_exit ? pids_exit : "");
     
     if (pids_new) free(pids_new);
     if (pids_ready) free(pids_ready);
@@ -241,7 +245,7 @@ void planificacion_finalizar_proceso(uint32_t pid)
         // Liberar recursos retenidos
         recursos_liberar_proceso(pid);
     } else {
-        log_error(logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
+        log_error(KERNEL_CTX.logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
     }
     
     pcb_search_pid = 0;
@@ -256,12 +260,12 @@ void planificacion_dump_estado(t_pcb* pcb)
 {
     if (!pcb) return;
     
-    log_info(logger, "=== DUMP PROCESO PID: %u ===", pcb->pid);
-    log_info(logger, "Estado: %d", pcb->estado);
-    log_info(logger, "PC: %u", pcb->program_counter);
-    log_info(logger, "Quantum: %d", pcb->quantum);
-    log_info(logger, "Prioridad: %d", pcb->prioridad);
-    log_info(logger, "Estimación ráfaga: %.2f", pcb->estimacion_rafaga);
-    log_info(logger, "Tamaño proceso: %u", pcb->tam_proceso);
-    log_info(logger, "===========================");
+    log_info(KERNEL_CTX.logger, "=== DUMP PROCESO PID: %u ===", pcb->pid);
+    log_info(KERNEL_CTX.logger, "Estado: %d", pcb->estado);
+    log_info(KERNEL_CTX.logger, "PC: %u", pcb->program_counter);
+    log_info(KERNEL_CTX.logger, "Quantum: %d", pcb->quantum);
+    log_info(KERNEL_CTX.logger, "Prioridad: %d", pcb->prioridad);
+    log_info(KERNEL_CTX.logger, "Estimación ráfaga: %.2f", pcb->estimacion_rafaga);
+    log_info(KERNEL_CTX.logger, "Tamaño proceso: %u", pcb->tam_proceso);
+    log_info(KERNEL_CTX.logger, "===========================");
 }

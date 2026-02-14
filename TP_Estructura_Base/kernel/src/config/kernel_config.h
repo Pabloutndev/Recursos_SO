@@ -14,6 +14,7 @@ typedef struct
     char** recursos; //puntero a punteros de strings
     char** instancias_recursos;
     int grado_multiprogramacion;
+    char* puerto_consola;
 } t_kernel_config;
 
 t_kernel_config kernel_cargar_config(const char* ruta);

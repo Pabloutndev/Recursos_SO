@@ -5,7 +5,8 @@
 #include <pcb/pcb.h>
 #include <stdlib.h>
 
-extern t_log* logger;
+#include <mod_kernel.h>
+// extern t_log* logger;
 
 // Helper local para convertir PCB a Contexto
 static void pcb_to_contexto(t_pcb* pcb, t_contexto_cpu* ctx) {

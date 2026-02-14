@@ -8,11 +8,16 @@
 #include <conexiones/cpu.h>
 #include <conexiones/memoria.h>
 
-extern t_log* logger;
-extern t_log* loggerError;
-extern t_kernel_config KCONF;
-extern int socket_dispatch;
-extern int socket_interrupt;
+typedef struct {
+    t_log* logger;
+    t_log* logger_error;
+    t_kernel_config config;
+    int socket_dispatch;
+    int socket_interrupt;
+    int socket_memoria;
+} t_kernel_context;
+
+extern t_kernel_context KERNEL_CTX;
 
 ///TODO: utiliza utils/conexiones y conexiones/
 // server_kernel

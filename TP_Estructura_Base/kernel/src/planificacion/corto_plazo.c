@@ -3,6 +3,8 @@
 #include <planificacion/planificacion.h>
 #include <planificacion/corto_plazo.h>
 #include <peticiones/dispatch.h>
+#include <config/kernel_config.h>
+#include <mod_kernel.h>
 
 #include <commons/log.h>
 #include <commons/collections/list.h>
@@ -11,6 +13,7 @@
 #include <semaphore.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <string.h>
 
 /* proximoAEjecutar está declarado en planificacion.c como extern */
 extern t_pcb* (*proximoAEjecutar)(void);
@@ -57,12 +60,37 @@ void* planificador_corto_plazo(void* _) {
         int sock = enviar_proceso_a_cpu(pcb);
 
         if (sock >= 0) {
-            // ✅ LANZAR TIMER en hilo separado (no bloquea)
-            pthread_t hilo_quantum;
-            pthread_create(&hilo_quantum, NULL, timer_quantum, (void*)(uintptr_t)pcb->pid);
-            pthread_detach(hilo_quantum);
-            
-            log_info(logger, "Planificador: Timer quantum iniciado para PID=%u", pcb->pid);
+            // ✅ LANZAR TIMER solo si el algoritmo es RR o VRR (FIFO no usa quantum)
+            bool es_rr = (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "RR") == 0);
+            bool es_vrr = (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "VRR") == 0);
+            bool usa_quantum = es_rr || es_vrr;
+
+            if (usa_quantum) {
+                // VRR usa quantum_restante, RR siempre usa quantum completo
+                int quantum_a_usar = es_vrr ? pcb->quantum_restante : pcb->quantum;
+                if (quantum_a_usar <= 0) quantum_a_usar = pcb->quantum; // fallback
+
+                typedef struct { uint32_t pid; int quantum; } t_quantum_args;
+                t_quantum_args* q_args = malloc(sizeof(t_quantum_args));
+                q_args->pid = pcb->pid;
+                q_args->quantum = quantum_a_usar;
+
+                // Guardar timestamp de inicio de ejecucion para calcular quantum consumido
+                if (pcb->tiempo_ready) temporal_destroy(pcb->tiempo_ready);
+                pcb->tiempo_ready = temporal_create(); // reutilizamos como marcador de inicio exec
+
+                pthread_t hilo_quantum;
+                pthread_create(&hilo_quantum, NULL, timer_quantum, q_args);
+                pthread_detach(hilo_quantum);
+
+                log_info(logger, "Planificador: Timer quantum iniciado para PID=%u (%d ms, %s)",
+                         pcb->pid, quantum_a_usar, es_vrr ? "VRR" : "RR");
+            } else {
+                log_info(logger, "Planificador: Algoritmo sin quantum (FIFO/HRRN) - PID=%u ejecuta sin desalojo temporal", pcb->pid);
+            }
+
+            // ✅ ESPERAR RESPUESTA DE CPU (Bloqueante)
+            atender_dispatch_cpu();
             
         } else if (sock < 0) {
             log_error(logger, "Planificador: Fallo envío a CPU para PID=%u", pcb->pid);
@@ -84,10 +112,13 @@ void* planificador_corto_plazo(void* _) {
 }
 
 void* timer_quantum(void* arg) {
-    t_pcb* pcb = (t_pcb*) arg;
+    struct { uint32_t pid; int quantum; }* q_args = arg;
+    uint32_t pid = q_args->pid;
+    int quantum_ms = q_args->quantum;
+    free(q_args);
 
-    // Usamos el quantum propio del PCB en microsegundos
-    usleep(pcb->quantum);
+    // Usamos el quantum propio del PCB convertido a microsegundos
+    usleep(quantum_ms * 1000);
 
     bool sigue_en_exec = false;
 
@@ -95,7 +126,7 @@ void* timer_quantum(void* arg) {
     pthread_mutex_lock(&mutex_exec);
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* aux = list_get(cola_exec, i);
-        if (aux->pid == pcb->pid) { // identidad por PID
+        if (aux->pid == pid) { 
             sigue_en_exec = true;
             break;
         }
@@ -103,8 +134,8 @@ void* timer_quantum(void* arg) {
     pthread_mutex_unlock(&mutex_exec);
 
     if (sigue_en_exec) {
-        enviar_interrupt_cpu(pcb->pid);
-        log_info(logger, "Quantum vencido → PID=%u desalojado", pcb->pid);
+        log_info(logger, "Quantum vencido → PID=%u desalojado", pid);
+        enviar_interrupt_cpu(pid);
     }
 
     return NULL;

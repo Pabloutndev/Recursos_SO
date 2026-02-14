@@ -4,6 +4,7 @@
 #include <commons/string.h>
 #include <commons/log.h>
 #include <shared.h>
+#include <swap/swap.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -38,9 +39,11 @@ static char* construir_ruta_proceso_memoria(const char* nombre_proceso) {
  * API PUBLICA
  * ========================= */
 
-void memoria_core_init(void) {
+int memoria_core_init(void) {
     procesos = dictionary_create();
+    if (!procesos) return -1;
     log_info(logger, "MEMORIA: memoria_core inicializado");
+    return 0;
 }
 
 bool memoria_crear_proceso(uint32_t pid, const char* path) {
@@ -77,9 +80,16 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     }
 
     dictionary_put(procesos, key, proc);
+    
+    /* ✅ UNIFICACIÓN: Cargar instrucciones en el espacio de memoria (RAM/Swap) */
+    log_info(logger, "MEMORIA: Cargando %d instrucciones en RAM para PID %u", proc->cantidad, pid);
+    for (int i = 0; i < proc->cantidad; i++) {
+        // Mapeamos el índice i a la dirección lógica i * 64
+        uint32_t dir_logica = i * 64; 
+        paginacion_escribir(pid, dir_logica, proc->instrucciones[i], strlen(proc->instrucciones[i]) + 1);
+    }
 
-    log_info(logger, "MEMORIA: Proceso %u cargado correctamente (%u instrucciones)",
-             pid, proc->cantidad);
+    free(key);
     return true;
 }
 
@@ -98,25 +108,36 @@ void memoria_destruir_proceso(uint32_t pid) {
     free(proc->instrucciones);
     free(proc);
 
+    swap_borrar_proceso(pid);
+
     log_info(logger, "MEMORIA: Proceso %u destruido", pid);
 }
 
-const char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
+char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
+    /* Mantenemos el control administrativo por ahora */
     char* key = pid_key(pid);
     t_proceso_memoria* proc = dictionary_get(procesos, key);
     free(key);
 
     if (!proc) {
         log_error(loggerError, "MEMORIA: FETCH proceso inexistente PID=%u", pid);
-        return "EXIT";
+        return strdup("EXIT");
     }
 
-    if (pc >= proc->cantidad) {
-        log_warning(logger, "MEMORIA: FETCH fuera de rango PID=%u PC=%u", pid, pc);
-        return "EXIT";
+    /* UNIFICACIÓN: Usar el sistema de paginación para leer la instrucción */
+    log_info(logger, "MEMORIA: Usando paginación para fetch PID=%u PC=%u", pid, pc);
+    char* instruccion_leida = paginacion_leer_instruccion(pid, pc);
+
+    if (instruccion_leida != NULL) {
+        return instruccion_leida;
     }
 
-    return proc->instrucciones[pc];
+    /* Fallback: leer del array de instrucciones en memoria */
+    if (pc < proc->cantidad) {
+        return strdup(proc->instrucciones[pc]);
+    }
+
+    return strdup("EXIT");
 }
 
 

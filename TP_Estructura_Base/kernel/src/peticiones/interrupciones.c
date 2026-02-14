@@ -75,15 +75,24 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
     pthread_mutex_unlock(&mutex_exec);
     
     if (strcmp(motivo, "QUANTUM") == 0) {
-        // Desalojo por quantum
+        // Desalojo por quantum - VRR: resetear quantum_restante al completo
+        pcb->quantum_restante = pcb->quantum;
         pcb->estado = READY;
+        pcb->tiempo_ready = temporal_create();
         pthread_mutex_lock(&mutex_ready);
         list_add(cola_ready, pcb);
-        temporal_resume(pcb->tiempo_ready);
         pthread_mutex_unlock(&mutex_ready);
         sem_post(&sem_hay_ready);
     } else if (strcmp(motivo, "IO") == 0 || strcmp(motivo, "WAIT") == 0) {
-        // Bloqueo por I/O o wait
+        // Bloqueo por I/O o wait - VRR: calcular quantum consumido y guardar restante
+        if (pcb->tiempo_ready) {
+            int64_t tiempo_exec_ms = temporal_gettime(pcb->tiempo_ready);
+            int restante = pcb->quantum_restante - (int)tiempo_exec_ms;
+            pcb->quantum_restante = (restante > 0) ? restante : 0;
+            temporal_destroy(pcb->tiempo_ready);
+            pcb->tiempo_ready = NULL;
+            log_info(logger, "VRR: PID=%u bloqueado, quantum_restante=%d ms", pid, pcb->quantum_restante);
+        }
         pcb->estado = BLOCK;
         pthread_mutex_lock(&mutex_blocked);
         list_add(cola_blocked, pcb);

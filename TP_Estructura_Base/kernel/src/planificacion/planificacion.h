@@ -10,6 +10,7 @@ typedef enum {
     ALG_FIFO,
     ALG_RR,
     ALG_HRRN,
+    ALG_VRR,
     ALG_SJF,
     ALG_SRT,
     ALG_PRIORIDAD
@@ -40,10 +41,12 @@ extern sem_t sem_hay_new;
 extern sem_t sem_hay_ready;
 extern sem_t sem_mp;
 
+
 /* Prototipos (algoritmos implementados en algoritmo.c) */
 extern t_pcb* algoritmo_obtener_fifo(void);
 extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
+extern t_pcb* algoritmo_obtener_vrr(void);
 
 /* Hilos */
 //static pthread_t hilo_largo;

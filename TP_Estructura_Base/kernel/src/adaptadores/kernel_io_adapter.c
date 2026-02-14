@@ -1,7 +1,9 @@
 #include "kernel_io_adapter.h"
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
+#include <planificacion/planificacion.h>
 #include <commons/log.h>
+#include <commons/temporal.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -63,9 +65,41 @@ void kernel_io_adapter_atender_fin_operacion(int fd, t_paquete* p)
 {
     uint32_t pid = recibir_pid_fin_io(p);
     log_info(logger, "ADAPTER: IO notifica FIN_OPERACION para PID %u", pid);
-    
-    // Aquí el Kernel debería llamar a la planificación para desbloquear el proceso
-    // manejar_fin_io_operacion(pid); 
+
+    // Buscar el PCB en cola_blocked y moverlo a cola_ready
+    t_pcb* pcb = NULL;
+
+    pthread_mutex_lock(&mutex_blocked);
+    for (int i = 0; i < list_size(cola_blocked); i++) {
+        t_pcb* aux = (t_pcb*) list_get(cola_blocked, i);
+        if (aux && aux->pid == pid) {
+            pcb = aux;
+            list_remove(cola_blocked, i);
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_blocked);
+
+    if (!pcb) {
+        log_error(loggerError, "ADAPTER: FIN_IO - PID %u no encontrado en BLOCKED", pid);
+        return;
+    }
+
+    // Cambiar estado a READY y encolar
+    // VRR: si quantum_restante == 0, resetear al quantum completo
+    if (pcb->quantum_restante <= 0) {
+        pcb->quantum_restante = pcb->quantum;
+    }
+    pcb->estado = READY;
+    pcb->tiempo_ready = temporal_create();
+
+    pthread_mutex_lock(&mutex_ready);
+    list_add(cola_ready, pcb);
+    pthread_mutex_unlock(&mutex_ready);
+
+    sem_post(&sem_hay_ready);
+
+    log_info(logger, "ADAPTER: PID %u desbloqueado -> READY por FIN_IO (quantum_restante=%d)", pid, pcb->quantum_restante);
 }
 
 void kernel_fs_operation(t_pcb* pcb, 
@@ -98,16 +132,24 @@ void kernel_fs_operation(t_pcb* pcb,
         
         enviar_io_fs_create(socket_io, req);
         
-        free(req->path);
         free(req);
     }
     else if (strcmp(tipo_operacion, "DELETE") == 0) {
-        // Struct y función similar a CREATE
+        t_io_fs_create* req = malloc(sizeof(t_io_fs_create)); // Mismo struct basta para DELETE
+        req->pid = pcb->pid;
+        snprintf(req->path, sizeof(req->path), "%s", path);
+
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_DELETE (PID=%u, ARCHIVO=%s) a %s",
                  pcb->pid, path, interfaz_io);
         
-        // TODO: Implementar t_io_fs_delete y enviar_io_fs_delete en protocolo
-        log_warning(logger, "IO_ADAPTER: FS_DELETE no completamente implementado");
+        enviar_respuesta(socket_io, OP_IO_FS_DELETE); // O implementar enviar_io_fs_delete
+        // Por consistencia implementamos enviar_io_fs_create con el opcode correcto
+        t_paquete* p = serializar_io_fs_create(req);
+        p->codigo_operacion = OP_IO_FS_DELETE;
+        enviar_paquete(socket_io, p);
+        paquete_destroy(p);
+
+        free(req);
     }
     else if (strcmp(tipo_operacion, "READ") == 0) {
         log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_READ (PID=%u, ARCHIVO=%s) a %s",
@@ -127,15 +169,40 @@ void kernel_fs_operation(t_pcb* pcb,
         
         enviar_io_fs_write(socket_io, req);
         
-        free(req->path);
+        free(req);
+    }
+    else if (strcmp(tipo_operacion, "READ") == 0) {
+        t_io_fs_write* req = malloc(sizeof(t_io_fs_write)); // Reusamos struct write para read (pid, path, offset, size)
+        req->pid = pcb->pid;
+        snprintf(req->path, sizeof(req->path), "%s", path);
+        req->size = tamanio;
+        req->offset = 0; // O el que corresponda
+
+        log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_READ (PID=%u, ARCHIVO=%s, TAM=%u) a %s",
+                 pcb->pid, path, tamanio, interfaz_io);
+        
+        t_paquete* p = serializar_io_fs_write(req);
+        p->codigo_operacion = OP_IO_FS_READ;
+        enviar_paquete(socket_io, p);
+        paquete_destroy(p);
+
         free(req);
     }
     else if (strcmp(tipo_operacion, "TRUNCATE") == 0) {
-        log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_TRUNCATE (PID=%u, ARCHIVO=%s) a %s",
-                 pcb->pid, path, interfaz_io);
+        t_io_fs_write* req = malloc(sizeof(t_io_fs_write));
+        req->pid = pcb->pid;
+        snprintf(req->path, sizeof(req->path), "%s", path);
+        req->size = tamanio; // Nuevo tamaño
+
+        log_info(logger, "IO_ADAPTER: Enviando OP_IO_FS_TRUNCATE (PID=%u, ARCHIVO=%s, NUEVO_TAM=%u) a %s",
+                 pcb->pid, path, tamanio, interfaz_io);
         
-        // TODO: Implementar estructura y protocolo para TRUNCATE
-        log_warning(logger, "IO_ADAPTER: FS_TRUNCATE no completamente implementado");
+        t_paquete* p = serializar_io_fs_write(req);
+        p->codigo_operacion = OP_IO_FS_TRUNCATE;
+        enviar_paquete(socket_io, p);
+        paquete_destroy(p);
+
+        free(req);
     }
     else {
         log_warning(logger, "IO_ADAPTER: Operación FS desconocida: %s", tipo_operacion);

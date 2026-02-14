@@ -96,14 +96,39 @@ void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
     log_info(logger, "ADAPTER: Iniciando ejecución PID %u", ctx->pid);
 
     // ✅ EJECUTAR
+    CPU_CTX.motivo_desalojo = CPU_CONTINUAR;
     ciclo_instruccion_ejecutar(ctx);
 
-    // ✅ DETERMINAR MOTIVO
-    op_code rs_code = OP_DESALOJO;
-    if (interrupcion_pendiente()) {
+    // ✅ DETERMINAR RESPUESTA
+    op_code rs_code;
+
+    if (CPU_CTX.motivo_desalojo == MOTIVO_EXIT) {
+        rs_code = OP_CPU_FIN_PROCESO;
+    } else if (CPU_CTX.motivo_desalojo == MOTIVO_IO) {
+        // Mapeo detallado basado en la instrucción que causó el desalojo
+        switch (ultima_instruccion.opcode) {
+            case INST_WAIT:           rs_code = OP_WAIT_RECURSO; break;
+            case INST_SIGNAL:         rs_code = OP_SIGNAL_RECURSO; break;
+            case INST_IO_GEN_SLEEP:    rs_code = OP_IO_SLEEP; break;
+            case INST_IO_STDIN_READ:  rs_code = OP_IO_STDIN_READ; break;
+            case INST_IO_STDOUT_WRITE:rs_code = OP_IO_STDOUT_WRITE; break;
+            case INST_IO_FS_CREATE:   rs_code = OP_IO_FS_CREATE; break;
+            case INST_IO_FS_DELETE:   rs_code = OP_IO_FS_DELETE; break;
+            case INST_IO_FS_TRUNCATE: rs_code = OP_IO_FS_TRUNCATE; break;
+            case INST_IO_FS_WRITE:    rs_code = OP_IO_FS_WRITE; break;
+            case INST_IO_FS_READ:     rs_code = OP_IO_FS_READ; break;
+            default:                  rs_code = OP_BLOQUEO_IO; break;
+        }
+    } else if (CPU_CTX.motivo_desalojo == MOTIVO_SEGFAULT) {
+        rs_code = OP_SEGFAULT;
+    } else if (interrupcion_pendiente()) {
         rs_code = OP_FIN_DE_QUANTUM;
         interrupcion_reset();
+    } else {
+        rs_code = OP_DESALOJO;
     }
+
+    log_info(logger, "ADAPTER: Finalizando PID %u - MOTIVO: %d", ctx->pid, rs_code);
 
     // ✅ RESPONDER
     enviar_contexto(fd, ctx, rs_code);

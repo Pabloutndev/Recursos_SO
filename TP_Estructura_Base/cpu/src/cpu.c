@@ -5,50 +5,65 @@
 #include <interrupciones/interrupciones.h>
 #include <adaptadores/contexto_cpu_adapter.h>
 #include <protocolo/mensajes.h>
+#include <tlb/tlb.h>
+#include <unistd.h>
+#include <string.h>
 
-t_log* logger;
-t_log* loggerError;
-t_cpu_config CPU_CONF;
-t_contexto_cpu cpu_estado;
-t_motivo_desalojo motivo_desalojo;
+/// Contexto Global del Modulo
+t_cpu_context CPU_CTX;
+
+// Globals usados por extern en sub-módulos (apuntan a CPU_CTX)
+t_log* logger = NULL;
+t_log* loggerError = NULL;
 int socket_dispatch = -1;
 int socket_interrupt = -1;
+t_contexto_cpu cpu_estado;
+t_motivo_desalojo motivo_desalojo;
+instruccion_t ultima_instruccion;
 
 void cpu_init(const char* path_config)
 {
-    logger = log_create("cpu.log", "CPU", 1, LOG_LEVEL_INFO);
-    loggerError = log_create("cpu_error.log", "CPU_ERROR", 1, LOG_LEVEL_ERROR);
+    CPU_CTX.logger = log_create("cpu.log", "CPU", 1, LOG_LEVEL_INFO);
+    CPU_CTX.logger_error = log_create("cpu_error.log", "CPU_ERROR", 1, LOG_LEVEL_ERROR);
 
-    CPU_CONF = (t_cpu_config) cpu_cargar_config(path_config);
-    
-    cpu_imprimir_config(CPU_CONF);
+    // Setear globals para extern en sub-módulos
+    logger = CPU_CTX.logger;
+    loggerError = CPU_CTX.logger_error;
 
-    cpu_servidores_kernel_init(CPU_CONF.puerto_dispatch, CPU_CONF.puerto_interrupt);
+    if (!CPU_CTX.logger || !CPU_CTX.logger_error) {
+        return;
+    }
 
-    cpu_conexiones_memoria_init(CPU_CONF.ip_memoria, CPU_CONF.puerto_memoria);
+    CPU_CTX.config = (t_cpu_config) cpu_cargar_config(path_config);
+    cpu_imprimir_config(CPU_CTX.config);
+
+    cpu_servidores_kernel_init(CPU_CTX.config.puerto_dispatch, CPU_CTX.config.puerto_interrupt);
+    cpu_conexiones_memoria_init(CPU_CTX.config.ip_memoria, CPU_CTX.config.puerto_memoria);
 
     interrupciones_init();
 
-    log_info(logger, "CPU inicializada correctamente");
+    // Inicializar TLB
+    bool tlb_lru = (strcmp(CPU_CTX.config.tlb_algoritmo, "LRU") == 0);
+    tlb_init(CPU_CTX.config.tlb_cant_ent, tlb_lru);
+
+    log_info(CPU_CTX.logger, "CPU inicializada correctamente");
 }
 
 void cpu_run(void) {
-    while (true) {
-        t_contexto_cpu ctx;
-        
-        if (!recibir_contexto_kernel(&ctx)){
-            motivo_desalojo = MOTIVO_DESALOJO;
-            break;
-        }
-
-        ciclo_instruccion_ejecutar(&ctx);
-        
-        enviar_contexto_kernel(&ctx, motivo_desalojo);
+    log_info(CPU_CTX.logger, "CPU en modo espera de peticiones (Dispatch/Interrupt)...");
+    while(1) {
+        sleep(10); 
     }
 }
 
 void cpu_shutdown(void) {
-    //conexiones_kernel_close();
-    //conexiones_memoria_close();
-    log_destroy(logger);
+    log_info(CPU_CTX.logger, "Apagando CPU...");
+
+    cpu_conexiones_memoria_close();
+
+    if (CPU_CTX.socket_dispatch >= 0) close(CPU_CTX.socket_dispatch);
+    if (CPU_CTX.socket_interrupt >= 0) close(CPU_CTX.socket_interrupt);
+
+    if (CPU_CTX.logger) log_destroy(CPU_CTX.logger);
+    if (CPU_CTX.logger_error) log_destroy(CPU_CTX.logger_error);
 }

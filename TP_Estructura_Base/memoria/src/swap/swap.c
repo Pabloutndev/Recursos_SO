@@ -8,7 +8,7 @@
 static int tam_pagina = 0;
 
 int swap_init(void) {
-    tam_pagina = memoria_config->tam_pagina;
+    tam_pagina = MEMORIA_CTX.config->tam_pagina;
     // Check if swap dir exists, create if not
     struct stat st = {0};
     if (stat("swap_files", &st) == -1) {
@@ -19,7 +19,7 @@ int swap_init(void) {
 
 static char* get_swap_path(uint32_t pid) {
     char* path = malloc(50);
-    sprintf(path, "swap_files/%d.swap", pid);
+    snprintf(path, 50, "swap_files/%u.swap", pid);
     return path;
 }
 
@@ -31,23 +31,20 @@ bool swap_escribir_pagina(uint32_t pid, int nro_pagina, void* contenido) {
     
     if (fd < 0) return false;
 
-    // Deteccion de swap lleno
+    // Seek a la posicion de pagina
+    off_t offset = nro_pagina * tam_pagina;
+
+    // Ensure file size
+    ftruncate(fd, offset + tam_pagina);
+
+    lseek(fd, offset, SEEK_SET);
     if (write(fd, contenido, tam_pagina) != tam_pagina) {
         close(fd);
         return false;
     }
-    
-    // Seek a la posicion de pagina
-    off_t offset = nro_pagina * tam_pagina;
-    
-    // Ensure file size
-    ftruncate(fd, offset + tam_pagina); // Ensure minimal size? or just write
-    
-    lseek(fd, offset, SEEK_SET);
-    write(fd, contenido, tam_pagina);
     close(fd);
     
-    log_debug(logger, "SWAP OUT PID %d Pag %d", pid, nro_pagina);
+    log_debug(MEMORIA_CTX.logger, "SWAP OUT PID %u Pag %d", pid, nro_pagina);
     return true;
 }
 
@@ -59,11 +56,18 @@ bool swap_leer_pagina(uint32_t pid, int nro_pagina, void* buffer) {
     if (fd < 0) return false;
 
     off_t offset = nro_pagina * tam_pagina;
-    lseek(fd, offset, SEEK_SET);
-    read(fd, buffer, tam_pagina);
+    if (lseek(fd, offset, SEEK_SET) == (off_t)-1) {
+        close(fd);
+        return false;
+    }
+    ssize_t leidos = read(fd, buffer, tam_pagina);
     close(fd);
 
-    log_debug(logger, "SWAP IN PID %d Pag %d", pid, nro_pagina);
+    if (leidos != tam_pagina) {
+        return false;
+    }
+
+    log_debug(MEMORIA_CTX.logger, "SWAP IN PID %u Pag %d", pid, nro_pagina);
     return true;
 }
 

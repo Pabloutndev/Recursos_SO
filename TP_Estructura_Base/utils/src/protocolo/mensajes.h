@@ -136,6 +136,27 @@ t_io_fs_create* recibir_io_fs_create(t_paquete* p);
 
 //
 // ------------------------------
+// IO - STDIN / STDOUT
+// ------------------------------
+//
+
+void enviar_io_stdin_read(int socket_io, t_io_stdin_read* io);
+t_io_stdin_read* recibir_io_stdin_read(t_paquete* p);
+
+void enviar_io_stdout_write(int socket_io, t_io_stdout_write* io);
+t_io_stdout_write* recibir_io_stdout_write(t_paquete* p);
+
+//
+// ------------------------------
+// Memoria - Resize
+// ------------------------------
+//
+
+void enviar_resize(int socket_memoria, t_mem_resize* req, op_code code);
+t_mem_resize* recibir_resize(t_paquete* p);
+
+//
+// ------------------------------
 // Finalización IO -> Kernel
 // ------------------------------
 //

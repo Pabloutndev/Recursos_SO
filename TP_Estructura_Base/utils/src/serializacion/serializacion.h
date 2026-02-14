@@ -69,4 +69,21 @@ t_mem_respuesta_lectura* deserializar_mem_respuesta_lectura(t_paquete* p);
 t_paquete* serializar_mem_respuesta_instruccion(char* instruccion);
 char* deserializar_mem_respuesta_instruccion(t_paquete* p);
 
+/// ===========
+/// IO - STDIN / STDOUT
+/// ===========
+
+t_paquete* serializar_io_stdin_read(const t_io_stdin_read* req);
+t_io_stdin_read* deserializar_io_stdin_read(t_paquete* p);
+
+t_paquete* serializar_io_stdout_write(const t_io_stdout_write* req);
+t_io_stdout_write* deserializar_io_stdout_write(t_paquete* p);
+
+/// ===========
+/// MEMORIA - RESIZE
+/// ===========
+
+t_paquete* serializar_mem_resize(t_mem_resize* req, op_code code);
+t_mem_resize* deserializar_mem_resize(t_paquete* p);
+
 #endif /* SERIALIZACION_H */

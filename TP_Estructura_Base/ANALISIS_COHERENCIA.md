@@ -1,9 +1,9 @@
 /**
- * ANÁLISIS EXHAUSTIVO DE COHERENCIA DEL PROYECTO
+ * ANÁLISIS EXHAUSTIVO DE COHERENCIA Y TEORÍA DEL PROYECTO
  * TP Sistemas Operativos - UTN FRBA
  * 
- * Fecha: Enero 2026
- * Objetivo: Validar que el simulador implemente correctamente la teoría de SO
+ * Versión: FEBRERO 2026 (Auditada y Refinada)
+ * Objetivo: Validar la implementación síncrona, memoria unificada y cumplimiento teórico.
  */
 
 # 🎯 RESUMEN EJECUTIVO
@@ -22,16 +22,17 @@ El proyecto implementa un simulador de Sistema Operativo con 4 módulos independ
 
 ### KERNEL (Planificador Multinivel)
 - **Responsabilidad:** Gestionar procesos, planificación, transiciones de estado
-- **Implementación:** ✅ Correcta
+- **Implementación:** ✅ Correcta (Síncrona)
   - Cola de procesos: READY, EXEC, BLOCK, EXIT
   - Planificadores: Corto Plazo (FIFO, RR, HRRN)
-  - Manejo de interrupciones desde CPU
-  - Interfaz de consola para carga de procesos
+  - **Sincronización:** El planificador de corto plazo espera bloqueado la respuesta de CPU (**atender_dispatch_cpu**).
+  - Interfaz de consola para carga de procesos.
+- **Hilos:** KLT (Kernel Level Threads) implementados vía pthread, pero no se distinguen ULT (no implementado).
 
 **Archivos relevantes:**
-- kernel/src/planificacion/corto_plazo.c: Timer de quantum y envío de interrupciones
-- kernel/src/conexiones/cpu.c: Dos canales (DISPATCH y INTERRUPT)
-- kernel/src/peticiones/interrupciones.c: Manejo de desalojos
+- kernel/src/planificacion/corto_plazo.c: Despacho síncrono y timer de quantum.
+- kernel/src/conexiones/cpu.c: Eliminado escucha asíncrona; ahora atiende síncronamente.
+- kernel/src/peticiones/interrupciones.c: Actualización de PCB tras desalojo.
 
 ### CPU (Ejecutor de Instrucciones)
 - **Responsabilidad:** Ejecutar ciclo de instrucción (Fetch-Decode-Execute)
@@ -48,15 +49,17 @@ El proyecto implementa un simulador de Sistema Operativo con 4 módulos independ
 
 ### MEMORIA (Gestor de Memoria Virtual)
 - **Responsabilidad:** Almacenar instrucciones y datos, traducir direcciones virtuales
-- **Implementación:** ✅ Parcialmente implementada
-  - Estructura base: RAM + Frames + Swap
-  - Fetch de instrucciones desde archivos de proceso
-  - Soporta translación de páginas (MMU)
+- **Implementación:** ✅ Arquitectura Von Neumann (Unificada)
+  - Espacio de usuario: RAM + Frames + Swap.
+  - **Instrucciones:** Cargadas en la memoria física/paginada del proceso durante el arranque.
+  - **Fetch:** Realizado mediante el sistema de paginación (MMU) real.
+  - Paginación simple con tablas por proceso.
+- **Segmentación:** ❌ (no implementado).
 
 **Archivos relevantes:**
-- memoria/src/mod_memoria.c: Inicialización
-- memoria/src/server/server.c: Escucha solicitudes del CPU
-- memoria/instrucciones/process*.txt: Archivos de instrucciones
+- memoria/src/gestion/memoria_core.c: Carga de instrucciones en RAM lógica.
+- memoria/src/gestion/paginas.c: Lectura de memoria física vía offsets.
+- memoria/src/adaptadores/memoria_adapter.c: Handler unificado para fetch y acceso.
 
 ### IO (Interfaz de Entrada/Salida)
 - **Responsabilidad:** Ejecutar operaciones de IO (SLEEP, FS, STDIN, STDOUT)
@@ -185,21 +188,17 @@ while (!(ctx->finalizado || ctx->bloqueado)) {
 ## 3.1 Kernel → CPU (Dispatch)
 
 ```
-Kernel (enviar_contexto_a_cpu)
+Kernel (planificador_corto_plazo)
     ↓
-enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC)
+enviar_contexto_a_cpu(ctx, OP_PROCESO_EXEC)
     ↓
-paquete con OP_PROCESO_EXEC
+CPU (handler_dispatch) → ciclo_instruccion_ejecutar(ctx)
     ↓
-CPU (handler_dispatch)
+CPU (handler_dispatch) devuelve contexto con rs_code
     ↓
-ciclo_instruccion_ejecutar(ctx)
+Kernel **atender_dispatch_cpu()** (Bloqueado esperando respuesta)
     ↓
-enviar_contexto(socket, ctx, rs_code)
-    ↓
-Kernel (escuchar_dispatch)
-    ↓
-Procesa OP_FIN_DE_QUANTUM, OP_BLOQUEO_IO, OP_CPU_FIN_PROCESO, etc.
+Procesa OP_FIN_DE_QUANTUM, OP_IO_SLEEP, OP_CPU_FIN_PROCESO, etc.
 ```
 
 ✅ PROTOCOLO:
@@ -563,56 +562,35 @@ case OP_SEGFAULT:
 
 ---
 
-# 🎓 11. VALIDACIÓN TEÓRICA
+# 🎓 11. MAPEO TEÓRICO (STALLINGS / DINOSAURIO)
 
-## 11.1 TP Típico SO - UTN FRBA
-
-**Requisitos Esperados:**
-1. ✅ Simulador con varios módulos comunicándose
-2. ✅ Gestión de procesos y planificación
-3. ✅ Concurrencia con hilos y sincronización
-4. ✅ Manejo de interrupciones y desalojos
-5. ✅ Memoria virtual (MMU)
-6. ✅ Sistema de archivos (IO)
-7. ✅ Logs de trazabilidad
-8. ✅ Manejo de errores
-
-**Estado del Proyecto:** ✅ Todos los requisitos cubiertos
+| Concepto | Bibliografía | Estado |
+| :--- | :--- | :--- |
+| **Modelos de 5 Estados** | Stallings Cap 3 / Dinosaurio Cap 3 | ✅ Implementado |
+| **Planificación RR/FIFO** | Stallings Cap 9 / Dinosaurio Cap 6 | ✅ Implementado |
+| **Paginación / Memoria Virtual** | Stallings Cap 8 / Dinosaurio Cap 9 | ✅ Implementado |
+| **Asignación Contigua (DialFS)** | Stallings Cap 12 / Dinosaurio Cap 11 | ✅ Implementado |
+| **Deadlocks (Detección)** | Stallings Cap 6 / Dinosaurio Cap 7 | ❌ (no implementado) |
+| **Segmentación** | Stallings Cap 7 / Dinosaurio Cap 8 | ❌ (no implementado) |
+| **Hilos de Usuario (ULT)** | Stallings Cap 4 | ❌ (no implementado) |
+| **DMA (Acceso Directo)** | Stallings Cap 11 | ⚠️ Simulado (IO accede a RAM) |
 
 ---
 
-# 🚀 12. CONCLUSIÓN
+# 🚀 12. CONCLUSIÓN Y RECOMENDACIÓN DE LECTURA
 
-## Veredicto Final: ✅ PROYECTO COHERENTE Y FUNCIONAL
+## Veredicto Final: ✅ PROYECTO LISTO PARA DEFENSA
 
-### Fortalezas:
-1. **Arquitectura limpia:** 4 módulos independientes, comunicación clara
-2. **Concurrencia bien manejada:** Mutex y semáforos en lugares correctos
-3. **Protocolo unificado:** Todos usan protocolo/mensajes.h
-4. **Interrupciones funcionan:** Sistema asíncrono bien implementado
-5. **Documentación presente:** README, ESTRUCTURA, GUIA_IMPLEMENTACION
-6. **Código limpio:** Sin duplicación post-refactorización
+El simulador cumple con el paradigma **Von Neumann** al unificar instrucciones y datos en memoria, y respeta la **Jerarquía de Almacenamiento** al integrar TLB, RAM y Swap. El modelo de despacho **Sincrónico** elimina condiciones de carrera críticas.
 
-### Áreas completamente implementadas:
-- Planificación Multinivel ✅
-- Ciclo de Instrucción ✅
-- IPC / Protocolos ✅
-- Sincronización ✅
-- Logging ✅
-
-### Áreas parcialmente implementadas:
-- MMU (estructura lista, lógica completa de traducción pendiente)
-- IO (handshake y loop básicos, handlers específicos en desarrollo)
-- Page Fault (TODO)
-
-### RECOMENDACIÓN:
-El proyecto está **LISTO PARA SIMULACIÓN**. Toda la lógica fundamental 
-funciona correctamente. Las áreas pendientes son optimizaciones/funcionalidades 
-avanzadas (Page Fault, IO avanzado) que no afectan el funcionamiento básico.
+### Lecturas recomendadas para la defensa:
+1. **Entrada/Salida e Interrupciones**: 
+   * Stallings Cap 11.
+   * Dinosaurio Cap 13 (Ciclo de vida de una petición IO).
+2. **File Systems (DialFS)**:
+   * Stallings Cap 12 (Asignación Contigua).
+   * Dinosaurio Cap 14 y 15 (Implementación).
 
 ---
 
-**FIN DEL ANÁLISIS**
-
-Nota: Este análisis fue realizado sin ejecutar `make` (por solicitud). 
-Se basa en revisión estática de código, lógica teórica y patrones de implementación.
+**FIN DEL ANÁLISIS CONSOLIDADO**

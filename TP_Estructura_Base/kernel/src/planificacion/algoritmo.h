@@ -6,5 +6,6 @@
 t_pcb* algoritmo_obtener_fifo(void);
 t_pcb* algoritmo_obtener_rr(void);
 t_pcb* algoritmo_obtener_hrrn(void);
+t_pcb* algoritmo_obtener_vrr(void);
 
 #endif

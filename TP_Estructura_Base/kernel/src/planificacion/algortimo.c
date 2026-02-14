@@ -37,6 +37,10 @@ t_pcb* algoritmo_obtener_rr(void) {
     return algoritmo_obtener_fifo();
 }
 
+t_pcb* algoritmo_obtener_vrr(void) {
+    return algoritmo_obtener_fifo(); // VRR selecciona FIFO, la diferencia esta en el quantum
+}
+
 t_pcb* algoritmo_obtener_hrrn(void)
 {
     pthread_mutex_lock(&mutex_ready);

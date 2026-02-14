@@ -24,6 +24,7 @@ t_kernel_config kernel_cargar_config(const char* ruta)
     kernel.recursos                  = config_get_array_value(config_archivo,"RECURSOS");
     kernel.instancias_recursos       = config_get_array_value(config_archivo,"INSTANCIAS_RECURSOS");
     kernel.grado_multiprogramacion   = config_get_int_value(config_archivo, "GRADO_MULTIPROGRAMACION");
+    kernel.puerto_consola            = config_get_string_value(config_archivo, "PUERTO_CONSOLA");
 
     // borrar config_archivo
 
@@ -60,5 +61,6 @@ void kernel_imprimir_config(t_kernel_config kernel)
     }
     printf("\n");
 
+    printf("PUERTO_CONSOLA           : %s\n", kernel.puerto_consola);
     printf("===================================\n");
 }

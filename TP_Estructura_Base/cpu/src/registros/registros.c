@@ -37,3 +37,16 @@ void registros_reset(registros_t* r)
 {
     *r = (registros_t){0};
 }
+
+uint32_t registros_size(reg_id_t reg)
+{
+    switch (reg) {
+        case REG_AX:
+        case REG_BX:
+        case REG_CX:
+        case REG_DX:
+            return 1;
+        default:
+            return 4;
+    }
+}

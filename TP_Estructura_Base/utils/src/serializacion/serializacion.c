@@ -275,9 +275,10 @@ t_paquete* serializar_io_fs_write(const t_io_fs_write* req)
 
     if (!paquete_write_buffer(p, req->path, (uint32_t)to_send)) { paquete_destroy(p); return NULL; }
 
-    // offset y size
+    // offset, size, direccion_logica
     if (!paquete_write_uint32(p, req->offset)) { paquete_destroy(p); return NULL; }
     if (!paquete_write_uint32(p, req->size))   { paquete_destroy(p); return NULL; }
+    if (!paquete_write_uint32(p, req->direccion_logica)) { paquete_destroy(p); return NULL; }
 
     return p;
 }
@@ -325,9 +326,10 @@ t_io_fs_write* deserializar_io_fs_write(t_paquete* p)
     }
     free(path_buf);
 
-    // offset y size
+    // offset, size, direccion_logica
     if (!paquete_read_uint32(p, &req->offset)) { free(req); return NULL; }
     if (!paquete_read_uint32(p, &req->size))   { free(req); return NULL; }
+    if (!paquete_read_uint32(p, &req->direccion_logica)) { free(req); return NULL; }
 
     return req;
 }
@@ -385,5 +387,93 @@ t_io_fs_create* deserializar_io_fs_create(t_paquete* p)
     }
     free(path_buf);
 
+    return req;
+}
+
+// ================================
+// IO - STDIN READ
+// ================================
+t_paquete* serializar_io_stdin_read(const t_io_stdin_read* req)
+{
+    if (!req) return NULL;
+    t_paquete* p = paquete_create(OP_IO_STDIN_READ);
+    if (!p) return NULL;
+    if (!paquete_write_uint32(p, req->pid)) { paquete_destroy(p); return NULL; }
+    if (!paquete_write_uint32(p, req->direccion_logica)) { paquete_destroy(p); return NULL; }
+    if (!paquete_write_uint32(p, req->size)) { paquete_destroy(p); return NULL; }
+    paquete_write_string(p, req->interfaz);
+    return p;
+}
+
+t_io_stdin_read* deserializar_io_stdin_read(t_paquete* p)
+{
+    if (!p) return NULL;
+    t_io_stdin_read* req = malloc(sizeof(t_io_stdin_read));
+    if (!req) return NULL;
+    if (!paquete_read_uint32(p, &req->pid)) { free(req); return NULL; }
+    if (!paquete_read_uint32(p, &req->direccion_logica)) { free(req); return NULL; }
+    if (!paquete_read_uint32(p, &req->size)) { free(req); return NULL; }
+    char* iface = paquete_read_string(p);
+    if (iface) {
+        strncpy(req->interfaz, iface, sizeof(req->interfaz) - 1);
+        req->interfaz[sizeof(req->interfaz) - 1] = '\0';
+        free(iface);
+    } else {
+        req->interfaz[0] = '\0';
+    }
+    return req;
+}
+
+// ================================
+// IO - STDOUT WRITE
+// ================================
+t_paquete* serializar_io_stdout_write(const t_io_stdout_write* req)
+{
+    if (!req) return NULL;
+    t_paquete* p = paquete_create(OP_IO_STDOUT_WRITE);
+    if (!p) return NULL;
+    if (!paquete_write_uint32(p, req->pid)) { paquete_destroy(p); return NULL; }
+    if (!paquete_write_uint32(p, req->direccion_logica)) { paquete_destroy(p); return NULL; }
+    if (!paquete_write_uint32(p, req->size)) { paquete_destroy(p); return NULL; }
+    paquete_write_string(p, req->interfaz);
+    return p;
+}
+
+t_io_stdout_write* deserializar_io_stdout_write(t_paquete* p)
+{
+    if (!p) return NULL;
+    t_io_stdout_write* req = malloc(sizeof(t_io_stdout_write));
+    if (!req) return NULL;
+    if (!paquete_read_uint32(p, &req->pid)) { free(req); return NULL; }
+    if (!paquete_read_uint32(p, &req->direccion_logica)) { free(req); return NULL; }
+    if (!paquete_read_uint32(p, &req->size)) { free(req); return NULL; }
+    char* iface = paquete_read_string(p);
+    if (iface) {
+        strncpy(req->interfaz, iface, sizeof(req->interfaz) - 1);
+        req->interfaz[sizeof(req->interfaz) - 1] = '\0';
+        free(iface);
+    } else {
+        req->interfaz[0] = '\0';
+    }
+    return req;
+}
+
+// ================================
+// MEMORIA - RESIZE
+// ================================
+t_paquete* serializar_mem_resize(t_mem_resize* req, op_code code)
+{
+    t_paquete* p = paquete_create(code);
+    paquete_write_uint32(p, req->pid);
+    paquete_write_uint32(p, req->nuevo_tamanio);
+    return p;
+}
+
+t_mem_resize* deserializar_mem_resize(t_paquete* p)
+{
+    t_mem_resize* req = malloc(sizeof(t_mem_resize));
+    if (!req) return NULL;
+    paquete_read_uint32(p, &req->pid);
+    paquete_read_uint32(p, &req->nuevo_tamanio);
     return req;
 }

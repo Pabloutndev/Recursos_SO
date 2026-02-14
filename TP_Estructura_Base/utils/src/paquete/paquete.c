@@ -30,8 +30,10 @@ t_buffer* buffer_create(void)
 void paquete_destroy(t_paquete* p)
 {
     if (!p) return;
-    free(p->buffer->stream);
-    free(p->buffer);
+    if (p->buffer) {
+        free(p->buffer->stream);
+        free(p->buffer);
+    }
     free(p);
 }
 
@@ -67,8 +69,16 @@ t_paquete* recibir_paquete(int fd)
 
     if (size > 0) {
         p->buffer->stream = malloc(size);
+        if (!p->buffer->stream) {
+            paquete_destroy(p);
+            return NULL;
+        }
         p->buffer->size = size;
-        recv(fd, p->buffer->stream, size, MSG_WAITALL);
+        ssize_t recibido = recv(fd, p->buffer->stream, size, MSG_WAITALL);
+        if (recibido <= 0) {
+            paquete_destroy(p);
+            return NULL;
+        }
     }
 
     return p;

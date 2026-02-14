@@ -7,8 +7,9 @@
 #include <mod_kernel.h>
 
 static uint32_t PID_GLOBAL = 1;
-extern t_kernel_config KCONF;
-extern int socket_memoria;
+// static uint32_t PID_GLOBAL = 1;
+// extern t_kernel_config KCONF;
+// extern int socket_memoria;
 
 t_pcb* pcb_crear(void)
 {
@@ -17,7 +18,8 @@ t_pcb* pcb_crear(void)
 
     pcb->pid = generar_pid();
     pcb->path = NULL;
-    pcb->quantum = KCONF.quantum;
+    pcb->quantum = KERNEL_CTX.config.quantum;
+    pcb->quantum_restante = KERNEL_CTX.config.quantum; // VRR: inicia con quantum completo
     pcb->estado = NEW;
     pcb->program_counter = 0;
     

@@ -10,6 +10,7 @@ typedef struct {
     char* puerto_interrupt;
     int   tlb_cant_ent;
     char* tlb_algoritmo;
+    int   tam_pagina;
 } t_cpu_config;
 
 t_cpu_config cpu_cargar_config(const char* ruta);

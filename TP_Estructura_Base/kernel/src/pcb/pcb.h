@@ -22,6 +22,7 @@ typedef struct {
     uint32_t program_counter;
     t_estado estado;
     int quantum;
+    int quantum_restante; // VRR: quantum que le queda al proceso
     
     registros_t registros;// registros generales del proceso
     
