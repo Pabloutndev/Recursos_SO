@@ -24,7 +24,7 @@ typedef struct {
 static const char* _buscar_nombre = NULL;
 static int _buscar_socket = -1;
 
-static void* handler_io_connection(void* arg);
+void* handler_io_connection(void* arg);
 
 void server_io_init(char* puerto) {
     socket_server_io = iniciar_servidor(puerto);

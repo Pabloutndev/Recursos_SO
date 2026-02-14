@@ -10,6 +10,7 @@
 #include <planificacion/planificacion.h>
 #include <adaptadores/kernel_io_adapter.h>
 #include <conexiones/memoria.h>
+#include <conexiones/io.h>
 #include <pthread.h>
 #include <pcb/pcb.h>
 #include <commons/log.h>
@@ -29,7 +30,6 @@ extern pthread_mutex_t mutex_exec;
 
 static pthread_t hilo_interrupt;
 
-static void* escuchar_dispatch(void* arg);
 static void* escuchar_interrupt(void* arg);
 static void manejar_segfault_static(t_contexto_cpu* ctx);
 static void manejar_bloqueo_io_static(t_contexto_cpu* ctx);
@@ -135,8 +135,7 @@ void atender_dispatch_cpu(void)
 
     case OP_WAIT_RECURSO: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-        char* nombre_recurso = NULL;
-        paquete_read_string(paquete, &nombre_recurso);
+        char* nombre_recurso = paquete_read_string(paquete);
         if (ctx) {
             manejar_wait_recurso(ctx, nombre_recurso);
             free(ctx);
@@ -147,8 +146,7 @@ void atender_dispatch_cpu(void)
 
     case OP_SIGNAL_RECURSO: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
-        char* nombre_recurso = NULL;
-        paquete_read_string(paquete, &nombre_recurso);
+        char* nombre_recurso = paquete_read_string(paquete);
         if (ctx) {
             manejar_signal_recurso(ctx, nombre_recurso);
             free(ctx);
