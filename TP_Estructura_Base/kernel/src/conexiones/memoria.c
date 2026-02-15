@@ -84,11 +84,18 @@ void solicitar_fin_proceso_memoria(uint32_t pid)
     t_mem_fin_proceso req;
     req.pid = pid;
 
-    // Enviar a Memoria (one-way, protegido por mutex)
+    // Enviar a Memoria y leer respuesta (protegido por mutex)
     pthread_mutex_lock(&mutex_socket_memoria);
 
     log_info(logger, "Notificando fin de proceso a Memoria: PID=%u", pid);
     enviar_fin_proceso(socket_memoria, &req, OP_MEM_FIN_PROCESO);
+
+    // Leer respuesta para mantener protocolo sincronizado.
+    // Memoria siempre responde OP_OK a fin_proceso.
+    t_paquete* resp = recibir_paquete(socket_memoria);
+    if (resp) {
+        paquete_destroy(resp);
+    }
 
     pthread_mutex_unlock(&mutex_socket_memoria);
 }
