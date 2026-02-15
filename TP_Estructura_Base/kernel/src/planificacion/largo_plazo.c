@@ -1,5 +1,7 @@
 // largo_plazo.c
 #include <planificacion/largo_plazo.h>
+#include <planificacion/planificacion.h>
+#include <loggers/logger.h>
 #include <pcb/pcb.h>
 #include <commons/log.h>
 #include <commons/temporal.h>
