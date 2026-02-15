@@ -335,11 +335,13 @@ echo "================================================"
 echo "  FASE 3: Tests especiales"
 echo "================================================"
 
-send_cmd "ALGORITMO RR"
+send_cmd "ALGORITMO FIFO"
 sleep 1
 
 # --- Test 9: KILL de proceso ---
 # infinito.txt: loop infinito (SET AX 1, JNZ AX 1)
+# Usamos FIFO para que el proceso quede en EXEC sin desalojos por quantum,
+# evitando race conditions en la transicion EXEC->READY al momento del KILL.
 DESC="KILL: terminar proceso en ejecucion forzadamente"
 begin_test "$DESC"
 run_process "infinito.txt"
