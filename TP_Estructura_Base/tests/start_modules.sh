@@ -14,6 +14,16 @@ PID_FILE="$SCRIPT_DIR/.pids"
 mkdir -p "$LOG_DIR"
 > "$PID_FILE"
 
+# Matar procesos de corridas anteriores que puedan tener puertos ocupados
+if [[ -f "$PID_FILE" ]]; then
+    "$SCRIPT_DIR/stop_modules.sh" 2>/dev/null || true
+fi
+for proc in memoria kernel cpu entradasalida consola; do
+    pkill -f "bin/$proc" 2>/dev/null || true
+done
+pkill -f "tail -f /dev/null" 2>/dev/null || true
+sleep 1
+
 # =============================
 # Compilacion
 # =============================

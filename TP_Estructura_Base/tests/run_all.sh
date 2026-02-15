@@ -91,7 +91,7 @@ echo "--- Errores por modulo ---"
 FOUND_ERRORS=0
 for log in "$LOG_DIR"/*.log; do
     [[ -f "$log" ]] || continue
-    count=$(grep -ciE "error|fail|segfault" "$log" 2>/dev/null || echo 0)
+    count=$(grep -ciE "error|fail|segfault" "$log" 2>/dev/null) || count=0
     if [[ "$count" -gt 0 ]]; then
         FOUND_ERRORS=1
         echo ""
