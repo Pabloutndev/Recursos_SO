@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <commons/log.h>
 #include <protocolo/op_code.h>
+#include <protocolo/mensajes.h>
 #include <paquete/paquete.h>
 #include <serializacion/serializacion.h>
 #include <conexion/conexion.h>
