@@ -121,13 +121,21 @@ void* timer_quantum(void* arg) {
     // Usamos el quantum propio del PCB convertido a microsegundos
     usleep(quantum_ms * 1000);
 
+    // Verificar que el algoritmo actual usa quantum (podria haber cambiado a FIFO)
+    bool usa_quantum = (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "RR") == 0) ||
+                       (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "VRR") == 0);
+    if (!usa_quantum) {
+        log_info(logger, "Timer quantum PID=%u: algoritmo ya no usa quantum, ignorando", pid);
+        return NULL;
+    }
+
     bool sigue_en_exec = false;
 
     // Verificamos si sigue en EXEC usando pid
     pthread_mutex_lock(&mutex_exec);
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* aux = list_get(cola_exec, i);
-        if (aux->pid == pid) { 
+        if (aux->pid == pid) {
             sigue_en_exec = true;
             break;
         }

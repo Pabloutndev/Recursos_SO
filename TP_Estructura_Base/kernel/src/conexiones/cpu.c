@@ -108,10 +108,36 @@ void atender_dispatch_cpu(void)
 
     case OP_IO_SLEEP: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
+        char* interfaz = paquete_read_string(paquete);
+        uint32_t tiempo = 0;
+        paquete_read_uint32(paquete, &tiempo);
         if (ctx) {
-            manejar_bloqueo_io_static(ctx);
+            // 1. Buscar PCB y actualizar contexto
+            t_pcb* pcb = NULL;
+            pthread_mutex_lock(&mutex_exec);
+            for (int i = 0; i < list_size(cola_exec); i++) {
+                t_pcb* p = (t_pcb*) list_get(cola_exec, i);
+                if (p && p->pid == (uint32_t)ctx->pid) {
+                    pcb = p;
+                    pcb->program_counter = ctx->pc;
+                    pcb->registros = ctx->registros;
+                    break;
+                }
+            }
+            pthread_mutex_unlock(&mutex_exec);
+
+            // 2. Enviar operacion a interfaz IO
+            if (pcb && interfaz) {
+                kernel_sleep(pcb, tiempo, interfaz);
+            } else {
+                log_error(loggerError, "IO_SLEEP: PCB o interfaz NULL (PID=%u)", ctx->pid);
+            }
+
+            // 3. Bloquear proceso
+            manejar_bloqueo_io(ctx);
             free(ctx);
         }
+        if (interfaz) free(interfaz);
         break;
     }
 

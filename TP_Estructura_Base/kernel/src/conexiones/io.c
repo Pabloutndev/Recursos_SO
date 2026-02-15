@@ -27,15 +27,12 @@ static int _buscar_socket = -1;
 void* handler_io_connection(void* arg);
 
 void server_io_init(char* puerto) {
-    socket_server_io = iniciar_servidor(puerto);
-    if (socket_server_io < 0) {
-        log_error(loggerError, "Fallo iniciar servidor Kernel para IO");
-        exit(EXIT_FAILURE);
-    }
-    log_info(logger, "Server IO iniciado en puerto %s", puerto);
-
+    // Solo inicializar estructuras de datos.
+    // El socket se crea en kernel_server_io_listen() (server.c)
+    // para evitar doble bind en el mismo puerto.
     lista_interfaces = list_create();
     pthread_mutex_init(&mutex_interfaces, NULL);
+    log_info(logger, "IO: Estructuras inicializadas, socket se crea en listen thread");
 }
 
 /* Closures para list_find / list_remove_and_destroy_by_condition */

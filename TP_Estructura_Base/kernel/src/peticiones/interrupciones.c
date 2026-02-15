@@ -123,6 +123,12 @@ void manejar_bloqueo_io(t_contexto_cpu* ctx) {
 }
 
 void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
+    if (!nombre_recurso) {
+        log_error(logger, "WAIT: nombre_recurso NULL para PID %d", ctx->pid);
+        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
+        return;
+    }
+
     // 1. Buscar PCB en EXEC
     t_pcb* pcb = NULL;
     pthread_mutex_lock(&mutex_exec);
@@ -157,6 +163,12 @@ void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
 }
 
 void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
+    if (!nombre_recurso) {
+        log_error(logger, "SIGNAL: nombre_recurso NULL para PID %d", ctx->pid);
+        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
+        return;
+    }
+
     t_pcb* desbloqueado = recurso_signal((char*)nombre_recurso);
     
     if (desbloqueado) {

@@ -161,6 +161,13 @@ void cpu_handler_atender_ejecucion(int fd, t_paquete* p)
         paquete_write_string(pkt, ultima_instruccion.parametros);
         enviar_paquete(fd, pkt);
         paquete_destroy(pkt);
+    } else if (rs_code == OP_IO_SLEEP) {
+        // Para IO_SLEEP: enviar contexto + nombre interfaz + tiempo
+        t_paquete* pkt = serializar_contexto_cpu(ctx, rs_code);
+        paquete_write_string(pkt, ultima_instruccion.parametros);
+        paquete_write_uint32(pkt, ultima_instruccion.inmediato);
+        enviar_paquete(fd, pkt);
+        paquete_destroy(pkt);
     } else {
         enviar_contexto(fd, ctx, rs_code);
     }

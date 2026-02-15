@@ -136,14 +136,18 @@ void ingresar_new(t_pcb* pcb)
 void set_algoritmo(algoritmo_t a)
 {
     algoritmo_actual = a;
+    const char* nombre;
     switch (a) {
-        case ALG_FIFO: proximoAEjecutar = algoritmo_obtener_fifo; break;
-        case ALG_RR:   proximoAEjecutar = algoritmo_obtener_rr;   break;
-        case ALG_VRR:  proximoAEjecutar = algoritmo_obtener_vrr;  break;
-        case ALG_HRRN: proximoAEjecutar = algoritmo_obtener_hrrn; break;
-        default:       proximoAEjecutar = algoritmo_obtener_fifo; break;
+        case ALG_FIFO: proximoAEjecutar = algoritmo_obtener_fifo; nombre = "FIFO"; break;
+        case ALG_RR:   proximoAEjecutar = algoritmo_obtener_rr;   nombre = "RR";   break;
+        case ALG_VRR:  proximoAEjecutar = algoritmo_obtener_vrr;  nombre = "VRR";  break;
+        case ALG_HRRN: proximoAEjecutar = algoritmo_obtener_hrrn; nombre = "HRRN"; break;
+        default:       proximoAEjecutar = algoritmo_obtener_fifo; nombre = "FIFO"; break;
     }
-    log_info(KERNEL_CTX.logger, "Algoritmo seteado: %d", algoritmo_actual);
+    // Actualizar string de config para que timer_quantum y otros lo vean
+    free(KERNEL_CTX.config.algoritmo_planificacion);
+    KERNEL_CTX.config.algoritmo_planificacion = strdup(nombre);
+    log_info(KERNEL_CTX.logger, "Algoritmo seteado: %s", KERNEL_CTX.config.algoritmo_planificacion);
 }
 
 void listar_procesos_por_estado(void)
