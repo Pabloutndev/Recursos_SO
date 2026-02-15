@@ -6,25 +6,33 @@
 #   2. IO bloqueante (EXEC -> BLOCKED -> READY)
 #   3. IO multiple (multiples transiciones a BLOCKED)
 #   4. Quantum con Round Robin (desalojo por fin de quantum)
-#   5. FIFO sin desalojo (proceso largo ejecuta sin interrupcion)
+#   5. FIFO sin desalojo (proceso ejecuta sin interrupcion)
 #   6. Recursos compartidos (WAIT/SIGNAL con bloqueo por recurso)
-#   7. Operaciones de memoria (RESIZE, MOV_OUT, MOV_IN)
+#   7. Operaciones de memoria (MOV_OUT + MOV_IN)
 #   8. Procesos concurrentes (varios procesos simultaneos)
 #   9. KILL de proceso (terminacion forzada)
 #
 # Uso:
 #   cd tests && bash run_all.sh
+#
+# Enfoque: verificacion basada en LOGS, no en tiempos fijos.
+#   Cada test lanza un proceso y ESPERA a que aparezca el patron
+#   esperado en los logs del kernel (con timeout). Esto es mas
+#   confiable que usar sleeps fijos.
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
+
 # Log primario: el que crea el kernel via commons library (se flushea por linea).
 # Fallback: nuestro stdout capturado en tests/logs/kernel.log.
 KERNEL_OWN_LOG="$BASE_DIR/kernel/kernel.log"
 KERNEL_STDOUT_LOG="$LOG_DIR/kernel.log"
-KERNEL_LOG=""
+
+# Timeout por defecto para esperar patrones en logs (segundos)
+DEFAULT_TIMEOUT=30
 
 # =============================
 # Cleanup automatico
@@ -37,15 +45,24 @@ cleanup() {
 trap cleanup EXIT
 
 # =============================
+# Limpieza de logs anteriores
+# =============================
+echo "Limpiando logs de corridas anteriores..."
+rm -f "$KERNEL_OWN_LOG" "$BASE_DIR/kernel/kernel_error.log"
+rm -rf "$LOG_DIR"
+mkdir -p "$LOG_DIR"
+
+# =============================
 # Funciones auxiliares
 # =============================
 
-# Formatos de log del kernel (de logger.c):
+# Formatos de log del kernel (de logger.c y corto_plazo.c):
 #   "PID: X - Proceso creado -> NEW"
 #   "PID: X - <estado_ant> -> <estado_act>"
 #   "PID: X - EXEC -> EXIT (motivo)"
 #   "PID: X - EXEC -> BLOCKED (motivo)"
-#   "PID: X - Desalojado por fin de Quantum"
+#   "Quantum vencido -> PID=X desalojado"          (timer automatico)
+#   "PID: X - Desalojado por fin de Quantum"        (DESALOJAR manual)
 #   "PID: X - Wait: RECURSO - Instancias: N"
 #   "PID: X - Signal: RECURSO - Instancias: N"
 #   "KILL/EXIT"
@@ -53,16 +70,6 @@ trap cleanup EXIT
 LOG_MARK_OWN=0
 LOG_MARK_STDOUT=0
 
-# Elige el log del kernel: prefiere el propio (kernel/kernel.log), fallback al stdout
-pick_kernel_log() {
-    if [[ -f "$KERNEL_OWN_LOG" ]]; then
-        KERNEL_LOG="$KERNEL_OWN_LOG"
-    else
-        KERNEL_LOG="$KERNEL_STDOUT_LOG"
-    fi
-}
-
-# Marca la posicion actual de ambos logs
 mark_log() {
     LOG_MARK_OWN=0
     LOG_MARK_STDOUT=0
@@ -70,7 +77,6 @@ mark_log() {
     [[ -f "$KERNEL_STDOUT_LOG" ]] && LOG_MARK_STDOUT=$(wc -l < "$KERNEL_STDOUT_LOG")
 }
 
-# Obtiene las lineas nuevas de AMBOS logs combinados (para mayor cobertura)
 new_log_lines() {
     {
         [[ -f "$KERNEL_OWN_LOG" ]] && tail -n +"$((LOG_MARK_OWN + 1))" "$KERNEL_OWN_LOG"
@@ -78,34 +84,62 @@ new_log_lines() {
     } 2>/dev/null || true
 }
 
-# Busca un patron en las lineas nuevas del kernel log
 check_log() {
-    local pattern="$1"
-    new_log_lines | grep -qiE "$pattern"
+    new_log_lines | grep -qiE "$1"
 }
 
-# Cuenta ocurrencias de un patron en lineas nuevas
 count_log() {
-    local pattern="$1"
     local n
-    n=$(new_log_lines | grep -ciE "$pattern" 2>/dev/null) || n=0
+    n=$(new_log_lines | grep -ciE "$1" 2>/dev/null) || n=0
     echo "$n"
 }
 
-# Envia un comando al kernel via consola remota
+# wait_for_log: espera hasta que aparezca un patron en los logs.
+# Retorna 0 si lo encuentra, 1 si se agota el timeout.
+# Uso: wait_for_log "EXEC -> EXIT" 20
+wait_for_log() {
+    local pattern="$1"
+    local timeout="${2:-$DEFAULT_TIMEOUT}"
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        if new_log_lines | grep -qiE "$pattern"; then
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    return 1
+}
+
+# wait_for_log_count: espera hasta que un patron aparezca N veces.
+# Retorna 0 si llega a N, 1 si se agota el timeout.
+wait_for_log_count() {
+    local pattern="$1"
+    local expected="$2"
+    local timeout="${3:-$DEFAULT_TIMEOUT}"
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        local n
+        n=$(new_log_lines | grep -ciE "$pattern" 2>/dev/null) || n=0
+        if [[ "$n" -ge "$expected" ]]; then
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    return 1
+}
+
 send_cmd() {
     (cd "$BASE_DIR/consola" && printf '%s\n' "$1" | ./bin/consola) > /dev/null 2>&1
 }
 
-# Envia RUN <script> al kernel
 run_process() {
     (cd "$BASE_DIR/consola" && printf 'RUN %s\n' "$1" | ./bin/consola) > /dev/null 2>&1
 }
 
 # Tracking de resultados
-TOTAL=0
-PASSED=0
-FAILED=0
+TOTAL=0; PASSED=0; FAILED=0
 RESULTS=""
 
 begin_test() {
@@ -142,7 +176,6 @@ echo ""
 echo "Esperando estabilizacion (3s)..."
 sleep 3
 
-# Iniciar planificacion
 send_cmd "START"
 sleep 1
 
@@ -152,7 +185,7 @@ sleep 1
 
 echo ""
 echo "================================================"
-echo "  FASE 1: Round Robin (algoritmo por defecto)"
+echo "  FASE 1: Round Robin"
 echo "================================================"
 
 send_cmd "ALGORITMO RR"
@@ -162,79 +195,96 @@ sleep 1
 DESC="Ciclo de vida: NEW -> READY -> EXEC -> EXIT"
 begin_test "$DESC"
 run_process "test1.txt"
-sleep 3
-if check_log "EXEC -> EXIT"; then
+if wait_for_log "EXEC -> EXIT" 15; then
     pass "$DESC"
 else
-    fail "$DESC" "no se detecto 'EXEC -> EXIT'"
+    fail "$DESC" "no se detecto 'EXEC -> EXIT' en logs (timeout)"
 fi
 
 # --- Test 2: IO bloqueante ---
-DESC="IO bloqueante: proceso pasa a BLOCKED por IO_GEN_SLEEP"
+DESC="IO bloqueante: proceso pasa a BLOCKED y vuelve a READY"
 begin_test "$DESC"
 run_process "test_io.txt"
-sleep 6
-if check_log "EXEC -> BLOCKED"; then
-    if check_log "BLOCKED -> READY"; then
-        pass "$DESC"
+if wait_for_log "EXEC -> EXIT" 20; then
+    if check_log "EXEC -> BLOCKED"; then
+        if check_log "BLOCKED -> READY"; then
+            pass "$DESC"
+        else
+            fail "$DESC" "se detecto BLOCKED pero no BLOCKED -> READY (IO no completo, verificar GENERICA1)"
+        fi
     else
-        fail "$DESC" "se detecto BLOCKED pero no volvio a READY"
+        fail "$DESC" "el proceso termino pero no paso por BLOCKED (falta IO)"
     fi
 else
-    fail "$DESC" "no se detecto 'EXEC -> BLOCKED'"
+    # No llego a EXIT, verificar si al menos bloqueo
+    if check_log "EXEC -> BLOCKED"; then
+        fail "$DESC" "se detecto BLOCKED pero el proceso no completo (timeout esperando EXIT)"
+    else
+        fail "$DESC" "no se detecto 'EXEC -> BLOCKED' en logs (timeout)"
+    fi
 fi
 
 # --- Test 3: IO multiple ---
 DESC="IO multiple: multiples transiciones EXEC -> BLOCKED"
 begin_test "$DESC"
 run_process "multi_io.txt"
-sleep 10
-n=$(count_log "EXEC -> BLOCKED")
-if [[ "$n" -ge 2 ]]; then
-    pass "$DESC"
+if wait_for_log "EXEC -> EXIT" 30; then
+    n=$(count_log "EXEC -> BLOCKED")
+    if [[ "$n" -ge 2 ]]; then
+        pass "$DESC"
+    else
+        fail "$DESC" "se esperaban >=2 bloqueos por IO, se detectaron $n"
+    fi
 else
-    fail "$DESC" "se esperaban >=2 bloqueos por IO, se detectaron $n"
+    n=$(count_log "EXEC -> BLOCKED")
+    fail "$DESC" "el proceso no completo (timeout). Bloqueos detectados: $n"
 fi
 
 # --- Test 4: Quantum RR ---
+# test_quantum.txt: ~50 instrucciones = ~5s, con Q=2000ms se desaloja 2-3 veces
 DESC="Quantum RR: desalojo por fin de quantum"
 begin_test "$DESC"
-run_process "largo.txt"
-sleep 12
-if check_log "Desalojado por fin de Quantum"; then
-    pass "$DESC"
+run_process "test_quantum.txt"
+if wait_for_log "EXEC -> EXIT" 20; then
+    if check_log "Quantum vencido|Desalojado por fin de Quantum"; then
+        pass "$DESC"
+    else
+        fail "$DESC" "el proceso termino pero no se detecto desalojo por quantum"
+    fi
 else
-    fail "$DESC" "no se detecto 'Desalojado por fin de Quantum'"
+    # Aunque no haya terminado, verificar si hubo quantum
+    if check_log "Quantum vencido|Desalojado por fin de Quantum"; then
+        fail "$DESC" "se detecto quantum pero el proceso no termino (timeout)"
+    else
+        fail "$DESC" "no se detecto 'Quantum vencido' en logs (timeout)"
+    fi
 fi
 
 # --- Test 5: Recursos compartidos ---
 DESC="Recursos: WAIT/SIGNAL con bloqueo por recurso (RA, 1 instancia)"
 begin_test "$DESC"
 run_process "test_recurso_a.txt"
-sleep 0.5
+sleep 1
 run_process "test_recurso_b.txt"
-sleep 8
-# Verificar que ambos procesos terminaron
-exits=$(count_log "EXEC -> EXIT")
-# Verificar que hubo WAIT
-waits=$(count_log "Wait:.*RA")
-if [[ "$exits" -ge 2 ]] && [[ "$waits" -ge 2 ]]; then
+if wait_for_log_count "EXEC -> EXIT" 2 25; then
     pass "$DESC"
-elif [[ "$exits" -ge 2 ]]; then
-    pass "$DESC"  # Ambos terminaron, el recurso funciono
 else
-    fail "$DESC" "se esperaban 2 EXIT (detectados: $exits), 2 WAIT (detectados: $waits)"
+    exits=$(count_log "EXEC -> EXIT")
+    fail "$DESC" "se esperaban 2 EXIT, se detectaron $exits (timeout)"
 fi
 
 # --- Test 6: Operaciones de memoria ---
-DESC="Memoria: RESIZE + MOV_OUT + MOV_IN"
+DESC="Memoria: MOV_OUT + MOV_IN (escritura y lectura)"
 begin_test "$DESC"
 run_process "test_memoria_ops.txt"
-sleep 5
-if check_log "EXEC -> EXIT"; then
-    pass "$DESC"
+if wait_for_log "EXEC -> EXIT" 15; then
+    if check_log "SEGFAULT|Segmentation"; then
+        fail "$DESC" "el proceso termino con SEGFAULT"
+    else
+        pass "$DESC"
+    fi
 else
-    fail "$DESC" "el proceso no llego a EXIT"
+    fail "$DESC" "el proceso no llego a EXIT (timeout)"
 fi
 
 # --- Test 7: Procesos concurrentes ---
@@ -243,12 +293,11 @@ begin_test "$DESC"
 run_process "test1.txt"
 run_process "test1.txt"
 run_process "test1.txt"
-sleep 6
-exits=$(count_log "EXEC -> EXIT")
-if [[ "$exits" -ge 3 ]]; then
+if wait_for_log_count "EXEC -> EXIT" 3 20; then
     pass "$DESC"
 else
-    fail "$DESC" "se esperaban >=3 EXIT, se detectaron $exits"
+    exits=$(count_log "EXEC -> EXIT")
+    fail "$DESC" "se esperaban >=3 EXIT, se detectaron $exits (timeout)"
 fi
 
 # ==========================================================
@@ -264,18 +313,17 @@ send_cmd "ALGORITMO FIFO"
 sleep 1
 
 # --- Test 8: FIFO sin desalojo ---
-DESC="FIFO: proceso largo ejecuta SIN desalojo por quantum"
+DESC="FIFO: proceso ejecuta SIN desalojo por quantum"
 begin_test "$DESC"
-run_process "largo.txt"
-sleep 15
-if check_log "EXEC -> EXIT"; then
-    if check_log "Desalojado por fin de Quantum"; then
+run_process "test_quantum.txt"
+if wait_for_log "EXEC -> EXIT" 20; then
+    if check_log "Quantum vencido|Desalojado por fin de Quantum"; then
         fail "$DESC" "se detecto desalojo por quantum (no deberia con FIFO)"
     else
         pass "$DESC"
     fi
 else
-    fail "$DESC" "el proceso no llego a EXIT"
+    fail "$DESC" "el proceso no llego a EXIT (timeout)"
 fi
 
 # ==========================================================
@@ -291,22 +339,25 @@ send_cmd "ALGORITMO RR"
 sleep 1
 
 # --- Test 9: KILL de proceso ---
+# infinito.txt: loop infinito (SET AX 1, JNZ AX 1)
 DESC="KILL: terminar proceso en ejecucion forzadamente"
 begin_test "$DESC"
 run_process "infinito.txt"
-sleep 3
-# Extraer PID del proceso recien creado desde el kernel log
-PID=$(new_log_lines | grep -oE 'PID: [0-9]+' | tail -1 | grep -oE '[0-9]+')
-if [[ -n "$PID" ]]; then
-    send_cmd "KILL $PID"
-    sleep 2
-    if check_log "KILL/EXIT"; then
-        pass "$DESC"
+# Esperar a que el proceso aparezca en los logs (ya esta en ejecucion)
+if wait_for_log "PID:.*NEW|Proceso creado" 10; then
+    PID=$(new_log_lines | grep -oE 'PID: [0-9]+' | tail -1 | grep -oE '[0-9]+')
+    if [[ -n "$PID" ]]; then
+        send_cmd "KILL $PID"
+        if wait_for_log "KILL/EXIT" 10; then
+            pass "$DESC"
+        else
+            fail "$DESC" "KILL enviado (PID=$PID) pero no se confirmo terminacion en logs"
+        fi
     else
-        fail "$DESC" "KILL enviado (PID=$PID) pero no se confirmo terminacion"
+        fail "$DESC" "no se pudo extraer PID del log"
     fi
 else
-    fail "$DESC" "no se pudo detectar PID del proceso en el log"
+    fail "$DESC" "no se detecto creacion del proceso en logs (timeout)"
 fi
 
 # ==========================================================
@@ -323,10 +374,8 @@ echo " Estado | Test"
 echo "--------|----------------------------------------------"
 echo -e "$RESULTS"
 
-# Errores en logs
 echo "--- Errores en logs de modulos ---"
 FOUND_ERRORS=0
-# Revisar logs capturados (tests/logs/) y el log propio del kernel
 ALL_LOGS=("$LOG_DIR"/*.log)
 [[ -f "$KERNEL_OWN_LOG" ]] && ALL_LOGS+=("$KERNEL_OWN_LOG")
 for log in "${ALL_LOGS[@]}"; do

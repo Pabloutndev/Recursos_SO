@@ -31,11 +31,33 @@ pkill -f "tail -f /dev/null" 2>/dev/null || true
 
 # Liberar puertos especificos (8002=memoria, 8003=kernel, 8005=kernel_io,
 # 8006=cpu_dispatch, 8007=cpu_interrupt, 8010=consola)
-for port in 8002 8003 8005 8006 8007 8010; do
+PUERTOS="8002 8003 8005 8006 8007 8010"
+for port in $PUERTOS; do
     fuser -k "$port/tcp" 2>/dev/null || true
 done
 
 sleep 2
+
+# Esperar hasta que los puertos esten libres (max 15 segundos)
+echo -n "  Esperando puertos libres..."
+for i in $(seq 1 15); do
+    ALL_FREE=true
+    for port in $PUERTOS; do
+        if fuser "$port/tcp" >/dev/null 2>&1; then
+            ALL_FREE=false
+            break
+        fi
+    done
+    if $ALL_FREE; then
+        echo " OK"
+        break
+    fi
+    echo -n "."
+    sleep 1
+done
+if ! $ALL_FREE; then
+    echo " WARN: algunos puertos siguen ocupados, continuando igual"
+fi
 > "$PID_FILE"
 
 # Limpiar logs anteriores del kernel (se crean en su CWD)
