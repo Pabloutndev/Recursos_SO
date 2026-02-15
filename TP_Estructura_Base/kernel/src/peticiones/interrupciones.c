@@ -89,7 +89,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         list_add(cola_ready, pcb);
         pthread_mutex_unlock(&mutex_ready);
         sem_post(&sem_hay_ready);
-        log_info(logger, "PID: %u - Movido EXEC -> READY (Fin Quantum)", pid);
+        log_cambio_estado(pid, "EXEC", "READY");
     } else if (strcmp(motivo, MOTIVO_IO) == 0 || strcmp(motivo, MOTIVO_WAIT) == 0) {
         // Bloqueo por I/O o wait - VRR: calcular quantum consumido y guardar restante
         if (pcb->tiempo_inicio_exec) {
@@ -111,7 +111,6 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         pthread_mutex_lock(&mutex_exit);
         list_add(cola_exit, pcb);
         pthread_mutex_unlock(&mutex_exit);
-        log_info(logger, "PID: %u - Finalizado (EXIT) - Movido a cola EXIT", pid);
         log_fin_proceso(pid, "SUCCESS");
         sem_post(&sem_mp); // Liberar slot de multiprogramacion
     }
@@ -180,7 +179,7 @@ void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
             pthread_mutex_unlock(&mutex_ready);
             sem_post(&sem_hay_ready);
             
-            log_info(logger, "PID %d Movido de BLOCKED a READY por SIGNAL", desbloqueado->pid);
+            log_cambio_estado(desbloqueado->pid, "BLOCKED", "READY");
         } else {
              // Podria no estar en Blocked global si hubo algun race o error.
              log_error(logger, "PID %d desbloqueado por recurso pero no encontrado en BLOCKED global", desbloqueado->pid);

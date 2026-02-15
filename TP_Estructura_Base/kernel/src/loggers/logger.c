@@ -12,23 +12,19 @@
 ///NOTE: Logs obligatorios
 
 void log_creacion_proceso(int pid) {
-    log_info(logger, "Se crea el proceso %d en NEW", pid);
+    log_info(logger, "PID: %d - Proceso creado -> NEW", pid);
 }
 
 void log_fin_proceso(int pid, const char* motivo) {
-    log_info(logger, "Finaliza el proceso %d - Motivo: %s", pid, motivo);
+    log_info(logger, "PID: %d - EXEC -> EXIT (%s)", pid, motivo);
 }
 
 void log_cambio_estado(int pid, const char* ant, const char* act) {
-    log_info(logger,
-        "PID: %d - Estado Anterior: %s - Estado Actual: %s",
-        pid, ant, act);
+    log_info(logger, "PID: %d - %s -> %s", pid, ant, act);
 }
 
 void log_bloqueo(int pid, const char* motivo) {
-    log_info(logger,
-        "PID: %d - Bloqueado por: %s",
-        pid, motivo);
+    log_info(logger, "PID: %d - EXEC -> BLOCKED (%s)", pid, motivo);
 }
 
 void log_fin_quantum(int pid) {

@@ -5,6 +5,7 @@
 #include <paquete/paquete.h>
 #include <conexion/conexion.h>
 #include <planificacion/planificacion.h>
+#include <loggers/logger.h>
 #include <commons/log.h>
 #include <commons/temporal.h>
 #include <stdlib.h>
@@ -102,7 +103,7 @@ void kernel_io_adapter_atender_fin_operacion(int fd, t_paquete* p)
 
     sem_post(&sem_hay_ready);
 
-    log_info(logger, "ADAPTER: PID %u desbloqueado -> READY por FIN_IO (quantum_restante=%d)", pid, pcb->quantum_restante);
+    log_cambio_estado(pid, "BLOCKED", "READY");
 }
 
 void kernel_fs_operation(t_pcb* pcb, 

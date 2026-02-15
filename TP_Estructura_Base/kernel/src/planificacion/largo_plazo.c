@@ -52,7 +52,7 @@ void* planificador_largo_plazo(void* _) {
         list_add(cola_ready, pcb);
         pthread_mutex_unlock(&mutex_ready);
 
-        log_info(logger, "PID: %u - Movido NEW -> READY (Proceso: %s)", pcb->pid, pcb->path);
+        log_cambio_estado(pcb->pid, "NEW", "READY");
         sem_post(&sem_hay_ready);
     }
     return NULL;
