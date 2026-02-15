@@ -20,7 +20,11 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$SCRIPT_DIR/logs"
-KERNEL_LOG="$LOG_DIR/kernel.log"
+# Log primario: el que crea el kernel via commons library (se flushea por linea).
+# Fallback: nuestro stdout capturado en tests/logs/kernel.log.
+KERNEL_OWN_LOG="$BASE_DIR/kernel/kernel.log"
+KERNEL_STDOUT_LOG="$LOG_DIR/kernel.log"
+KERNEL_LOG=""
 
 # =============================
 # Cleanup automatico
@@ -46,34 +50,46 @@ trap cleanup EXIT
 #   "PID: X - Signal: RECURSO - Instancias: N"
 #   "KILL/EXIT"
 
-LOG_MARK=0
+LOG_MARK_OWN=0
+LOG_MARK_STDOUT=0
 
-# Marca la posicion actual del kernel log
+# Elige el log del kernel: prefiere el propio (kernel/kernel.log), fallback al stdout
+pick_kernel_log() {
+    if [[ -f "$KERNEL_OWN_LOG" ]]; then
+        KERNEL_LOG="$KERNEL_OWN_LOG"
+    else
+        KERNEL_LOG="$KERNEL_STDOUT_LOG"
+    fi
+}
+
+# Marca la posicion actual de ambos logs
 mark_log() {
-    LOG_MARK=0
-    [[ -f "$KERNEL_LOG" ]] && LOG_MARK=$(wc -l < "$KERNEL_LOG")
+    LOG_MARK_OWN=0
+    LOG_MARK_STDOUT=0
+    [[ -f "$KERNEL_OWN_LOG" ]] && LOG_MARK_OWN=$(wc -l < "$KERNEL_OWN_LOG")
+    [[ -f "$KERNEL_STDOUT_LOG" ]] && LOG_MARK_STDOUT=$(wc -l < "$KERNEL_STDOUT_LOG")
+}
+
+# Obtiene las lineas nuevas de AMBOS logs combinados (para mayor cobertura)
+new_log_lines() {
+    {
+        [[ -f "$KERNEL_OWN_LOG" ]] && tail -n +"$((LOG_MARK_OWN + 1))" "$KERNEL_OWN_LOG"
+        [[ -f "$KERNEL_STDOUT_LOG" ]] && tail -n +"$((LOG_MARK_STDOUT + 1))" "$KERNEL_STDOUT_LOG"
+    } 2>/dev/null || true
 }
 
 # Busca un patron en las lineas nuevas del kernel log
 check_log() {
     local pattern="$1"
-    [[ -f "$KERNEL_LOG" ]] || return 1
-    tail -n +"$((LOG_MARK + 1))" "$KERNEL_LOG" | grep -qiE "$pattern"
+    new_log_lines | grep -qiE "$pattern"
 }
 
 # Cuenta ocurrencias de un patron en lineas nuevas
 count_log() {
     local pattern="$1"
-    [[ -f "$KERNEL_LOG" ]] || { echo 0; return; }
     local n
-    n=$(tail -n +"$((LOG_MARK + 1))" "$KERNEL_LOG" | grep -ciE "$pattern" 2>/dev/null) || n=0
+    n=$(new_log_lines | grep -ciE "$pattern" 2>/dev/null) || n=0
     echo "$n"
-}
-
-# Muestra las lineas nuevas del kernel log (para debug)
-show_new_log() {
-    [[ -f "$KERNEL_LOG" ]] || return
-    tail -n +"$((LOG_MARK + 1))" "$KERNEL_LOG" | head -20
 }
 
 # Envia un comando al kernel via consola remota
@@ -280,8 +296,7 @@ begin_test "$DESC"
 run_process "infinito.txt"
 sleep 3
 # Extraer PID del proceso recien creado desde el kernel log
-PID=$(tail -n +"$((LOG_MARK + 1))" "$KERNEL_LOG" 2>/dev/null \
-    | grep -oE 'PID: [0-9]+' | tail -1 | grep -oE '[0-9]+')
+PID=$(new_log_lines | grep -oE 'PID: [0-9]+' | tail -1 | grep -oE '[0-9]+')
 if [[ -n "$PID" ]]; then
     send_cmd "KILL $PID"
     sleep 2
@@ -311,7 +326,10 @@ echo -e "$RESULTS"
 # Errores en logs
 echo "--- Errores en logs de modulos ---"
 FOUND_ERRORS=0
-for log in "$LOG_DIR"/*.log; do
+# Revisar logs capturados (tests/logs/) y el log propio del kernel
+ALL_LOGS=("$LOG_DIR"/*.log)
+[[ -f "$KERNEL_OWN_LOG" ]] && ALL_LOGS+=("$KERNEL_OWN_LOG")
+for log in "${ALL_LOGS[@]}"; do
     [[ -f "$log" ]] || continue
     count=$(grep -ciE "error|fail|segfault" "$log" 2>/dev/null) || count=0
     if [[ "$count" -gt 0 ]]; then

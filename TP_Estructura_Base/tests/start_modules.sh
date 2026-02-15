@@ -2,6 +2,7 @@
 # start_modules.sh - Compila y levanta todos los modulos del TP en background.
 # Cada modulo se lanza desde su propia carpeta (los configs usan paths relativos).
 # El kernel tiene readline en stdin: se usa tail -f /dev/null para que no reciba EOF.
+# Se usa stdbuf -oL para forzar line-buffered en stdout (asi los logs se ven en tiempo real).
 
 set -e
 
@@ -34,8 +35,11 @@ for port in 8002 8003 8005 8006 8007 8010; do
     fuser -k "$port/tcp" 2>/dev/null || true
 done
 
-sleep 1
+sleep 2
 > "$PID_FILE"
+
+# Limpiar logs anteriores del kernel (se crean en su CWD)
+rm -f "$BASE_DIR/kernel/kernel.log" "$BASE_DIR/kernel/kernel_error.log"
 
 # =============================
 # Compilacion
@@ -59,14 +63,14 @@ echo "=== Levantando modulos ==="
 
 # 1) Memoria - servidor, no usa readline, stdin desde /dev/null
 echo -n "  [1/4] Memoria... "
-(cd "$BASE_DIR/memoria" && ./bin/memoria) < /dev/null > "$LOG_DIR/memoria.log" 2>&1 &
+(cd "$BASE_DIR/memoria" && stdbuf -oL ./bin/memoria) < /dev/null > "$LOG_DIR/memoria.log" 2>&1 &
 echo $! >> "$PID_FILE"
 sleep 2
 echo "PID $!"
 
 # 2) CPU - cliente de memoria + servidor para kernel, no usa readline
 echo -n "  [2/4] CPU... "
-(cd "$BASE_DIR/cpu" && ./bin/cpu) < /dev/null > "$LOG_DIR/cpu.log" 2>&1 &
+(cd "$BASE_DIR/cpu" && stdbuf -oL ./bin/cpu) < /dev/null > "$LOG_DIR/cpu.log" 2>&1 &
 echo $! >> "$PID_FILE"
 sleep 1
 echo "PID $!"
@@ -75,7 +79,7 @@ echo "PID $!"
 #    Usamos tail -f /dev/null para mantener stdin abierto sin enviar datos,
 #    asi readline() bloquea en vez de recibir EOF.
 echo -n "  [3/4] Kernel... "
-tail -f /dev/null | (cd "$BASE_DIR/kernel" && ./bin/kernel) > "$LOG_DIR/kernel.log" 2>&1 &
+tail -f /dev/null | (cd "$BASE_DIR/kernel" && stdbuf -oL ./bin/kernel) > "$LOG_DIR/kernel.log" 2>&1 &
 KERNEL_PID=$!
 echo $! >> "$PID_FILE"
 sleep 2
@@ -83,7 +87,7 @@ echo "PID $KERNEL_PID"
 
 # 4) IO Generica (GENERICA1)
 echo -n "  [4/4] IO GENERICA1... "
-(cd "$BASE_DIR/entradasalida" && ./bin/entradasalida GENERICA1 generica.config) < /dev/null > "$LOG_DIR/io_generica.log" 2>&1 &
+(cd "$BASE_DIR/entradasalida" && stdbuf -oL ./bin/entradasalida GENERICA1 generica.config) < /dev/null > "$LOG_DIR/io_generica.log" 2>&1 &
 echo $! >> "$PID_FILE"
 sleep 1
 echo "PID $!"
