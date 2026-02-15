@@ -2,6 +2,7 @@
 #include <adaptadores/cpu_memoria_adapter.h>
 #include <conexion/conexion.h>
 #include <loggers/logger.h>
+#include <cpu.h>
 #include <stdlib.h>
 #include <unistd.h>
 
@@ -22,6 +23,10 @@ void cpu_conexiones_memoria_init(char* ip, char* puerto)
     
     // Inicializar adapter con el file descriptor
     cpu_memoria_adapter_init(fd_memoria);
+
+    // Exponer socket en CPU_CTX para uso directo (ej: RESIZE)
+    extern t_cpu_context CPU_CTX;
+    CPU_CTX.socket_memoria = fd_memoria;
 }
 
 void cpu_conexiones_memoria_close(void)

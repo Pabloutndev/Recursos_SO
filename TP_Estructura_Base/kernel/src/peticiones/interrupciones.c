@@ -34,21 +34,18 @@ void desalojar_proceso(uint32_t pid)
     }
 
     if (pcb) {
-        // Enviar interrupción a CPU
         enviar_interrupt_cpu(pid);
         log_fin_quantum(pid);
 
-        // Cambiar estado a READY
         pcb->estado = READY;
         list_remove_element(cola_exec, pcb);
 
-        pthread_mutex_unlock(&mutex_exec);
-
-        // Reencolar en READY
+        // Mantener mutex_exec hasta que PCB este en READY (evitar race con KILL)
         pthread_mutex_lock(&mutex_ready);
         list_add(cola_ready, pcb);
         temporal_resume(pcb->tiempo_ready);
         pthread_mutex_unlock(&mutex_ready);
+        pthread_mutex_unlock(&mutex_exec);
 
         sem_post(&sem_hay_ready);
     } else {
@@ -78,20 +75,22 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
     }
 
     list_remove_element(cola_exec, pcb);
-    pthread_mutex_unlock(&mutex_exec);
+
+    // IMPORTANTE: No liberar mutex_exec hasta que el PCB este en su cola destino.
+    // Esto evita race conditions donde KILL no encuentra el PCB en ninguna cola
+    // durante la transicion EXEC -> READY/BLOCKED/EXIT.
 
     if (strcmp(motivo, MOTIVO_QUANTUM) == 0) {
-        // Desalojo por quantum - VRR: resetear quantum_restante al completo
         pcb->quantum_restante = pcb->quantum;
         pcb->estado = READY;
         pcb->tiempo_ready = temporal_create();
         pthread_mutex_lock(&mutex_ready);
         list_add(cola_ready, pcb);
         pthread_mutex_unlock(&mutex_ready);
+        pthread_mutex_unlock(&mutex_exec);
         sem_post(&sem_hay_ready);
         log_cambio_estado(pid, "EXEC", "READY");
     } else if (strcmp(motivo, MOTIVO_IO) == 0 || strcmp(motivo, MOTIVO_WAIT) == 0) {
-        // Bloqueo por I/O o wait - VRR: calcular quantum consumido y guardar restante
         if (pcb->tiempo_inicio_exec) {
             int64_t tiempo_exec_ms = temporal_gettime(pcb->tiempo_inicio_exec);
             int restante = pcb->quantum_restante - (int)tiempo_exec_ms;
@@ -104,15 +103,18 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         pthread_mutex_lock(&mutex_blocked);
         list_add(cola_blocked, pcb);
         pthread_mutex_unlock(&mutex_blocked);
+        pthread_mutex_unlock(&mutex_exec);
         log_bloqueo(pid, motivo);
     } else if (strcmp(motivo, MOTIVO_EXIT) == 0) {
-        // Proceso terminó
         pcb->estado = EXIT;
         pthread_mutex_lock(&mutex_exit);
         list_add(cola_exit, pcb);
         pthread_mutex_unlock(&mutex_exit);
+        pthread_mutex_unlock(&mutex_exec);
         log_fin_proceso(pid, "SUCCESS");
-        sem_post(&sem_mp); // Liberar slot de multiprogramacion
+        sem_post(&sem_mp);
+    } else {
+        pthread_mutex_unlock(&mutex_exec);
     }
 }
 
