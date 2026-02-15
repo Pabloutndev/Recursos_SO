@@ -30,9 +30,5 @@ int enviar_interrupt_cpu(uint32_t pid) {
 }
 
 int recibir_contexto_actualizado(int sock, t_pcb* pcb) {
-    // Deprecated? La recepción se maneja en el hilo "escuchar_dispatch" de conexiones/cpu.c
-    // Ese hilo debería actualizar el PCB en la cola EXEC?
-    // Usualmente el hilo recibe el contexto, busca el PCB por PID (en EXEC), 
-    // actualiza sus campos, y lo mueve a READY/EXIT/BLOCKED según el OpCode.
     return 0;
 }

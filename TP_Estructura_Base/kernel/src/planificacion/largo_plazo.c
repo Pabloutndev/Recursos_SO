@@ -39,14 +39,7 @@ void* planificador_largo_plazo(void* _) {
         // Enviar PID y PATH (Memoria calculará el tamaño)
         if (!solicitar_creacion_proceso_memoria(pcb->pid, pcb->path)) {
             log_error(logger, "Fallo inicializar memoria para proceso %u. Finalizando.", pcb->pid);
-            // Liberar PID/Multiprog?
-            // Movemos a EXIT
             pcb->estado = EXIT;
-            //pthread_mutex_lock(&mutex_exec); // Usamos mutex exit normalmente
-            // wait, list_add(cola_exit, ...)? 
-            // Better call planificacion_matar_proceso or similar logic?
-            // But killing requires finding it in a list. It's detached now.
-            // Just free resources.
             sem_post(&sem_mp);
             pcb_destruir(pcb); 
             continue;

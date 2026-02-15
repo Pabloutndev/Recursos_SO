@@ -7,8 +7,8 @@
 #include <mod_memoria.h>
 #include <configs/memoria_config.h>
 #include <gestion/memoria_core.h>
+#include <gestion/esquema_memoria.h>
 #include <frames/frames.h>
-#include <gestion/paginas.h>
 #include <gestion/memoria_ram.h>
 #include <protocolo/mensajes.h>
 #include <protocolo/op_code.h>
@@ -62,7 +62,7 @@ void memoria_adapter_atender_fin_proceso(int fd, t_paquete* paquete)
     log_info(logger, "ADAPTER: OP_MEM_FIN_PROCESO - PID=%u", req->pid);
 
     /* Liberar estructuras de memoria */
-    paginacion_destruir_proceso(req->pid);
+    esquema_destruir_proceso(req->pid);
     memoria_destruir_proceso(req->pid);
 
     log_info(logger, "ADAPTER: Proceso %u eliminado de Memoria", req->pid);
@@ -81,21 +81,19 @@ void memoria_adapter_atender_traducir_pagina(int fd, t_paquete* paquete)
         return;
     }
 
-    uint32_t pagina = req->direccion_logica / memoria_config->tam_pagina;
-    log_info(logger, "ADAPTER: OP_MEM_TRADUCIR_PAGINA PID=%u PAG=%u", req->pid, pagina);
+    log_info(logger, "ADAPTER: OP_MEM_TRADUCIR PID=%u DIR_LOG=%u", req->pid, req->direccion_logica);
 
-    t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
+    int64_t dir_fisica = esquema_traducir(req->pid, req->direccion_logica);
 
-    if (!pag || !pag->presente) {
-        log_error(loggerError, "ADAPTER: Página inválida o error en Page Fault PID=%u PAG=%u", req->pid, pagina);
+    if (dir_fisica < 0) {
+        log_error(loggerError, "ADAPTER: Traduccion fallo PID=%u DIR=%u", req->pid, req->direccion_logica);
         enviar_respuesta_traduccion(fd, &resp);
         free(req);
         return;
     }
 
     resp.ok = true;
-    resp.direccion_fisica = pag->frame * memoria_config->tam_pagina;
-
+    resp.direccion_fisica = (uint32_t)dir_fisica;
     enviar_respuesta_traduccion(fd, &resp);
     free(req);
 }
@@ -135,50 +133,22 @@ void memoria_adapter_atender_leer(int fd, t_paquete* paquete)
 
     log_info(logger, "ADAPTER: OP_MEM_LEER PID=%u DIR_LOGICA=%u SIZE=%u", req->pid, req->direccion_logica, req->size);
 
-    void* full_buffer = malloc(req->size);
-    if (!full_buffer) {
+    void* buffer = malloc(req->size);
+    if (!buffer) {
         log_error(loggerError, "ADAPTER: malloc failed para lectura de %u bytes", req->size);
         enviar_respuesta_lectura(fd, &resp);
         free(req);
         return;
     }
-    uint32_t bytes_leidos = 0;
-    bool error = false;
 
-    while (bytes_leidos < req->size) {
-        uint32_t dir_actual = req->direccion_logica + bytes_leidos;
-        uint32_t num_pagina = dir_actual / memoria_config->tam_pagina;
-        uint32_t offset = dir_actual % memoria_config->tam_pagina;
-        uint32_t disponible_en_pagina = memoria_config->tam_pagina - offset;
-        uint32_t a_leer = (disponible_en_pagina < (req->size - bytes_leidos)) ? disponible_en_pagina : (req->size - bytes_leidos);
-
-        t_pagina* pag = paginacion_obtener_entrada(req->pid, num_pagina);
-        if (!pag || !pag->presente) {
-            log_error(loggerError, "ADAPTER: Página %u no presente para PID %u", num_pagina, req->pid);
-            error = true;
-            break;
-        }
-
-        uint32_t dir_fisica = pag->frame * memoria_config->tam_pagina + offset;
-        if (!leer_memoria_fisica(dir_fisica, (char*)full_buffer + bytes_leidos, a_leer)) {
-            error = true;
-            break;
-        }
-        
-        pag->uso = true;
-        bytes_leidos += a_leer;
-    }
-
-    if (!error) {
+    if (esquema_leer(req->pid, req->direccion_logica, buffer, req->size)) {
         resp.ok = true;
-        resp.data = full_buffer;
+        resp.data = buffer;
         resp.size = req->size;
-        enviar_respuesta_lectura(fd, &resp);
-    } else {
-        enviar_respuesta_lectura(fd, &resp);
     }
 
-    if (full_buffer) free(full_buffer);
+    enviar_respuesta_lectura(fd, &resp);
+    free(buffer);
     free(req);
 }
 
@@ -193,35 +163,7 @@ void memoria_adapter_atender_escribir(int fd, t_paquete* paquete)
 
     log_info(logger, "ADAPTER: OP_MEM_ESCRIBIR PID=%u DIR_LOGICA=%u SIZE=%u", req->pid, req->direccion_logica, req->size);
 
-    uint32_t bytes_escritos = 0;
-    bool error = false;
-
-    while (bytes_escritos < req->size) {
-        uint32_t dir_actual = req->direccion_logica + bytes_escritos;
-        uint32_t num_pagina = dir_actual / memoria_config->tam_pagina;
-        uint32_t offset = dir_actual % memoria_config->tam_pagina;
-        uint32_t disponible_en_pagina = memoria_config->tam_pagina - offset;
-        uint32_t a_escribir = (disponible_en_pagina < (req->size - bytes_escritos)) ? disponible_en_pagina : (req->size - bytes_escritos);
-
-        t_pagina* pag = paginacion_obtener_entrada(req->pid, num_pagina);
-        if (!pag || !pag->presente) {
-            log_error(loggerError, "ADAPTER: Página %u no presente para PID %u", num_pagina, req->pid);
-            error = true;
-            break;
-        }
-
-        uint32_t dir_fisica = pag->frame * memoria_config->tam_pagina + offset;
-        if (!escribir_memoria_fisica(dir_fisica, (char*)req->buffer + bytes_escritos, a_escribir)) {
-            error = true;
-            break;
-        }
-        
-        pag->uso = true;
-        pag->modificado = true;
-        bytes_escritos += a_escribir;
-    }
-
-    if (!error) {
+    if (esquema_escribir(req->pid, req->direccion_logica, req->buffer, req->size)) {
         enviar_respuesta_ok(fd);
     } else {
         enviar_respuesta_fail(fd);
@@ -239,7 +181,7 @@ void memoria_adapter_atender_resize(int fd, t_paquete* paquete)
 
     log_info(logger, "ADAPTER: OP_MEM_RESIZE PID=%u NUEVO_TAM=%u", pid, nuevo_tam);
 
-    if (paginacion_resize(pid, nuevo_tam)) {
+    if (esquema_resize(pid, nuevo_tam)) {
         log_info(logger, "ADAPTER: Resize PID %u EXITOSO", pid);
         enviar_respuesta_ok(fd);
     } else {

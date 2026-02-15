@@ -10,6 +10,11 @@
 #include <commons/temporal.h>
 #include <string.h>
 
+#define MOTIVO_QUANTUM "QUANTUM"
+#define MOTIVO_IO "IO"
+#define MOTIVO_EXIT "EXIT"
+#define MOTIVO_WAIT "WAIT"
+
 // Declaraciones de funciones externas
 extern void log_fin_quantum(int pid);
 extern void log_bloqueo(int pid, const char* motivo);
@@ -75,7 +80,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
     list_remove_element(cola_exec, pcb);
     pthread_mutex_unlock(&mutex_exec);
     
-    if (strcmp(motivo, "QUANTUM") == 0) {
+    if (strcmp(motivo, MOTIVO_QUANTUM) == 0) {
         // Desalojo por quantum - VRR: resetear quantum_restante al completo
         pcb->quantum_restante = pcb->quantum;
         pcb->estado = READY;
@@ -85,14 +90,14 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         pthread_mutex_unlock(&mutex_ready);
         sem_post(&sem_hay_ready);
         log_info(logger, "PID: %u - Movido EXEC -> READY (Fin Quantum)", pid);
-    } else if (strcmp(motivo, "IO") == 0 || strcmp(motivo, "WAIT") == 0) {
+    } else if (strcmp(motivo, MOTIVO_IO) == 0 || strcmp(motivo, MOTIVO_WAIT) == 0) {
         // Bloqueo por I/O o wait - VRR: calcular quantum consumido y guardar restante
-        if (pcb->tiempo_ready) {
-            int64_t tiempo_exec_ms = temporal_gettime(pcb->tiempo_ready);
+        if (pcb->tiempo_inicio_exec) {
+            int64_t tiempo_exec_ms = temporal_gettime(pcb->tiempo_inicio_exec);
             int restante = pcb->quantum_restante - (int)tiempo_exec_ms;
             pcb->quantum_restante = (restante > 0) ? restante : 0;
-            temporal_destroy(pcb->tiempo_ready);
-            pcb->tiempo_ready = NULL;
+            temporal_destroy(pcb->tiempo_inicio_exec);
+            pcb->tiempo_inicio_exec = NULL;
             log_info(logger, "VRR: PID=%u bloqueado, quantum_restante=%d ms", pid, pcb->quantum_restante);
         }
         pcb->estado = BLOCK;
@@ -100,12 +105,12 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
         list_add(cola_blocked, pcb);
         pthread_mutex_unlock(&mutex_blocked);
         log_bloqueo(pid, motivo);
-    } else if (strcmp(motivo, "EXIT") == 0) {
+    } else if (strcmp(motivo, MOTIVO_EXIT) == 0) {
         // Proceso terminó
         pcb->estado = EXIT;
-        pthread_mutex_lock(&mutex_exec);
+        pthread_mutex_lock(&mutex_exit);
         list_add(cola_exit, pcb);
-        pthread_mutex_unlock(&mutex_exec);
+        pthread_mutex_unlock(&mutex_exit);
         log_info(logger, "PID: %u - Finalizado (EXIT) - Movido a cola EXIT", pid);
         log_fin_proceso(pid, "SUCCESS");
         sem_post(&sem_mp); // Liberar slot de multiprogramacion
@@ -115,7 +120,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
 void manejar_bloqueo_io(t_contexto_cpu* ctx) {
     // Logica basica: Mover a Block
     // TODO: Usar interfaz IO
-    manejar_interrupcion(ctx->pid, "IO");
+    manejar_interrupcion(ctx->pid, MOTIVO_IO);
 }
 
 void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
@@ -145,10 +150,10 @@ void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
 
     if (bloqueo) {
         // Bloquear proceso
-        manejar_interrupcion(ctx->pid, "WAIT");
+        manejar_interrupcion(ctx->pid, MOTIVO_WAIT);
     } else {
         // No bloquea - recurso adquirido, volver a Ready
-        manejar_interrupcion(ctx->pid, "QUANTUM");
+        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
     }
 }
 
@@ -185,7 +190,7 @@ void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
     // El proceso que hizo SIGNAL (ctx->pid) sigue ejecutando. 
     // Como CPU devolvió control, lo mandamos a Ready para que siga compitiendo (o Dispatch directo).
     // Simil Wait exitoso.
-    manejar_interrupcion(ctx->pid, "QUANTUM");
+    manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
 }
 
 void manejar_fin_quantum(t_contexto_cpu* ctx)
@@ -211,7 +216,7 @@ void manejar_fin_quantum(t_contexto_cpu* ctx)
     // TODO: Implementar solicitud de actualización de contexto en Memoria si es necesario
     
     // ✅ PASO 3: Desalojar por quantum (pasar a READY)
-    manejar_interrupcion(ctx->pid, "QUANTUM");
+    manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
 }
 
 void manejar_fin_proceso(t_contexto_cpu* ctx)
@@ -233,7 +238,7 @@ void manejar_fin_proceso(t_contexto_cpu* ctx)
     pthread_mutex_unlock(&mutex_exec);
     
     // ✅ PASO 2: Finalizar proceso (mover a EXIT)
-    manejar_interrupcion(ctx->pid, "EXIT");
+    manejar_interrupcion(ctx->pid, MOTIVO_EXIT);
     
     // ✅ PASO 3: Liberar recursos en Memoria
     solicitar_fin_proceso_memoria(ctx->pid);

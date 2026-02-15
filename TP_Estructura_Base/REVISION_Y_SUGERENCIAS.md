@@ -78,6 +78,10 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 | `io.c` | - | Variables estaticas `_buscar_nombre`, `_buscar_socket` para closures de so-commons. Funciona pero no es thread-safe si dos hilos buscan interfaces al mismo tiempo |
 | `consola_handler.c` | 94-96 | PS toma cada cola con lock individual. Snapshot no es atomico (un proceso puede aparecer en dos colas o en ninguna) |
 | `proceso.c` | - | `ejecutar_proceso` y `matar_proceso` deberian validar PID > 0 |
+| `algortimo.c` | nombre | **Typo en nombre de archivo**: `algortimo.c` deberia ser `algoritmo.c` (el header `algoritmo.h` esta bien) |
+
+**Codigo muerto Kernel:**
+- `proceso.c:101-116` - `initialize_process()` nunca se llama. La inicializacion real del PCB se hace en `crear_pcb()` de `pcb.c`
 
 **Comentarios sueltos:**
 - `planificacion.c:20-21` - `// extern t_log* logger;` y `// extern t_kernel_config KCONF;` comentados
@@ -183,6 +187,8 @@ El TP implementa un simulador de SO con 5 modulos (Kernel, CPU, Memoria, Entrada
 4. **Motivos como strings (interrupciones.c)**: Usar `strcmp(motivo, "QUANTUM")` para determinar acciones es fragil. Un typo rompe todo silenciosamente.
 
 5. **PS no atomico (consola_handler.c)**: Cada cola se lee con su propio lock. Un proceso puede aparecer en dos estados o en ninguno en el snapshot.
+
+6. **`tiempo_ready` reutilizado (corto_plazo.c:81-82)**: El campo `tiempo_ready` del PCB se usa para dos cosas distintas: medir espera en READY (para HRRN) y medir tiempo de ejecucion (para VRR quantum). Se destruye y recrea al entrar a EXEC. Deberia haber un campo separado `tiempo_inicio_exec`.
 
 ---
 

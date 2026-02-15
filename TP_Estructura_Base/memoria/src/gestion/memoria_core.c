@@ -5,7 +5,7 @@
 #include <commons/log.h>
 #include <common/shared.h>
 #include <swap/swap.h>
-#include <gestion/paginas.h>
+#include <gestion/esquema_memoria.h>
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -81,10 +81,10 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
 
     dictionary_put(procesos, key, proc);
 
-    // Crear paginacion con el tamanio correcto: cada instruccion ocupa 64 bytes
+    // Crear esquema de memoria con el tamanio correcto: cada instruccion ocupa 64 bytes
     uint32_t tamanio = proc->cantidad * 64;
-    if (!paginacion_crear_proceso(pid, tamanio)) {
-        log_error(loggerError, "MEMORIA: Fallo creando paginacion para PID %u (tamanio=%u)", pid, tamanio);
+    if (!esquema_crear_proceso(pid, tamanio)) {
+        log_error(loggerError, "MEMORIA: Fallo creando esquema memoria para PID %u (tamanio=%u)", pid, tamanio);
         // Rollback: remover del diccionario
         dictionary_remove(procesos, key);
         for (uint32_t i = 0; i < proc->cantidad; i++) free(proc->instrucciones[i]);
@@ -94,11 +94,11 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
         return false;
     }
 
-    // Cargar instrucciones en paginas
+    // Cargar instrucciones en memoria (via esquema activo)
     log_info(logger, "MEMORIA: Cargando %d instrucciones en RAM para PID %u", proc->cantidad, pid);
     for (int i = 0; i < proc->cantidad; i++) {
         uint32_t dir_logica = i * 64;
-        paginacion_escribir(pid, dir_logica, proc->instrucciones[i], strlen(proc->instrucciones[i]) + 1);
+        esquema_escribir(pid, dir_logica, proc->instrucciones[i], strlen(proc->instrucciones[i]) + 1);
     }
 
     free(key);
@@ -120,7 +120,8 @@ void memoria_destruir_proceso(uint32_t pid) {
     free(proc->instrucciones);
     free(proc);
 
-    swap_borrar_proceso(pid);
+    if (esquema_memoria_actual() == ESQUEMA_PAGINACION)
+        swap_borrar_proceso(pid);
 
     log_info(logger, "MEMORIA: Proceso %u destruido", pid);
 }
@@ -133,23 +134,17 @@ char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
 
     if (!proc) {
         log_error(loggerError, "MEMORIA: FETCH proceso inexistente PID=%u", pid);
-        return strdup("EXIT");
+        return NULL;
     }
 
     /* UNIFICACIÓN: Usar el sistema de paginación para leer la instrucción */
-    log_info(logger, "MEMORIA: Usando paginación para fetch PID=%u PC=%u", pid, pc);
-    char* instruccion_leida = paginacion_leer_instruccion(pid, pc);
+    log_info(logger, "MEMORIA: Fetch via esquema memoria PID=%u PC=%u", pid, pc);
+    char* instruccion_leida = esquema_leer_instruccion(pid, pc);
 
-    if (instruccion_leida != NULL) {
-        return instruccion_leida;
+    if (instruccion_leida == NULL) {
+        log_error(loggerError, "MEMORIA: FETCH fallo para PID=%u PC=%u - instruccion no encontrada", pid, pc);
     }
-
-    /* Fallback: leer del array de instrucciones en memoria */
-    if (pc < proc->cantidad) {
-        return strdup(proc->instrucciones[pc]);
-    }
-
-    return strdup("EXIT");
+    return instruccion_leida;
 }
 
 

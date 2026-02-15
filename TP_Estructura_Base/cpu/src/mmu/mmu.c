@@ -4,17 +4,14 @@
 #include <loggers/logger.h>
 #include <interrupciones/interrupciones.h>
 #include <cpu.h>
-#include <protocolo/op_code.h>
 
-#define PAGE_FAULT_CODE OP_SEGFAULT // O usar define propio
-
-static uint32_t pid_actual = -1;
+static uint32_t pid_actual = UINT32_MAX;
 
 void mmu_set_contexto(const t_contexto_cpu* ctx) {
     if (pid_actual != ctx->pid) {
-        log_info(CPU_CTX.logger, "MMU: Cambio de PID (%u -> %u). Flusheando TLB.", pid_actual, ctx->pid);
+        log_info(CPU_CTX.logger, "MMU: Cambio de PID (%u -> %u). Limpiando TLB del PID anterior.", pid_actual, ctx->pid);
+        tlb_clear_pid(pid_actual);
         pid_actual = ctx->pid;
-        tlb_flush();
     }
 }
 

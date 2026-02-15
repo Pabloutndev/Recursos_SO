@@ -34,6 +34,7 @@ extern pthread_mutex_t mutex_new;
 extern pthread_mutex_t mutex_ready;
 extern pthread_mutex_t mutex_exec;
 extern pthread_mutex_t mutex_blocked;
+extern pthread_mutex_t mutex_exit;
 extern pthread_mutex_t mutex_estado_planif;
 extern pthread_cond_t cond_planif_resume;
 

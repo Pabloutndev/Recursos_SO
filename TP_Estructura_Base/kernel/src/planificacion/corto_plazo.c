@@ -78,8 +78,8 @@ void* planificador_corto_plazo(void* _) {
                 q_args->quantum = quantum_a_usar;
 
                 // Guardar timestamp de inicio de ejecucion para calcular quantum consumido
-                if (pcb->tiempo_ready) temporal_destroy(pcb->tiempo_ready);
-                pcb->tiempo_ready = temporal_create(); // reutilizamos como marcador de inicio exec
+                if (pcb->tiempo_inicio_exec) temporal_destroy(pcb->tiempo_inicio_exec);
+                pcb->tiempo_inicio_exec = temporal_create();
 
                 pthread_t hilo_quantum;
                 pthread_create(&hilo_quantum, NULL, timer_quantum, q_args);

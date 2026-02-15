@@ -1,6 +1,7 @@
 // cpu_config.c
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <config/cpu_config.h>
 #include <commons/config.h>
 
@@ -14,16 +15,15 @@ t_cpu_config cpu_cargar_config(const char* ruta)
         exit(EXIT_FAILURE);
     }
 
-    cpu.ip_memoria       = config_get_string_value(config_archivo, "IP_MEMORIA");
-    cpu.puerto_memoria   = config_get_string_value(config_archivo, "PUERTO_MEMORIA");
-    cpu.puerto_dispatch  = config_get_string_value(config_archivo, "PUERTO_ESCUCHA_DISPATCH");
-    cpu.puerto_interrupt = config_get_string_value(config_archivo, "PUERTO_ESCUCHA_INTERRUPT");
+    cpu.ip_memoria       = strdup(config_get_string_value(config_archivo, "IP_MEMORIA"));
+    cpu.puerto_memoria   = strdup(config_get_string_value(config_archivo, "PUERTO_MEMORIA"));
+    cpu.puerto_dispatch  = strdup(config_get_string_value(config_archivo, "PUERTO_ESCUCHA_DISPATCH"));
+    cpu.puerto_interrupt = strdup(config_get_string_value(config_archivo, "PUERTO_ESCUCHA_INTERRUPT"));
     cpu.tlb_cant_ent     = config_get_int_value(config_archivo, "CANTIDAD_ENTRADAS_TLB");
-    cpu.tlb_algoritmo    = config_get_string_value(config_archivo, "ALGORITMO_TLB");
+    cpu.tlb_algoritmo    = strdup(config_get_string_value(config_archivo, "ALGORITMO_TLB"));
     cpu.tam_pagina       = config_get_int_value(config_archivo, "TAM_PAGINA");
 
-
-    //config_destroy(config_archivo);
+    config_destroy(config_archivo);
 
     return cpu;
 }

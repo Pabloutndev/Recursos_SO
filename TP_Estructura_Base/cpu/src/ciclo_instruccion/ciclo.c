@@ -49,8 +49,6 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
 char* fetch_instruccion(t_contexto_cpu* ctx)
 {
     uint32_t pc = ctx->pc;
-    // MMU translation removed as Memory handles PC -> Instruction logic
-    
     char* linea = memoria_fetch_instruccion(ctx->pid, pc);
 
     log_info(CPU_CTX.logger, "PID: %u - FETCH - Program Counter: %u", ctx->pid, pc);

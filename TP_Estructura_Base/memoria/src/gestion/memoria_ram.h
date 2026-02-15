@@ -12,8 +12,7 @@ void memoria_ram_destroy(void);
 bool leer_memoria_fisica(uint32_t dir_fisica, void* buffer, int tamanio);
 bool escribir_memoria_fisica(uint32_t dir_fisica, void* data, int tamanio);
 
-/// NOTE: SOLO PARA DEBUG - Funcion Auxiliar
-/// Dangerous but sometimes needed
+/* Debug: retorna puntero directo a memoria */
 void* get_memoria_espacio(void);
 
 #endif

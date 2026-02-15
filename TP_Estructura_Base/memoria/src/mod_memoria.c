@@ -1,5 +1,6 @@
 #include <gestion/memoria_core.h>
 #include <gestion/memoria_ram.h>
+#include <gestion/esquema_memoria.h>
 #include <frames/frames.h>
 #include <configs/memoria_config.h>
 #include <swap/swap.h>
@@ -7,6 +8,7 @@
 #include <unistd.h>
 #include <commons/log.h>
 #include <stdlib.h>
+#include <string.h>
 #include "mod_memoria.h"
 
 /// Contexto Global del Modulo
@@ -63,7 +65,12 @@ int memoria_init(const char* path_config) {
         return EXIT_FAILURE;
     }
 
-    // 5. Iniciar Server
+    // 5. Iniciar Esquema de Memoria (Paginacion o Segmentacion)
+    t_esquema esquema = (strcmp(MEMORIA_CTX.config->esquema_memoria, "SEGMENTACION") == 0)
+        ? ESQUEMA_SEGMENTACION : ESQUEMA_PAGINACION;
+    esquema_memoria_init(esquema);
+
+    // 6. Iniciar Server
     if (server_init(MEMORIA_CTX.config->puerto_escucha) != 0) {
         log_error(MEMORIA_CTX.logger, "Error al iniciar servidor");
         return EXIT_FAILURE;

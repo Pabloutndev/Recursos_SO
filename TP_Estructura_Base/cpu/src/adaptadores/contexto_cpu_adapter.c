@@ -53,7 +53,15 @@ bool recibir_contexto_kernel(t_contexto_cpu* ctx)
 
 void enviar_contexto_kernel(t_contexto_cpu* ctx, t_motivo_desalojo motivo)
 {
-    enviar_contexto(socket_dispatch, ctx, OP_PROCESO_EXEC);
+    op_code rs_code;
+    switch (motivo) {
+        case MOTIVO_EXIT:     rs_code = OP_CPU_FIN_PROCESO; break;
+        case MOTIVO_IO:       rs_code = OP_BLOQUEO_IO; break;
+        case MOTIVO_SEGFAULT: rs_code = OP_SEGFAULT; break;
+        default:              rs_code = OP_DESALOJO; break;
+    }
+
+    enviar_contexto(socket_dispatch, ctx, rs_code);
 
     log_info(logger,
         "CPU: Contexto enviado PID=%d PC=%d MOTIVO=%d",

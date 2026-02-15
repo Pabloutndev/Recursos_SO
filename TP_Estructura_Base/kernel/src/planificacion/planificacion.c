@@ -17,9 +17,6 @@
 #include <peticiones/dispatch.h>
 #include <peticiones/recursos.h>
 
-// extern t_log* logger;
-// extern t_kernel_config KCONF;
-
 /* Colas */
 t_list* cola_new;
 t_list* cola_ready;
@@ -32,6 +29,7 @@ pthread_mutex_t mutex_new;
 pthread_mutex_t mutex_ready;
 pthread_mutex_t mutex_exec;
 pthread_mutex_t mutex_blocked;
+pthread_mutex_t mutex_exit = PTHREAD_MUTEX_INITIALIZER;
 
 /* Semaforos */
 sem_t sem_hay_new;
@@ -117,6 +115,7 @@ void planificacion_destroy(void)
     pthread_mutex_destroy(&mutex_ready);
     pthread_mutex_destroy(&mutex_exec);
     pthread_mutex_destroy(&mutex_blocked);
+    pthread_mutex_destroy(&mutex_exit);
     pthread_mutex_destroy(&mutex_estado_planif);
     pthread_cond_destroy(&cond_planif_resume);
 
@@ -252,9 +251,9 @@ void planificacion_finalizar_proceso(uint32_t pid)
 
     if (encontrado) {
         encontrado->estado = EXIT;
-        pthread_mutex_lock(&mutex_exec);
+        pthread_mutex_lock(&mutex_exit);
         list_add(cola_exit, encontrado);
-        pthread_mutex_unlock(&mutex_exec);
+        pthread_mutex_unlock(&mutex_exit);
 
         log_fin_proceso(pid, "KILL/EXIT");
 

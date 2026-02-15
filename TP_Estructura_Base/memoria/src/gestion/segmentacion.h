@@ -4,18 +4,25 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-/* Gestión de Segmentos */
-bool segmentacion_crear_proceso(uint32_t pid, int size_bytes);
-void segmentacion_destruir_proceso(uint32_t pid);
+/* Estructura de segmento */
+typedef struct {
+    uint32_t base;
+    uint32_t limite;
+} t_segmento;
 
-/* Traducción */
-/* En segmentación se traduce (PID, Segmento, Offset). 
-   Pero la interfaz CPU -> Memoria suele ser (PID, DirLogica) y Memoria resuelve, 
-   o CPU envía (Seg, Off) si CPU sabe de segmentación.
-   Para una Memoria "Universal", si CPU solo manda Dirección Lógica Lineal,
-   Memoria debe decodificarla. O si CPU manda componentes.
-   Asumiremos interfaz genérica: traducir_direccion(pid, dir_logica)
-*/
+/* Gestion de procesos */
+bool segmentacion_crear_proceso(uint32_t pid, int tamanio_bytes);
+void segmentacion_destruir_proceso(uint32_t pid);
+bool segmentacion_resize(uint32_t pid, int nuevo_tamanio);
+
+/* Acceso logico a memoria */
+bool segmentacion_escribir(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t size);
+bool segmentacion_leer(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t size);
+
+/* Fetch de instrucciones */
+char* segmentacion_leer_instruccion(uint32_t pid, uint32_t pc);
+
+/* Traduccion: retorna dir_fisica, 0 si error (segmentation fault) */
 uint32_t segmentacion_traducir(uint32_t pid, uint32_t dir_logica);
 
 #endif

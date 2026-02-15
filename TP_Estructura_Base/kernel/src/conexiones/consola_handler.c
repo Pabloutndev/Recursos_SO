@@ -91,9 +91,9 @@ void* handler_consola_connection(void* arg)
                 char* pids_blocked = lista_pids(cola_blocked);
                 pthread_mutex_unlock(&mutex_blocked);
 
-                pthread_mutex_lock(&mutex_exec); // cola_exit usa mutex_exec
+                pthread_mutex_lock(&mutex_exit);
                 char* pids_exit = lista_pids(cola_exit);
-                pthread_mutex_unlock(&mutex_exec);
+                pthread_mutex_unlock(&mutex_exit);
 
                 char* texto = string_new();
                 string_append_with_format(&texto, "Estado: NEW     - Procesos: [%s]\n", pids_new ? pids_new : "");

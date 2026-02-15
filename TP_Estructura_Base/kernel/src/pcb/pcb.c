@@ -33,6 +33,7 @@ t_pcb* pcb_crear(void)
     pcb->prioridad = 0;
     pcb->estimacion_rafaga = 0.0;
     pcb->tiempo_ready = temporal_create();
+    pcb->tiempo_inicio_exec = NULL;
     pcb->socket_consola = -1;
 
     return pcb;
@@ -54,6 +55,9 @@ void pcb_destruir(t_pcb* pcb)
 
     if (pcb->tiempo_ready) {
         temporal_destroy(pcb->tiempo_ready);
+    }
+    if (pcb->tiempo_inicio_exec) {
+        temporal_destroy(pcb->tiempo_inicio_exec);
     }
 
     free(pcb);

@@ -250,6 +250,11 @@ bool paginacion_escribir(uint32_t pid, uint32_t dir_logica, void* buffer, uint32
         if (!pag || !pag->presente) return false;
 
         pthread_mutex_lock(&mutex_paginas);
+        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
+        if (!pag->presente) {
+            pthread_mutex_unlock(&mutex_paginas);
+            continue; /* retry this chunk */
+        }
         escribir_memoria_fisica(pag->frame * tam_pag + offset, (char*)buffer + bytes_escritos, a_escribir);
         pag->uso = true;
         pag->modificado = true;
@@ -273,6 +278,11 @@ bool paginacion_leer(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t s
         if (!pag || !pag->presente) return false;
 
         pthread_mutex_lock(&mutex_paginas);
+        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
+        if (!pag->presente) {
+            pthread_mutex_unlock(&mutex_paginas);
+            continue; /* retry this chunk */
+        }
         leer_memoria_fisica(pag->frame * tam_pag + offset, (char*)buffer + bytes_leidos, a_leer);
         pag->uso = true;
         pthread_mutex_unlock(&mutex_paginas);
@@ -293,16 +303,24 @@ char* paginacion_leer_instruccion(uint32_t pid, uint32_t pc)
     int offset  = dir_logica % tam_pag;
     
     t_pagina* pag = paginacion_obtener_entrada(pid, pag_nro);
-    
+
     if (pag && pag->presente && pag->frame != -1) {
+        pthread_mutex_lock(&mutex_paginas);
+        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
+        if (!pag->presente || pag->frame == -1) {
+            pthread_mutex_unlock(&mutex_paginas);
+            return NULL;
+        }
         uint32_t dir_fisica = (pag->frame * tam_pag) + offset;
-        
-        char buffer[256]; 
+
+        char buffer[256];
         leer_memoria_fisica(dir_fisica, buffer, 255);
-        buffer[255] = '\0'; 
-        
+        buffer[255] = '\0';
+        pag->uso = true;
+        pthread_mutex_unlock(&mutex_paginas);
+
         return strdup(buffer);
-    } 
-    
+    }
+
     return NULL; 
 }

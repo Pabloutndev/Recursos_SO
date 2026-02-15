@@ -27,8 +27,8 @@ bool memoria_crear_proceso(uint32_t pid, const char* path);
 // elimina proceso y libera memoria
 void memoria_destruir_proceso(uint32_t pid);
 
-// devuelve instrucción asociada a PID y PC (memoria alocada, caller debe liberar)
-// si PC inválido → devuelve strdup("EXIT")
+// devuelve instruccion asociada a PID y PC (memoria alocada, caller debe liberar)
+// si PID inexistente o PC invalido -> devuelve NULL
 char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc);
 
 #endif

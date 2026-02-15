@@ -13,6 +13,7 @@ typedef struct {
     char* path_instrucciones;
     int retardo_respuesta;
     char* algoritmo_reemplazo;
+    char* esquema_memoria;
 } t_memoria_config;
 
 t_memoria_config* memoria_cargar_config(const char* path);

@@ -97,35 +97,3 @@ void mostrar_procesos(void)
 {
     listar_procesos_por_estado();
 }
-
-void initialize_process(t_pcb* p, int pid, int quantum) 
-{
-    p->estado = NEW;
-    p->pid = pid;
-    p->quantum = quantum;
-    p->registros.AX = 0;
-    p->registros.BX = 0;
-    p->registros.CX = 0;
-    p->registros.DX = 0;
-    p->registros.EAX = 0;
-    p->registros.EBX = 0;
-    p->registros.ECX = 0;
-    p->registros.EDX = 0;
-    p->registros.SI = 0;
-    p->registros.DI = 0;
-}
-/*
-t_list* get_listOfProcesses(char* name)
-{
-    int i = 0;
-    // Modificar 6 por un valor calculado
-    for (i=0; i < 6; i++)
-    {
-        if (strcmp(listsProcesses.listProcess[i].name, name) == 0)
-        {
-            return &(listsProcesses.listProcess[i]);
-        }
-    }
-    return NULL;
-}
-*/

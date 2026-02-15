@@ -15,6 +15,7 @@ t_memoria_config* memoria_cargar_config(const char* path) {
     config->path_instrucciones = strdup(config_get_string_value(cfg, "PATH_INSTRUCCIONES"));
     config->retardo_respuesta = config_get_int_value(cfg, "RETARDO_RESPUESTA");
     config->algoritmo_reemplazo = strdup(config_get_string_value(cfg, "ALGORITMO_REEMPLAZO"));
+    config->esquema_memoria = strdup(config_get_string_value(cfg, "ESQUEMA_MEMORIA"));
 
     config_destroy(cfg);
     return config;
@@ -25,6 +26,7 @@ void memoria_liberar_config(t_memoria_config* config) {
         free(config->puerto_escucha);
         free(config->path_instrucciones);
         free(config->algoritmo_reemplazo);
+        free(config->esquema_memoria);
         free(config);
     }
 }

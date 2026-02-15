@@ -9,7 +9,4 @@
 #include "../configs/io_config.h"
 #include <paquete/paquete.h>
 
-void io_stdin_handler(t_list* packet, t_io_config* config, t_log* logger, int socket_memoria);
-void io_stdout_handler(t_list* packet, t_io_config* config, t_log* logger, int socket_memoria);
-
 #endif

@@ -38,6 +38,4 @@ typedef struct {
     char parametros[256];
 } instruccion_t;
 
-bool ejecutar_siguiente_instruccion(t_contexto_cpu* ctx);
-
 #endif

@@ -37,6 +37,7 @@ typedef struct {
     int prioridad;              // (0 = mayor prioridad)
     double estimacion_rafaga;   // Algoritmo HRRN - SJF
     t_temporal* tiempo_ready;
+    t_temporal* tiempo_inicio_exec;
     
     // skt = Opcional para notificacion
     int socket_consola;

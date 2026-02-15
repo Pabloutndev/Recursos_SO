@@ -128,6 +128,7 @@ void io_adapter_atender_fs_create(int fd, t_paquete* p) {
 }
 
 void io_adapter_atender_fs_delete(int fd, t_paquete* p) {
+    // Usa recibir_io_fs_create porque la estructura de datos es identica (nombre + pid)
     t_io_fs_create* req = recibir_io_fs_create(p);
     if (!req) return;
 
@@ -202,6 +203,7 @@ void io_adapter_atender_fs_write(int fd, t_paquete* p) {
 }
 
 void io_adapter_atender_fs_read(int fd, t_paquete* p) {
+    // Usa recibir_io_fs_write porque la estructura de datos es identica
     t_io_fs_write* req = recibir_io_fs_write(p);
     if (!req) return;
 
