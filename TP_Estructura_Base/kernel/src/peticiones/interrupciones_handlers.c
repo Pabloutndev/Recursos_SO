@@ -93,8 +93,18 @@ void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
     }
 
     // El proceso que hizo SIGNAL (ctx->pid) sigue ejecutando.
-    // Como CPU devolvió control, lo mandamos a Ready para que siga compitiendo (o Dispatch directo).
-    // Simil Wait exitoso.
+    // Actualizar contexto del PCB (PC incrementado por CPU) antes de mover a READY.
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* p = list_get(cola_exec, i);
+        if (p->pid == ctx->pid) {
+            p->program_counter = ctx->pc;
+            p->registros = ctx->registros;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+
     manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
 }
 
