@@ -685,36 +685,434 @@ Cuando no hay frames libres:
 
 ## 9. ENTRADA/SALIDA (I/O)
 
-### 9.1 Conceptos
+### 9.1 Fundamentos teoricos
 
-**Tipos de dispositivos:**
-- **Por bloques**: Acceso aleatorio a bloques de datos (disco, SSD)
-- **Por caracteres**: Stream de bytes secuencial (teclado, mouse, puerto serial)
+La Entrada/Salida es uno de los pilares de un SO. Silberschatz (Cap. 13) y Stallings (Cap. 11) la definen como todo mecanismo por el cual un proceso intercambia datos con el mundo exterior: dispositivos fisicos, archivos, red, usuario.
 
-**Tecnicas de I/O:**
+**Problema central**: Los dispositivos de I/O son **ordenes de magnitud mas lentos** que la CPU. Un acceso a disco toma ~10ms, mientras que la CPU ejecuta instrucciones en ~1ns. Si la CPU esperara cada I/O, estaria ociosa el 99.99% del tiempo.
 
-| Tecnica | Mecanismo | CPU |
-|---------|-----------|-----|
-| **Programmed I/O** | CPU hace polling (busy waiting) | CPU ocupada 100% |
-| **Interrupt-driven** | Dispositivo interrumpe a CPU al completar | CPU libre mientras espera |
-| **DMA** | Controlador DMA transfiere datos directo a RAM | CPU solo inicia y recibe interrupcion al final |
+**Solucion del SO**: Cuando un proceso solicita I/O, el SO lo **bloquea** (RUNNING -> BLOCKED) y pone otro proceso a ejecutar. Cuando el dispositivo completa la operacion, el SO **desbloquea** al proceso (BLOCKED -> READY). Esto maximiza la utilizacion de CPU.
 
-**Buffering**: Almacenar datos temporalmente durante transferencia
-**Caching**: Guardar copia de datos frecuentes en memoria rapida
-**Spooling**: Cola de trabajos para dispositivos que no soportan acceso concurrente (impresora)
+```
+Sin multiprogramacion:          Con multiprogramacion:
 
-### 9.2 En el TP
+CPU: [P1 run][  wait  ][P1 run] CPU: [P1 run][P2 run][P1 run][P2 run]
+I/O:        [P1  I/O  ]        I/O:         [P1 I/O]       [P2 I/O]
+             ^CPU ociosa^                    ^CPU siempre ocupada^
+```
 
-4 tipos de interfaz simulando diferentes dispositivos:
+### 9.2 Clasificacion de dispositivos
 
-| Interfaz | Dispositivo simulado | Conecta a Memoria | Instruccion |
-|----------|---------------------|-------------------|-------------|
-| **GENERICA** | Device con latencia | No | `IO_GEN_SLEEP INTERFAZ UNIDADES` |
-| **STDIN** | Teclado | Si (escribe) | `IO_STDIN_READ INTERFAZ DIR TAM` |
-| **STDOUT** | Pantalla | Si (lee) | `IO_STDOUT_WRITE INTERFAZ DIR TAM` |
-| **DIALFS** | Disco/Filesystem | Si (lee/escribe) | `IO_FS_*` |
+**Por tipo de acceso:**
 
-Cada interfaz es una instancia independiente del modulo entradasalida, configurada con su propio `.config`.
+| Tipo | Acceso | Unidad | Ejemplos |
+|------|--------|--------|----------|
+| **Por bloques** | Aleatorio (seek + read) | Bloque de N bytes | Disco, SSD, USB, CD |
+| **Por caracteres** | Secuencial (stream) | Byte a byte | Teclado, mouse, serial, impresora |
+| **Red** | Ambos (sockets) | Paquetes/bytes | NIC (placa de red) |
+
+**Por direccion de datos:**
+
+| Direccion | Operacion | Ejemplo |
+|-----------|-----------|---------|
+| **Entrada (Input)** | Dispositivo -> Memoria | Teclado, microfono, sensor, disco (lectura) |
+| **Salida (Output)** | Memoria -> Dispositivo | Pantalla, parlante, impresora, disco (escritura) |
+| **Bidireccional** | Ambas | Disco, NIC, terminal |
+
+### 9.3 Capas del subsistema de I/O
+
+Stallings describe la arquitectura de I/O en capas (de arriba a abajo):
+
+```
++------------------------------------------+
+|  Proceso de usuario                      |  <- IO_GEN_SLEEP, IO_STDIN_READ, etc.
++------------------------------------------+
+|  Kernel: Subsistema de I/O               |  <- Scheduling, buffering, caching
++------------------------------------------+
+|  Driver del dispositivo                  |  <- Traduce operaciones genericas a especificas
++------------------------------------------+
+|  Controlador del dispositivo (hardware)  |  <- Registros de control, DMA
++------------------------------------------+
+|  Dispositivo fisico                      |  <- Mecanismo real (motor disco, LED pantalla)
++------------------------------------------+
+```
+
+**El TP simula las capas superiores**: el proceso ejecuta instrucciones de I/O, el Kernel actua como subsistema de I/O (scheduling, bloqueo), y el modulo Entrada/Salida simula el driver + dispositivo.
+
+### 9.4 Tecnicas de I/O
+
+| Tecnica | Mecanismo | CPU durante I/O | Uso |
+|---------|-----------|-----------------|-----|
+| **I/O Programada** | CPU hace polling (busy waiting), verifica estado del dispositivo en loop | Ocupada 100% | Microcontroladores simples |
+| **I/O por interrupciones** | CPU inicia operacion y sigue trabajando. Dispositivo interrumpe al completar | Libre | Dispositivos lentos (teclado) |
+| **DMA (Direct Memory Access)** | Controlador DMA transfiere bloque completo a RAM sin CPU. Interrumpe al final | Libre | Dispositivos rapidos (disco, red) |
+
+```
+I/O Programada:
+CPU: [iniciar][poll][poll][poll][poll][leer dato][continuar]
+                ^--- CPU desperdiciada ---^
+
+I/O por Interrupciones:
+CPU: [iniciar][hacer otra cosa...][INT!][leer dato][continuar]
+                                   ^--- interrupcion del dispositivo
+
+DMA:
+CPU: [iniciar DMA][hacer otra cosa...][INT!][continuar]
+DMA:              [transferir datos a RAM]  ^--- todo ya esta en RAM
+```
+
+### 9.5 Conceptos clave del subsistema de I/O
+
+**Buffering (Almacenamiento intermedio)**:
+- Zona de memoria temporal entre productor y consumidor de datos
+- **Single buffer**: SO mantiene un buffer. Mientras se llena el siguiente, se procesa el actual.
+- **Double buffer**: Dos buffers alternados. Mientras uno se llena, el otro se procesa. Mas eficiente.
+- **Circular buffer**: N buffers en anillo. Maximiza concurrencia.
+- Ejemplo: sin buffer, cada byte del teclado causaria una interrupcion. Con buffer, se acumulan bytes y se procesan juntos.
+
+**Caching**:
+- Copia de datos frecuentes en memoria rapida
+- Diferencia con buffer: el buffer tiene la **unica** copia; el cache tiene una copia **adicional**
+- Ejemplo: TLB es un cache de traducciones, disk cache acelera lecturas repetidas
+
+**Spooling**:
+- Cola de trabajos para dispositivos que no permiten acceso concurrente
+- Ejemplo: impresora. Multiples procesos envian trabajos al spool, se imprimen secuencialmente.
+- El spool desacopla la velocidad del proceso de la velocidad del dispositivo
+
+### 9.6 El bloqueo por I/O y su relacion con la planificacion
+
+Este es el concepto clave que une I/O con planificacion (Silberschatz Cap. 5-6):
+
+**Tipos de procesos segun su comportamiento:**
+
+| Tipo | Comportamiento | CPU burst | I/O frequency |
+|------|---------------|-----------|---------------|
+| **CPU-bound** | Calcula mucho, poca I/O | Largos | Baja |
+| **I/O-bound** | Mucha I/O, poco calculo | Cortos | Alta |
+
+**Flujo completo de una operacion de I/O:**
+
+```
+1. Proceso en RUNNING ejecuta instruccion de I/O
+   (ej: IO_STDIN_READ TECLADO 0x100 64)
+
+2. CPU detecta que es instruccion de I/O
+   -> Devuelve contexto al Kernel con motivo "IO"
+   -> Incluye: nombre interfaz, parametros de la operacion
+
+3. Kernel recibe el contexto
+   -> Cambia estado del proceso: RUNNING -> BLOCKED
+   -> Agrega proceso a cola_blocked
+   -> Busca la interfaz por nombre
+   -> Envia el pedido de I/O a la interfaz via socket
+
+4. Planificador de corto plazo toma otro proceso de READY
+   -> Nuevo proceso pasa a RUNNING
+   -> La CPU no se queda ociosa
+
+5. Interfaz de I/O ejecuta la operacion
+   -> GENERICA: usleep(tiempo)
+   -> STDIN: lee del teclado, escribe en memoria del proceso
+   -> STDOUT: lee de memoria del proceso, muestra en pantalla
+   -> DIALFS: opera sobre el filesystem
+
+6. Interfaz termina y notifica al Kernel (FIN_IO)
+
+7. Kernel recibe FIN_IO
+   -> Busca proceso en cola_blocked
+   -> Cambia estado: BLOCKED -> READY
+   -> Agrega a cola_ready
+   -> Senializa sem_hay_ready
+
+8. Planificador eventualmente selecciona el proceso de READY
+   -> Proceso vuelve a RUNNING, continua desde donde quedo
+```
+
+**Impacto en VRR**: Cuando un proceso se bloquea por I/O con VRR, se calcula cuanto quantum consumio (`quantum_restante = quantum - tiempo_ejecutado`). Al volver de I/O, usa ese quantum restante en vez del completo. Esto es mas justo con procesos I/O-bound que frecuentemente ceden la CPU voluntariamente.
+
+### 9.7 Tipos de interfaz en detalle
+
+#### GENERICA - Dispositivo con latencia
+
+**Teoria**: Representa cualquier dispositivo que simplemente introduce un retardo. En un SO real, esto modela dispositivos como un timer, un sleep del proceso, o cualquier dispositivo cuya unica caracteristica relevante es el tiempo que tarda en responder.
+
+**Concepto**: El proceso solicita "dormir" N unidades de tiempo. Durante ese tiempo, el proceso esta BLOCKED y la CPU ejecuta otros procesos. Es la forma mas simple de I/O: no transfiere datos, solo introduce latencia.
+
+**Mecanismo**:
+```
+Instruccion: IO_GEN_SLEEP <nombre_interfaz> <unidades_de_trabajo>
+
+1. CPU ejecuta IO_GEN_SLEEP SLEEP 5
+2. Kernel bloquea el proceso, envia pedido a interfaz "SLEEP"
+3. Interfaz calcula: tiempo = unidades * TIEMPO_UNIDAD_TRABAJO (del config)
+   -> 5 * 500ms = 2500ms
+4. Interfaz ejecuta usleep(2500000)  (2.5 segundos)
+5. Al despertar, interfaz envia FIN_IO al Kernel
+6. Kernel desbloquea el proceso -> READY
+```
+
+**No se conecta a Memoria** porque no transfiere datos.
+
+**Analogia real**: `sleep()` en UNIX, timer hardware, operacion de un dispositivo mecanico (ej: mover cabezal de impresora).
+
+**Config**: Solo necesita IP/puerto del Kernel y TIEMPO_UNIDAD_TRABAJO.
+
+---
+
+#### STDIN - Dispositivo de entrada (Teclado)
+
+**Teoria**: Silberschatz (Cap. 13.3) clasifica al teclado como dispositivo de **caracteres** y de **entrada**. Los datos fluyen desde el mundo exterior hacia la memoria del proceso. En un SO real, el driver del teclado maneja interrupciones por cada tecla presionada, las almacena en un buffer del kernel, y cuando el proceso hace `read()`, los datos se copian del buffer del kernel al espacio de memoria del proceso.
+
+**Concepto**: El proceso necesita leer datos del "usuario" y guardarlos en una direccion de su espacio de memoria. La interfaz STDIN:
+1. Recibe del Kernel: PID, direccion logica de destino, tamanio a leer
+2. Lee los datos (del teclado, de un archivo, etc.)
+3. **Escribe esos datos en la memoria del proceso** contactando al modulo Memoria
+
+**Mecanismo**:
+```
+Instruccion: IO_STDIN_READ <nombre_interfaz> <dir_logica> <tamanio>
+
+1. CPU ejecuta IO_STDIN_READ TECLADO 0x100 64
+   -> Proceso quiere leer 64 bytes desde el teclado
+   -> Guardarlos a partir de la direccion logica 0x100
+
+2. Kernel bloquea proceso, envia a interfaz "TECLADO":
+   (pid, dir_logica=0x100, tamanio=64)
+
+3. Interfaz STDIN:
+   a) Lee datos de la entrada (fgets, read, etc.)
+   b) Conecta con Memoria y escribe:
+      OP_MEM_ESCRIBIR(pid, dir_logica=0x100, buffer=datos_leidos, size=64)
+   c) Memoria traduce dir_logica a dir_fisica y almacena los datos
+
+4. Interfaz envia FIN_IO al Kernel
+5. Kernel desbloquea proceso -> READY
+```
+
+**Se conecta a Memoria** porque necesita escribir datos en el espacio del proceso.
+
+**Flujo de datos**: Mundo exterior -> Interfaz STDIN -> Modulo Memoria -> RAM del proceso
+
+**Analogia real**: `scanf()`, `fgets()`, `read(STDIN_FILENO, ...)` en C. El driver del teclado + buffer del kernel + system call `read()`.
+
+---
+
+#### STDOUT - Dispositivo de salida (Pantalla)
+
+**Teoria**: La pantalla/terminal es un dispositivo de **caracteres** y de **salida**. Los datos fluyen desde la memoria del proceso hacia el mundo exterior. En un SO real, el proceso hace `write()` al file descriptor de stdout, el kernel copia los datos del espacio del proceso al buffer del driver de video, y el driver actualiza el framebuffer o envia los caracteres al terminal.
+
+**Concepto**: El proceso quiere mostrar datos que estan en su memoria. La interfaz STDOUT:
+1. Recibe del Kernel: PID, direccion logica de origen, tamanio a leer
+2. **Lee los datos de la memoria del proceso** contactando al modulo Memoria
+3. Muestra los datos por pantalla (o los imprime en log)
+
+**Mecanismo**:
+```
+Instruccion: IO_STDOUT_WRITE <nombre_interfaz> <dir_logica> <tamanio>
+
+1. CPU ejecuta IO_STDOUT_WRITE PANTALLA 0x200 32
+   -> Proceso quiere mostrar 32 bytes que estan en dir 0x200
+
+2. Kernel bloquea proceso, envia a interfaz "PANTALLA":
+   (pid, dir_logica=0x200, tamanio=32)
+
+3. Interfaz STDOUT:
+   a) Conecta con Memoria y lee:
+      OP_MEM_LEER(pid, dir_logica=0x200, size=32)
+   b) Memoria traduce dir_logica, lee de RAM, devuelve los bytes
+   c) Interfaz muestra los datos: printf("%s", datos_leidos)
+
+4. Interfaz envia FIN_IO al Kernel
+5. Kernel desbloquea proceso -> READY
+```
+
+**Se conecta a Memoria** porque necesita leer datos del espacio del proceso.
+
+**Flujo de datos**: RAM del proceso -> Modulo Memoria -> Interfaz STDOUT -> Pantalla
+
+**Analogia real**: `printf()`, `write(STDOUT_FILENO, ...)` en C. El system call `write()` + driver del terminal.
+
+**Nota**: STDIN escribe EN memoria (input -> memoria), STDOUT lee DE memoria (memoria -> output). Es intuitivo si pensas desde el punto de vista del proceso: el proceso "lee" del teclado y "escribe" a la pantalla.
+
+---
+
+#### DIALFS - Dispositivo de almacenamiento (Filesystem)
+
+**Teoria**: Stallings (Cap. 12) y Silberschatz (Cap. 11-14) cubren filesystems extensamente. Un disco es un dispositivo de **bloques** y **bidireccional**. Es el unico dispositivo de I/O que combina:
+- **Persistencia**: los datos sobreviven al apagado
+- **Acceso aleatorio**: se puede leer/escribir cualquier bloque sin recorrer los anteriores
+- **Gran capacidad**: ordenes de magnitud mas que RAM
+
+El filesystem es la capa de software que organiza los bloques raw del disco en una estructura logica de archivos y directorios.
+
+**Concepto de DIALFS**: Es un filesystem simple basado en **asignacion contigua** de bloques con bitmap. Cada archivo ocupa bloques consecutivos en el disco virtual. Soporta 5 operaciones:
+
+**Operacion CREATE**:
+```
+Instruccion: IO_FS_CREATE <interfaz> <nombre_archivo>
+
+1. CPU ejecuta IO_FS_CREATE DISCO archivo.txt
+2. Kernel bloquea proceso, envia a interfaz "DISCO": (pid, nombre="archivo.txt")
+3. Interfaz DIALFS:
+   a) Crea entrada de metadata: {nombre="archivo.txt", bloque_inicio=0, tamanio=0}
+   b) No asigna bloques todavia (archivo vacio)
+4. FIN_IO -> Kernel desbloquea -> READY
+
+Analogia real: open(path, O_CREAT), creat(), fopen("w")
+Teoria: crear entrada en directorio, asignar inodo (UNIX)
+```
+
+**Operacion DELETE**:
+```
+Instruccion: IO_FS_DELETE <interfaz> <nombre_archivo>
+
+1. CPU ejecuta IO_FS_DELETE DISCO archivo.txt
+2. Kernel bloquea, envia a DIALFS
+3. Interfaz DIALFS:
+   a) Busca metadata del archivo
+   b) Libera bloques en bitmap (marca como libres)
+   c) Elimina entrada de metadata
+4. FIN_IO -> desbloquea
+
+Analogia real: unlink(), remove()
+Teoria: liberar bloques de datos, liberar inodo, eliminar entrada del directorio
+Nota: en UNIX, unlink solo decrementa el link count. El archivo se borra cuando count=0.
+```
+
+**Operacion TRUNCATE**:
+```
+Instruccion: IO_FS_TRUNCATE <interfaz> <nombre_archivo> <nuevo_tamanio>
+
+1. CPU ejecuta IO_FS_TRUNCATE DISCO archivo.txt 1024
+2. Kernel bloquea, envia: (pid, nombre, tamanio=1024)
+3. Interfaz DIALFS:
+   a) Si crece: busca bloques libres contiguos, extiende el archivo
+   b) Si decrece: libera bloques sobrantes en bitmap
+   c) Actualiza metadata con nuevo tamanio
+4. FIN_IO -> desbloquea
+
+Analogia real: ftruncate(), truncate()
+Teoria: modificar tamanio del archivo, reasignar bloques
+```
+
+**Operacion WRITE (escritura a archivo)**:
+```
+Instruccion: IO_FS_WRITE <interfaz> <archivo> <reg_dir> <reg_tam> <ptr_archivo>
+
+Parametros (los valores vienen de registros de CPU):
+- reg_dir: registro que contiene la direccion logica de los datos EN MEMORIA del proceso
+- reg_tam: registro que contiene cuantos bytes escribir
+- ptr_archivo: posicion dentro del archivo donde escribir (file pointer/offset)
+
+1. CPU ejecuta IO_FS_WRITE DISCO archivo.txt SI DI 0
+   -> SI contiene la dir logica en memoria (ej: 0x300)
+   -> DI contiene el tamanio (ej: 128 bytes)
+   -> ptr_archivo = 0 (inicio del archivo)
+
+2. Kernel bloquea, envia: (pid, nombre, dir_mem=0x300, size=128, offset=0)
+
+3. Interfaz DIALFS:
+   a) LEE datos de la memoria del proceso:
+      OP_MEM_LEER(pid, dir_logica=0x300, size=128)
+   b) Memoria traduce, lee de RAM, devuelve 128 bytes
+   c) Calcula bloque del archivo: bloque = bloque_inicio + (offset / BLOCK_SIZE)
+   d) ESCRIBE los datos en el archivo del filesystem (bloques en disco)
+4. FIN_IO -> desbloquea
+
+Flujo de datos: RAM proceso -> Memoria -> DIALFS -> Disco virtual
+
+Analogia real: write(fd, buf, count) con lseek(fd, offset, SEEK_SET)
+Teoria: el SO lee del espacio de usuario (copy_from_user en Linux),
+        el filesystem calcula los bloques fisicos, el driver escribe al disco
+```
+
+**Operacion READ (lectura de archivo)**:
+```
+Instruccion: IO_FS_READ <interfaz> <archivo> <reg_dir> <reg_tam> <ptr_archivo>
+
+Es la operacion inversa de WRITE:
+
+1. CPU ejecuta IO_FS_READ DISCO archivo.txt SI DI 0
+   -> SI contiene dir logica de destino en memoria (ej: 0x400)
+   -> DI contiene cuantos bytes leer (ej: 128)
+   -> ptr_archivo = 0
+
+2. Kernel bloquea, envia: (pid, nombre, dir_mem=0x400, size=128, offset=0)
+
+3. Interfaz DIALFS:
+   a) Calcula bloque: bloque = bloque_inicio + (offset / BLOCK_SIZE)
+   b) LEE datos del archivo del filesystem (bloques en disco)
+   c) ESCRIBE datos en la memoria del proceso:
+      OP_MEM_ESCRIBIR(pid, dir_logica=0x400, buffer=datos_leidos, size=128)
+   d) Memoria traduce, escribe en RAM
+4. FIN_IO -> desbloquea
+
+Flujo de datos: Disco virtual -> DIALFS -> Memoria -> RAM proceso
+
+Analogia real: read(fd, buf, count) con lseek(fd, offset, SEEK_SET)
+Teoria: el filesystem determina bloques fisicos, el driver lee del disco,
+        el SO copia al espacio de usuario (copy_to_user en Linux)
+```
+
+### 9.8 Resumen de flujo de datos por interfaz
+
+```
+GENERICA:  (sin datos)
+           Proceso --[bloqueo]--> Kernel --[pedido]--> Interfaz --[usleep]--> FIN_IO
+
+STDIN:     Mundo exterior --> Interfaz --> Memoria --> RAM del proceso
+           (input)           (lee input)  (escribe)   (datos guardados)
+
+STDOUT:    RAM del proceso --> Memoria --> Interfaz --> Mundo exterior
+           (datos fuente)     (lee)       (muestra)    (output)
+
+DIALFS WRITE: RAM proceso --> Memoria --> Interfaz --> Disco virtual
+              (datos fuente)  (lee)       (escribe)    (archivo)
+
+DIALFS READ:  Disco virtual --> Interfaz --> Memoria --> RAM proceso
+              (archivo)        (lee)        (escribe)   (datos destino)
+```
+
+**Patron comun**: Toda I/O que involucra datos del proceso necesita acceder a la Memoria del proceso. La interfaz nunca accede directamente a la RAM; siempre pasa por el modulo Memoria, que traduce las direcciones logicas del proceso a direcciones fisicas (usando paginacion o segmentacion).
+
+### 9.9 Interfaces como instancias independientes
+
+En un SO real, puede haber multiples dispositivos del mismo tipo (2 discos, 3 terminales). El TP modela esto permitiendo **multiples instancias** del modulo Entrada/Salida, cada una con su nombre y config:
+
+```bash
+# Terminal 1: interfaz generica llamada "SLEEP"
+./entradasalida SLEEP generica.config
+
+# Terminal 2: otra generica con diferente latencia
+./entradasalida TIMER generica_rapida.config
+
+# Terminal 3: stdin llamada "TECLADO"
+./entradasalida TECLADO stdin.config
+
+# Terminal 4: stdout llamada "PANTALLA"
+./entradasalida PANTALLA stdout.config
+
+# Terminal 5: filesystem llamado "DISCO"
+./entradasalida DISCO dialfs.config
+```
+
+El Kernel mantiene un registro de interfaces conectadas. Cuando un proceso ejecuta `IO_GEN_SLEEP SLEEP 5`, el Kernel busca la interfaz llamada "SLEEP" y le envia el pedido. Si la interfaz no existe o no esta conectada, el proceso falla.
+
+### 9.10 Relacion con la teoria de Stallings y Silberschatz
+
+| Concepto teorico | Donde se ve en el TP |
+|-----------------|---------------------|
+| Proceso CPU-bound vs I/O-bound | Un proceso con muchas instrucciones aritmeticas es CPU-bound; uno con muchos IO_GEN_SLEEP es I/O-bound |
+| I/O por interrupciones | Cuando DIALFS termina, envia FIN_IO al Kernel (simula interrupcion) |
+| Buffering | Interfaz almacena datos en buffer local antes de enviar a Memoria |
+| Device driver | El modulo Entrada/Salida actua como driver: recibe operacion generica, la ejecuta segun el tipo de dispositivo |
+| Device controller | Simulado por la logica interna de cada interfaz (GENERICA hace sleep, STDIN lee teclado, etc.) |
+| I/O scheduling | Kernel decide que pedido de I/O enviar a cada interfaz. Las interfaces procesan un pedido a la vez (FIFO) |
+| DMA | DIALFS transfiere datos entre disco y Memoria sin pasar por CPU (CPU solo inicia la operacion) |
+| Blocking I/O | Toda I/O en el TP es bloqueante: el proceso se bloquea hasta que la interfaz completa la operacion |
+| Non-blocking I/O | No implementado, pero en un SO real: select(), poll(), epoll(), async I/O |
+| Spooling | No implementado, pero si hubiera una interfaz "IMPRESORA", multiples procesos podrian encolar trabajos |
 
 ---
 
