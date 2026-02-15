@@ -44,20 +44,42 @@ echo "=== Esperando estabilizacion (3s) ==="
 sleep 3
 
 # =============================
-# 2. Ejecutar tests
+# 2. Ejecutar tests y trackear resultados
 # =============================
 echo ""
 echo "================================================"
 echo "         Ejecutando tests"
 echo "================================================"
 
+TOTAL=0
+PASSED=0
+FAILED=0
+RESULTS=""
+
 run() {
     local name="$1"
     local wait="$2"
     local desc="$3"
+    TOTAL=$((TOTAL + 1))
+
     echo ""
-    echo "--- [$desc] $name ---"
+    echo "--- Test $TOTAL: $desc ---"
+    echo "    Script: $name | Espera: ${wait}s"
+
+    set +e
     "$SCRIPT_DIR/run_test.sh" "$name" "$wait"
+    local rc=$?
+    set -e
+
+    if [[ $rc -eq 0 ]]; then
+        PASSED=$((PASSED + 1))
+        RESULTS="${RESULTS}  PASS  |  ${desc} (${name})\n"
+        echo "    -> PASS"
+    else
+        FAILED=$((FAILED + 1))
+        RESULTS="${RESULTS}  FAIL  |  ${desc} (${name})\n"
+        echo "    -> FAIL (no se detecto EXIT en kernel log)"
+    fi
 }
 
 run "test1.txt"     3  "Basico: SET/SUM/SUB/EXIT"
@@ -67,27 +89,19 @@ run "test_loop.txt" 5  "Loop: JNZ"
 run "largo.txt"     12 "Loop largo: test quantum RR"
 
 # =============================
-# 3. Resultados
+# 3. Resumen de resultados
 # =============================
 echo ""
 echo "================================================"
-echo "         Resultados"
+echo "         Resultados: $PASSED/$TOTAL pasaron"
 echo "================================================"
 echo ""
+echo " Estado | Test"
+echo "--------|--------------------------------------------"
+echo -e "$RESULTS"
 
-# Transiciones de estado en el log del kernel
-echo "--- Transiciones de estado (kernel.log) ---"
-if [[ -f "$LOG_DIR/kernel.log" ]]; then
-    grep -iE "estado|NEW|READY|EXEC|BLOCK|EXIT|quantum|desaloj|planif" \
-        "$LOG_DIR/kernel.log" | tail -80 || echo "(sin coincidencias)"
-else
-    echo "(kernel.log no encontrado)"
-fi
-
-echo ""
-
-# Resumen de errores en todos los logs
-echo "--- Errores por modulo ---"
+# Errores en logs
+echo "--- Errores en logs ---"
 FOUND_ERRORS=0
 for log in "$LOG_DIR"/*.log; do
     [[ -f "$log" ]] || continue
@@ -96,12 +110,11 @@ for log in "$LOG_DIR"/*.log; do
         FOUND_ERRORS=1
         echo ""
         echo "  $(basename "$log"): $count errores"
-        grep -iE "error|fail|segfault" "$log" | tail -10
+        grep -iE "error|fail|segfault" "$log" | tail -5
     fi
 done
-
 if [[ "$FOUND_ERRORS" -eq 0 ]]; then
-    echo "  Sin errores detectados en los logs."
+    echo "  Sin errores en los logs."
 fi
 
 # =============================
@@ -109,11 +122,10 @@ fi
 # =============================
 echo ""
 echo "================================================"
-echo "         Tests completados"
+if [[ "$FAILED" -eq 0 ]]; then
+    echo "  TODOS LOS TESTS PASARON ($PASSED/$TOTAL)"
+else
+    echo "  $FAILED/$TOTAL TESTS FALLARON"
+fi
 echo "================================================"
-echo "Logs disponibles en: $LOG_DIR/"
-echo ""
-echo "Para revisar manualmente:"
-echo "  cat $LOG_DIR/kernel.log   | grep -i estado"
-echo "  cat $LOG_DIR/memoria.log  | grep -i instruc"
-echo "  cat $LOG_DIR/cpu.log      | grep -i exec"
+echo "Logs: $LOG_DIR/"

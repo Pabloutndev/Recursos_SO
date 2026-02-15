@@ -12,17 +12,30 @@ LOG_DIR="$SCRIPT_DIR/logs"
 PID_FILE="$SCRIPT_DIR/.pids"
 
 mkdir -p "$LOG_DIR"
-> "$PID_FILE"
 
-# Matar procesos de corridas anteriores que puedan tener puertos ocupados
-if [[ -f "$PID_FILE" ]]; then
+# =============================
+# Limpieza de corridas anteriores
+# =============================
+
+# Intentar stop limpio si hay PIDs de antes
+if [[ -s "$PID_FILE" ]]; then
     "$SCRIPT_DIR/stop_modules.sh" 2>/dev/null || true
 fi
+
+# Matar por nombre de binario
 for proc in memoria kernel cpu entradasalida consola; do
     pkill -f "bin/$proc" 2>/dev/null || true
 done
 pkill -f "tail -f /dev/null" 2>/dev/null || true
+
+# Liberar puertos especificos (8002=memoria, 8003=kernel, 8005=kernel_io,
+# 8006=cpu_dispatch, 8007=cpu_interrupt, 8010=consola)
+for port in 8002 8003 8005 8006 8007 8010; do
+    fuser -k "$port/tcp" 2>/dev/null || true
+done
+
 sleep 1
+> "$PID_FILE"
 
 # =============================
 # Compilacion
@@ -77,5 +90,5 @@ echo "PID $!"
 
 echo ""
 echo "=== Todos los modulos levantados ==="
-echo "PIDs: $(cat "$PID_FILE" | tr '\n' ' ')"
+echo "PIDs: $(tr '\n' ' ' < "$PID_FILE")"
 echo "Logs: $LOG_DIR/"

@@ -8,9 +8,15 @@
 #
 # El script envia START + RUN <nombre> via la consola remota (modulo consola).
 # START es idempotente: si ya se inicio la planificacion, no pasa nada.
+#
+# Exit codes:
+#   0 = test paso (se detecto EXIT en kernel log)
+#   1 = test fallo o no se pudo verificar
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOG_DIR="$SCRIPT_DIR/logs"
+KERNEL_LOG="$LOG_DIR/kernel.log"
 
 if [[ -z "$1" ]]; then
     echo "Uso: $0 <nombre_script> [segundos_espera]"
@@ -31,13 +37,25 @@ if [[ ! -f "$BASE_DIR/memoria/procesos/$SCRIPT_NAME" ]]; then
     exit 1
 fi
 
-echo "=== Test: $SCRIPT_NAME ==="
+# Marcar linea actual del kernel log para despues buscar solo lineas nuevas
+LINES_BEFORE=0
+if [[ -f "$KERNEL_LOG" ]]; then
+    LINES_BEFORE=$(wc -l < "$KERNEL_LOG")
+fi
 
 # Enviar comandos por pipe a la consola remota.
 # readline() con stdin pipe lee linea por linea hasta EOF, despues la consola sale.
 # START inicia la planificacion (idempotente), RUN envia el proceso al kernel.
-(cd "$BASE_DIR/consola" && printf 'START\nRUN %s\n' "$SCRIPT_NAME" | ./bin/consola) 2>&1
+(cd "$BASE_DIR/consola" && printf 'START\nRUN %s\n' "$SCRIPT_NAME" | ./bin/consola) > /dev/null 2>&1
 
-echo "  Enviado. Esperando ${WAIT_TIME}s para que el proceso termine..."
 sleep "$WAIT_TIME"
-echo "  Listo."
+
+# Verificar resultado: buscar transicion a EXIT en las lineas nuevas del kernel log
+if [[ -f "$KERNEL_LOG" ]]; then
+    NUEVAS=$(tail -n +"$((LINES_BEFORE + 1))" "$KERNEL_LOG")
+    if echo "$NUEVAS" | grep -qiE "EXIT|fin.proceso|finaliz"; then
+        exit 0
+    fi
+fi
+
+exit 1
