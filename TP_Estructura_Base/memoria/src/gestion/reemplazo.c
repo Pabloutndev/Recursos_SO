@@ -87,6 +87,6 @@ int elegir_victima_clock(uint32_t* pid_victima, int* pagina_victima)
     }
 
     free(owners);
-    log_error(MEMORIA_CTX.logger, "CLOCK: no se encontro pagina victima");
+    log_error(MEMORIA_CTX.logger, "Memoria: clock no encontro victima");
     return -1;
 }

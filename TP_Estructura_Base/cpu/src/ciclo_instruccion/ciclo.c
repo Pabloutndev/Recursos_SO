@@ -13,11 +13,11 @@
 void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {    
 
     if (!ctx) {
-        log_error(CPU_CTX.logger_error, "Contexto NULL en ciclo de instruccion cpu");
+        log_error(CPU_CTX.logger_error, "Contexto NULL en ciclo de instruccion");
         return;
     }
 
-    log_info(CPU_CTX.logger, "CPU ejecutando PID %u", ctx->pid);
+    log_info(CPU_CTX.logger, "PID: %u - Inicio ciclo de instruccion", ctx->pid);
     
     // MMU: Una vez por cambio de estado
     mmu_set_contexto(ctx);
@@ -25,13 +25,13 @@ void ciclo_instruccion_ejecutar(t_contexto_cpu* ctx) {
     while (true) {
 
         if (interrupcion_pendiente()) {
-            log_info(CPU_CTX.logger, "CPU PID %u: Interrupción detectada", ctx->pid);
+            log_info(CPU_CTX.logger, "PID: %u - Interrupcion detectada", ctx->pid);
             break;
         }
 
         char* linea = fetch_instruccion(ctx);
         if (!linea) {
-            log_info(CPU_CTX.logger, "CPU PID %u: Fin de archivo/instrucciones", ctx->pid);
+            log_info(CPU_CTX.logger, "PID: %u - Fin de instrucciones", ctx->pid);
             break;
         }
 
@@ -61,7 +61,7 @@ instruccion_t decode_instruccion(t_contexto_cpu* ctx, const char* linea)
     char* linea_copia = strdup(linea);
 
     if (!linea_copia) {
-        log_error(CPU_CTX.logger, "Error duplicando instrucción");
+        log_error(CPU_CTX.logger, "Error duplicando instruccion");
         return (instruccion_t){ .opcode = INST_EXIT };
     }
 

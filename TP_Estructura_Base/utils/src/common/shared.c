@@ -65,10 +65,9 @@ char** leer_instrucciones(const char* path, uint32_t* cantidad) {
     size_t cap = 0;
     *cantidad = 0;
 
-    char* line = NULL;
-    size_t len = 0;
+    char line[1024];
 
-    while (getline(&line, &len, f) != -1) {
+    while (fgets(line, sizeof(line), f) != NULL) {
         char* trimmed = trim(line);
 
         if (strlen(trimmed) == 0) {
@@ -94,7 +93,6 @@ char** leer_instrucciones(const char* path, uint32_t* cantidad) {
         (*cantidad)++;
     }
 
-    free(line);
     fclose(f);
 
     return instrucciones;

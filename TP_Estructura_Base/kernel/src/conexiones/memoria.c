@@ -19,10 +19,10 @@ static pthread_mutex_t mutex_socket_memoria = PTHREAD_MUTEX_INITIALIZER;
 void conectar_memoria(char* ip, char* puerto) {
     socket_memoria = crear_conexion(ip, puerto);
     if (socket_memoria < 0) {
-        log_error(loggerError, "Fallo conexion Memoria");
+        log_error(loggerError, "Memoria: error de conexion");
         exit(EXIT_FAILURE);
     }
-    log_info(logger, "Conectado a Memoria: %s:%s", ip, puerto);
+    log_info(logger, "Memoria: conectada %s:%s", ip, puerto);
 
     // Handshake
     handshake_cliente(socket_memoria, OP_HANDSHAKE, OP_OK, logger);
@@ -31,12 +31,12 @@ void conectar_memoria(char* ip, char* puerto) {
 bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
 {
     if (socket_memoria < 0) {
-        log_error(loggerError, "Socket Memoria no válido");
+        log_error(loggerError, "Memoria: socket no valido");
         return false;
     }
 
     if (!path) {
-        log_error(loggerError, "Path de proceso inválido");
+        log_error(loggerError, "Memoria: path de proceso invalido");
         return false;
     }
 
@@ -48,7 +48,7 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
     // Enviar a Memoria (protegido por mutex)
     pthread_mutex_lock(&mutex_socket_memoria);
 
-    log_info(logger, "Solicitando creación proceso en Memoria: PID=%u, PATH=%s", pid, path);
+    log_info(logger, "PID: %u - Memoria: solicitud creacion path=%s", pid, path);
     enviar_init_proceso(socket_memoria, &req, OP_MEM_INIT_PROCESO);
 
     // Esperar respuesta (bloqueante)
@@ -57,16 +57,16 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
     pthread_mutex_unlock(&mutex_socket_memoria);
 
     if (!resp) {
-        log_error(loggerError, "Error recibiendo respuesta de Memoria");
+        log_error(loggerError, "Memoria: error recibiendo respuesta");
         return false;
     }
 
     // Validar respuesta
     bool exito = (resp->codigo_operacion == OP_OK);
     if (exito) {
-        log_info(logger, "Memoria confirmó creación de PID=%u", pid);
+        log_info(logger, "PID: %u - Memoria: creacion confirmada", pid);
     } else {
-        log_error(loggerError, "Memoria rechazó creación de PID=%u", pid);
+        log_error(loggerError, "PID: %u - Memoria: creacion rechazada", pid);
     }
 
     paquete_destroy(resp);
@@ -76,7 +76,7 @@ bool solicitar_creacion_proceso_memoria(uint32_t pid, const char* path)
 void solicitar_fin_proceso_memoria(uint32_t pid)
 {
     if (socket_memoria < 0) {
-        log_warning(logger, "Socket Memoria no válido, no se puede notificar fin");
+        log_warning(logger, "Memoria: socket no valido, no se puede notificar fin");
         return;
     }
 
@@ -87,7 +87,7 @@ void solicitar_fin_proceso_memoria(uint32_t pid)
     // Enviar a Memoria y leer respuesta (protegido por mutex)
     pthread_mutex_lock(&mutex_socket_memoria);
 
-    log_info(logger, "Notificando fin de proceso a Memoria: PID=%u", pid);
+    log_info(logger, "PID: %u - Memoria: solicitud fin proceso", pid);
     enviar_fin_proceso(socket_memoria, &req, OP_MEM_FIN_PROCESO);
 
     // Leer respuesta para mantener protocolo sincronizado.

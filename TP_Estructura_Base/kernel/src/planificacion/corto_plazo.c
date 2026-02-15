@@ -42,7 +42,7 @@ void* planificador_corto_plazo(void* _) {
         // ✅ SELECCIONAR según algoritmo (FIFO/RR/HRRN)
         t_pcb* pcb = proximoAEjecutar();
         if (!pcb) {
-            log_warning(logger, "Planificador: Proceso NULL retornado por proximoAEjecutar");
+            log_warning(logger, "Planificador: proceso NULL retornado");
             continue;
         }
 
@@ -84,17 +84,17 @@ void* planificador_corto_plazo(void* _) {
                 pthread_create(&hilo_quantum, NULL, timer_quantum, q_args);
                 pthread_detach(hilo_quantum);
 
-                log_info(logger, "Planificador: Timer quantum iniciado para PID=%u (%d ms, %s)",
+                log_info(logger, "PID: %u - Timer quantum %d ms (%s)",
                          pcb->pid, quantum_a_usar, es_vrr ? "VRR" : "RR");
             } else {
-                log_info(logger, "Planificador: Algoritmo sin quantum (FIFO/HRRN) - PID=%u ejecuta sin desalojo temporal", pcb->pid);
+                log_info(logger, "PID: %u - Ejecuta sin desalojo temporal (FIFO/HRRN)", pcb->pid);
             }
 
             // ✅ ESPERAR RESPUESTA DE CPU (Bloqueante)
             atender_dispatch_cpu();
             
         } else if (sock < 0) {
-            log_error(logger, "Planificador: Fallo envío a CPU para PID=%u", pcb->pid);
+            log_error(logger, "PID: %u - Fallo envio a CPU", pcb->pid);
             
             // ✅ RECUPERACIÓN: Reencolar en READY
             pthread_mutex_lock(&mutex_exec);
@@ -125,7 +125,7 @@ void* timer_quantum(void* arg) {
     bool usa_quantum = (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "RR") == 0) ||
                        (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "VRR") == 0);
     if (!usa_quantum) {
-        log_info(logger, "Timer quantum PID=%u: algoritmo ya no usa quantum, ignorando", pid);
+        log_info(logger, "PID: %u - Timer quantum ignorado (algoritmo sin quantum)", pid);
         return NULL;
     }
 

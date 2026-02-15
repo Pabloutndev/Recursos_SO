@@ -7,6 +7,7 @@
 #include <paquete/paquete.h>
 #include <protocolo/op_code.h>
 #include <adaptadores/contexto_cpu_adapter.h>
+#include <adaptadores/cpu_dispatch_handler.h>
 #include <cpu.h>
 #include <conexion/conexion.h>
 
@@ -26,14 +27,14 @@ static void* thread_server_runner(void* arg) {
     int server_fd = iniciar_servidor(args->puerto);
     
     if (server_fd < 0) {
-        log_error(loggerError, "Fallo iniciar server %s en puerto %s", args->nombre, args->puerto);
+        log_error(loggerError, "Fallo al iniciar servidor %s puerto %s", args->nombre, args->puerto);
         free(args->nombre);
         free(args->puerto);
         free(args);
         return NULL;
     }
 
-    log_info(logger, "Servidor %s escuchando en puerto %s", args->nombre, args->puerto);
+    log_info(logger, "Servidor %s activo puerto %s", args->nombre, args->puerto);
     server_escuchar(logger, args->nombre, server_fd, args->handler);
     
     close(server_fd);
@@ -45,7 +46,7 @@ static void* handler_dispatch(void* arg) {
     free(arg);
 
     socket_dispatch = fd;
-    log_info(logger, "Kernel conectado a CPU DISPATCH (fd=%d)", fd);
+    log_info(logger, "Kernel conectado a DISPATCH fd=%d", fd);
 
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
@@ -53,7 +54,7 @@ static void* handler_dispatch(void* arg) {
 
         switch (paquete->codigo_operacion) {
             case OP_HANDSHAKE:
-                log_info(logger, "Handshake recibido en DISPATCH");
+                log_info(logger, "Handshake DISPATCH OK");
                 handshake_servidor(fd, OP_OK, logger);
                 break;
             case OP_PROCESO_EXEC:
@@ -61,14 +62,14 @@ static void* handler_dispatch(void* arg) {
                 cpu_handler_atender_ejecucion(fd, paquete);
                 break;
             default:
-                log_warning(logger, "CPU Dispatch: OP_CODE desconocido: %d", paquete->codigo_operacion);
+                log_warning(logger, "DISPATCH opcode desconocido: %d", paquete->codigo_operacion);
                 break;
         }
 
         paquete_destroy(paquete);
     }
 
-    log_warning(logger, "Conexion DISPATCH cerrada (fd=%d)", fd);
+    log_warning(logger, "Conexion DISPATCH cerrada fd=%d", fd);
     close(fd);
     return NULL;
 }
@@ -78,7 +79,7 @@ static void* handler_interrupt(void* arg) {
     free(arg);
 
     socket_interrupt = fd;
-    log_info(logger, "Kernel conectado a CPU INTERRUPT (fd=%d)", fd);
+    log_info(logger, "Kernel conectado a INTERRUPT fd=%d", fd);
 
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
@@ -86,21 +87,21 @@ static void* handler_interrupt(void* arg) {
 
         switch (paquete->codigo_operacion) {
             case OP_HANDSHAKE:
-                log_info(logger, "Handshake recibido en INTERRUPT");
+                log_info(logger, "Handshake INTERRUPT OK");
                 handshake_servidor(fd, OP_OK, logger);
                 break;
             case OP_INTERRUPCION_CPU:
                 cpu_handler_atender_interrupcion(fd, paquete);
                 break;
             default:
-                log_warning(logger, "CPU Interrupt: OP_CODE desconocido: %d", paquete->codigo_operacion);
+                log_warning(logger, "INTERRUPT opcode desconocido: %d", paquete->codigo_operacion);
                 break;
         }
 
         paquete_destroy(paquete);
     }
 
-    log_warning(logger, "Conexion INTERRUPT cerrada (fd=%d)", fd);
+    log_warning(logger, "Conexion INTERRUPT cerrada fd=%d", fd);
     close(fd);
     return NULL;
 }

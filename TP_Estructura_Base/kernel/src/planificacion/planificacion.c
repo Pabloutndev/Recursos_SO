@@ -147,7 +147,7 @@ void set_algoritmo(algoritmo_t a)
     // Actualizar string de config para que timer_quantum y otros lo vean
     free(KERNEL_CTX.config.algoritmo_planificacion);
     KERNEL_CTX.config.algoritmo_planificacion = strdup(nombre);
-    log_info(KERNEL_CTX.logger, "Algoritmo seteado: %s", KERNEL_CTX.config.algoritmo_planificacion);
+    log_info(KERNEL_CTX.logger, "Planificacion: algoritmo %s", KERNEL_CTX.config.algoritmo_planificacion);
 }
 
 void listar_procesos_por_estado(void)
@@ -176,7 +176,7 @@ void planificacion_check_pause(void)
 {
     pthread_mutex_lock(&mutex_estado_planif);
     while (estado_planificacion == PLANIF_PAUSED) {
-        log_info(KERNEL_CTX.logger, "Planificacion pausada - esperando START...");
+        log_info(KERNEL_CTX.logger, "Planificacion: pausada, esperando START");
         pthread_cond_wait(&cond_planif_resume, &mutex_estado_planif);
     }
     pthread_mutex_unlock(&mutex_estado_planif);
@@ -194,7 +194,7 @@ void planificacion_start(void)
     } else if (estado_planificacion == PLANIF_PAUSED) {
         estado_planificacion = PLANIF_RUNNING;
         pthread_cond_broadcast(&cond_planif_resume);
-        log_info(KERNEL_CTX.logger, "Planificacion reanudada");
+        log_info(KERNEL_CTX.logger, "Planificacion: reanudada");
     }
     pthread_mutex_unlock(&mutex_estado_planif);
 }
@@ -268,7 +268,7 @@ void planificacion_finalizar_proceso(uint32_t pid)
             sem_post(&sem_mp);
         }
     } else {
-        log_error(KERNEL_CTX.logger, "Finalizar Proceso: PID %d no encontrado en ninguna cola", pid);
+        log_error(KERNEL_CTX.logger, "PID: %d - Finalizar error: no encontrado en ninguna cola", pid);
     }
     
     pcb_search_pid = 0;
@@ -283,12 +283,6 @@ void planificacion_dump_estado(t_pcb* pcb)
 {
     if (!pcb) return;
     
-    log_info(KERNEL_CTX.logger, "=== DUMP PROCESO PID: %u ===", pcb->pid);
-    log_info(KERNEL_CTX.logger, "Estado: %d", pcb->estado);
-    log_info(KERNEL_CTX.logger, "PC: %u", pcb->program_counter);
-    log_info(KERNEL_CTX.logger, "Quantum: %d", pcb->quantum);
-    log_info(KERNEL_CTX.logger, "Prioridad: %d", pcb->prioridad);
-    log_info(KERNEL_CTX.logger, "Estimación ráfaga: %.2f", pcb->estimacion_rafaga);
-    log_info(KERNEL_CTX.logger, "Tamaño proceso: %u", pcb->tam_proceso);
-    log_info(KERNEL_CTX.logger, "===========================");
+    log_info(KERNEL_CTX.logger, "PID: %u - Dump: estado=%d PC=%u quantum=%d prioridad=%d est_rafaga=%.2f tam=%u",
+             pcb->pid, pcb->estado, pcb->program_counter, pcb->quantum, pcb->prioridad, pcb->estimacion_rafaga, pcb->tam_proceso);
 }

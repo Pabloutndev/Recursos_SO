@@ -1,4 +1,5 @@
 #include <conexiones/cpu.h>
+#include <conexiones/cpu_handlers.h>
 #include <mod_kernel.h>
 #include <conexion/conexion.h>
 #include <paquete/paquete.h>
@@ -31,10 +32,6 @@ extern pthread_mutex_t mutex_exec;
 static pthread_t hilo_interrupt;
 
 static void* escuchar_interrupt(void* arg);
-static void manejar_segfault_static(t_contexto_cpu* ctx);
-static void manejar_bloqueo_io_static(t_contexto_cpu* ctx);
-static void manejar_io_stdin_read(t_contexto_cpu* ctx);
-static void manejar_io_stdout_write(t_contexto_cpu* ctx);
 
 void enviar_contexto_a_cpu(t_contexto_cpu* ctx) {
     // Usamos el helper de protocolo que refactorizamos
@@ -48,7 +45,7 @@ void enviar_interrupcion_a_cpu(int pid, int motivo) {
 
 t_contexto_cpu* recibir_contexto_de_cpu(void) {
     // Funcion no utilizada en modelo asincrono con hilo dedicado
-    return NULL; 
+    return NULL;
 }
 
 void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
@@ -56,7 +53,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
     // 1. Dispatch
     socket_dispatch = crear_conexion(ip, puerto_dispatch);
     if(socket_dispatch < 0) {
-        log_error(loggerError, "Error conectando a CPU dispatch");
+        log_error(loggerError, "CPU dispatch: error de conexion");
         exit(EXIT_FAILURE);
     }
     // Handshake
@@ -65,7 +62,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
     // 2. Interrupt
     socket_interrupt = crear_conexion(ip, puerto_interrupt);
     if(socket_interrupt < 0) {
-        log_error(loggerError, "Error conectando a CPU interrupt");
+        log_error(loggerError, "CPU interrupt: error de conexion");
         exit(EXIT_FAILURE);
     }
     // Handshake
@@ -74,7 +71,7 @@ void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
     // 3. Threads
     pthread_create(&hilo_interrupt, NULL, escuchar_interrupt, NULL);
 
-    log_info(logger, "CPU conectada (dispatch + interrupt)");
+    log_info(logger, "CPU: conectada (dispatch + interrupt)");
 }
 
 // La función escuchar_dispatch ahora es llamada sincrónicamente por el planificador de corto plazo
@@ -82,7 +79,7 @@ void atender_dispatch_cpu(void)
 {
     t_paquete* paquete = recibir_paquete(socket_dispatch);
     if (paquete == NULL) {
-        log_error(loggerError, "CPU Dispatch desconectado");
+        log_error(loggerError, "CPU dispatch: desconectado");
         return;
     }
 
@@ -130,7 +127,7 @@ void atender_dispatch_cpu(void)
             if (pcb && interfaz) {
                 kernel_sleep(pcb, tiempo, interfaz);
             } else {
-                log_error(loggerError, "IO_SLEEP: PCB o interfaz NULL (PID=%u)", ctx->pid);
+                log_error(loggerError, "PID: %u - IO_SLEEP error: PCB o interfaz NULL", ctx->pid);
             }
 
             // 3. Bloquear proceso
@@ -144,7 +141,7 @@ void atender_dispatch_cpu(void)
     case OP_IO_STDIN_READ: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
         if (ctx) {
-            manejar_io_stdin_read(ctx);
+            cpu_handler_io_stdin_read(ctx);
             free(ctx);
         }
         break;
@@ -153,7 +150,7 @@ void atender_dispatch_cpu(void)
     case OP_IO_STDOUT_WRITE: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
         if (ctx) {
-            manejar_io_stdout_write(ctx);
+            cpu_handler_io_stdout_write(ctx);
             free(ctx);
         }
         break;
@@ -184,14 +181,14 @@ void atender_dispatch_cpu(void)
     case OP_SEGFAULT: {
         t_contexto_cpu* ctx = deserializar_contexto_cpu(paquete);
         if (ctx) {
-            manejar_segfault_static(ctx);
+            cpu_handler_segfault(ctx);
             free(ctx);
         }
         break;
     }
 
     default:
-        log_warning(logger, "OpCode desconocido CPU->Kernel: %d", paquete->codigo_operacion);
+        log_warning(logger, "CPU dispatch: opcode desconocido %d", paquete->codigo_operacion);
         break;
     }
 
@@ -203,153 +200,15 @@ static void* escuchar_interrupt(void* _)
     while (1) {
         t_paquete* paquete = recibir_paquete(socket_interrupt);
         if (paquete == NULL) {
-            log_error(loggerError, "CPU Interrupt desconectado");
+            log_error(loggerError, "CPU interrupt: desconectado");
             break;
         }
 
         // Kernel NO deberia recibir nada por interrupt channel, salvo quizas ACKs?
-        log_warning(logger, "Kernel recibió algo por interrupt (ignorado): %d", paquete->codigo_operacion);
-        
+        log_warning(logger, "CPU interrupt: mensaje ignorado opcode=%d", paquete->codigo_operacion);
+
         paquete_destroy(paquete);
     }
 
     return NULL;
-}
-
-/* ========================================
- * MANEJADORES DE EVENTOS DE CPU
- * ======================================== */
-
-static void manejar_bloqueo_io_static(t_contexto_cpu* ctx)
-{
-    manejar_bloqueo_io(ctx);
-}
-
-
-static void manejar_segfault_static(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-    
-    log_error(loggerError, "CPU: Segmentation Fault para PID=%d, PC=%u", ctx->pid, ctx->pc);
-    
-    // Actualizar PC en PCB
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
-        if (pcb && pcb->pid == (uint32_t)ctx->pid) {
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-    
-    // Finalizar por segfault
-    manejar_interrupcion(ctx->pid, "EXIT");
-
-    // Liberar recursos
-    solicitar_fin_proceso_memoria(ctx->pid);
-}
-
-/* ========================================
- * MANEJADORES IO STDIN / STDOUT
- * ======================================== */
-
-static void manejar_io_stdin_read(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-
-    log_info(logger, "CPU: IO_STDIN_READ para PID=%u, PC=%u", ctx->pid, ctx->pc);
-
-    // 1. Buscar PCB en EXEC y actualizar contexto
-    t_pcb* pcb = NULL;
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* p = (t_pcb*) list_get(cola_exec, i);
-        if (p && p->pid == (uint32_t)ctx->pid) {
-            pcb = p;
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-
-    if (!pcb) {
-        log_error(loggerError, "IO_STDIN_READ: PCB no encontrado para PID=%u", ctx->pid);
-        return;
-    }
-
-    // 2. Construir request de IO STDIN con datos de registros
-    //    Convención TP: dirección lógica en EAX, tamaño en EBX,
-    //    nombre de interfaz se pasa como string desde la instrucción.
-    //    Como el contexto no trae el nombre, usamos un genérico "STDIN".
-    t_io_stdin_read req;
-    req.pid = ctx->pid;
-    req.direccion_logica = ctx->registros.EAX;
-    req.size = ctx->registros.EBX;
-    strncpy(req.interfaz, "STDIN", sizeof(req.interfaz) - 1);
-    req.interfaz[sizeof(req.interfaz) - 1] = '\0';
-
-    // 3. Buscar interfaz y enviar operación
-    int socket_io = obtener_socket_interfaz(req.interfaz);
-    if (socket_io >= 0) {
-        enviar_io_stdin_read(socket_io, &req);
-        log_info(logger, "IO_STDIN_READ: Enviado a interfaz %s (PID=%u, DIR=%u, SIZE=%u)",
-                 req.interfaz, req.pid, req.direccion_logica, req.size);
-    } else {
-        log_error(loggerError, "IO_STDIN_READ: Interfaz '%s' no encontrada para PID=%u",
-                  req.interfaz, req.pid);
-    }
-
-    // 4. Bloquear proceso (EXEC -> BLOCKED)
-    manejar_interrupcion(ctx->pid, "IO");
-}
-
-static void manejar_io_stdout_write(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-
-    log_info(logger, "CPU: IO_STDOUT_WRITE para PID=%u, PC=%u", ctx->pid, ctx->pc);
-
-    // 1. Buscar PCB en EXEC y actualizar contexto
-    t_pcb* pcb = NULL;
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* p = (t_pcb*) list_get(cola_exec, i);
-        if (p && p->pid == (uint32_t)ctx->pid) {
-            pcb = p;
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-
-    if (!pcb) {
-        log_error(loggerError, "IO_STDOUT_WRITE: PCB no encontrado para PID=%u", ctx->pid);
-        return;
-    }
-
-    // 2. Construir request de IO STDOUT con datos de registros
-    t_io_stdout_write req;
-    req.pid = ctx->pid;
-    req.direccion_logica = ctx->registros.EAX;
-    req.size = ctx->registros.EBX;
-    strncpy(req.interfaz, "STDOUT", sizeof(req.interfaz) - 1);
-    req.interfaz[sizeof(req.interfaz) - 1] = '\0';
-
-    // 3. Buscar interfaz y enviar operación
-    int socket_io = obtener_socket_interfaz(req.interfaz);
-    if (socket_io >= 0) {
-        enviar_io_stdout_write(socket_io, &req);
-        log_info(logger, "IO_STDOUT_WRITE: Enviado a interfaz %s (PID=%u, DIR=%u, SIZE=%u)",
-                 req.interfaz, req.pid, req.direccion_logica, req.size);
-    } else {
-        log_error(loggerError, "IO_STDOUT_WRITE: Interfaz '%s' no encontrada para PID=%u",
-                  req.interfaz, req.pid);
-    }
-
-    // 4. Bloquear proceso (EXEC -> BLOCKED)
-    manejar_interrupcion(ctx->pid, "IO");
 }

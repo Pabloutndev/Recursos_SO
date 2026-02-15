@@ -77,7 +77,7 @@ void io_init(const char* config_path, char* name) {
     }
 
     conectar_modulos();
-    log_info(IO_CTX.logger, "IO %s Iniciado - Tipo: %d", name, IO_CTX.config->tipo_interfaz);
+    log_info(IO_CTX.logger, "IO: %s iniciado tipo=%d", name, IO_CTX.config->tipo_interfaz);
     
     io_receiver_loop();
     

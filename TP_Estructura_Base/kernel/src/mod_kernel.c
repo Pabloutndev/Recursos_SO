@@ -33,7 +33,7 @@ void conexiones_init()
 }
 
 void terminar(int sig) {
-    log_info(KERNEL_CTX.logger, "Recibida señal %d. Terminando kernel...", sig);
+    log_info(KERNEL_CTX.logger, "Kernel: senal %d recibida, terminando", sig);
     kernel_shutdown();
     exit(EXIT_SUCCESS);
 }
@@ -75,7 +75,7 @@ int kernel_init(const char* config_path)
 
     // Lanzar server para Consola remota
     kernel_server_consola_listen(KERNEL_CTX.config.puerto_consola);
-    log_info(KERNEL_CTX.logger, "Kernel listo. Esperando conexiones de consola en puerto %s...", KERNEL_CTX.config.puerto_consola);
+    log_info(KERNEL_CTX.logger, "Kernel: listo, consola en puerto %s", KERNEL_CTX.config.puerto_consola);
 
     // Consola local como fallback (bloquea el hilo main)
     iniciar_consola();
@@ -84,7 +84,7 @@ int kernel_init(const char* config_path)
 }
 
 void kernel_shutdown(void) {
-    log_info(KERNEL_CTX.logger, "Apagando kernel...");
+    log_info(KERNEL_CTX.logger, "Kernel: apagando");
 
     // 1. Destruir planificacion (join hilos, destruir colas/mutex/sems)
     planificacion_destroy();
@@ -106,7 +106,7 @@ void kernel_shutdown(void) {
         KERNEL_CTX.socket_memoria = -1;
     }
 
-    log_info(KERNEL_CTX.logger, "Kernel apagado correctamente.");
+    log_info(KERNEL_CTX.logger, "Kernel: apagado correctamente");
 
     // 4. Destruir loggers (al final, despues de loguear)
     if (KERNEL_CTX.logger) {

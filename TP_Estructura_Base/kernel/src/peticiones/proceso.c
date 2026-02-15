@@ -37,30 +37,30 @@ extern t_list* cola_new;
 void ejecutar_proceso(char* nombre_archivo)
 {
     if (!nombre_archivo || strlen(nombre_archivo) == 0) {
-        log_error(KERNEL_CTX.logger_error, "Kernel: Nombre de archivo de proceso inválido");
+        log_error(KERNEL_CTX.logger_error, "Proceso: nombre de archivo invalido");
         return;
     }
 
     // ✅ PASO 0: Normalizar nombre (agregar .txt si falta)
     char* nombre_proceso = construir_nombre_proceso(nombre_archivo);
     if (!nombre_proceso) {
-        log_error(KERNEL_CTX.logger_error, "Kernel: No se pudo construir nombre para proceso");
+        log_error(KERNEL_CTX.logger_error, "Proceso: no se pudo construir nombre");
         return;
     }
 
     // ✅ PASO 0.5: Validar que existe en la perspectiva de KERNEL
     if (!validar_existe_proceso_kernel(nombre_proceso)) {
-        log_error(KERNEL_CTX.logger_error, "Kernel: Archivo de proceso no encontrado: %s", nombre_proceso);
+        log_error(KERNEL_CTX.logger_error, "Proceso: archivo no encontrado %s", nombre_proceso);
         free(nombre_proceso);
         return;
     }
 
-    log_info(KERNEL_CTX.logger, "Kernel: Creación de Proceso solicitada - Nombre: %s", nombre_proceso);
+    log_info(KERNEL_CTX.logger, "Proceso: creacion solicitada %s", nombre_proceso);
     
     // ✅ PASO 1: Crear PCB (genera PID, estado NEW)
     t_pcb* pcb = pcb_crear();
     if (!pcb) {
-        log_error(KERNEL_CTX.logger_error, "Kernel: No se pudo crear PCB");
+        log_error(KERNEL_CTX.logger_error, "Proceso: error al crear PCB");
         free(nombre_proceso);
         return;
     }
@@ -68,7 +68,7 @@ void ejecutar_proceso(char* nombre_archivo)
     // ✅ PASO 2: Asignar nombre del proceso (Memoria lo usará para construir su propia ruta)
     pcb->path = nombre_proceso;  // Es el NOMBRE, no la ruta completa
     
-    log_info(KERNEL_CTX.logger, "Kernel: PCB creado - PID=%u, Proceso=%s", pcb->pid, pcb->path);
+    log_info(KERNEL_CTX.logger, "PID: %u - PCB creado, proceso=%s", pcb->pid, pcb->path);
     
     // ✅ PASO 3: Encolar en NEW (bajo lock)
     pthread_mutex_lock(&mutex_new);
@@ -78,7 +78,7 @@ void ejecutar_proceso(char* nombre_archivo)
     // ✅ PASO 4: Señalizar planificador largo plazo
     sem_post(&sem_hay_new);
     
-    log_info(KERNEL_CTX.logger, "Kernel: Proceso PID=%u encolado en NEW para inicialización", pcb->pid);
+    log_info(KERNEL_CTX.logger, "PID: %u - Encolado en NEW", pcb->pid);
 }
 
 /* ===============================
@@ -86,7 +86,7 @@ void ejecutar_proceso(char* nombre_archivo)
  * =============================== */
 void matar_proceso(int pid)
 {
-    log_info(KERNEL_CTX.logger, "Solicitud de finalización del proceso %d", pid);
+    log_info(KERNEL_CTX.logger, "PID: %d - Solicitud de finalizacion", pid);
     planificacion_finalizar_proceso(pid);
 }
 

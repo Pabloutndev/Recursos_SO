@@ -31,11 +31,11 @@ int memoria_init(const char* path_config) {
     logger = MEMORIA_CTX.logger;
     loggerError = MEMORIA_CTX.logger_error;
 
-    log_info(MEMORIA_CTX.logger, "Iniciando modulo Memoria...");
+    log_info(MEMORIA_CTX.logger, "Memoria: iniciando modulo");
 
     MEMORIA_CTX.config = memoria_cargar_config(path_config);
     if (!MEMORIA_CTX.config) {
-        log_error(MEMORIA_CTX.logger, "Error al cargar configuración");
+        log_error(MEMORIA_CTX.logger, "Memoria: error cargando config");
         return EXIT_FAILURE;
     }
 
@@ -43,25 +43,25 @@ int memoria_init(const char* path_config) {
 
     // 1. Iniciar RAM (User Space)
     if (memoria_ram_init() != 0) {
-        log_error(MEMORIA_CTX.logger, "Error al iniciar RAM");
+        log_error(MEMORIA_CTX.logger, "Memoria: error iniciando RAM");
         return EXIT_FAILURE;
     }
 
     // 2. Iniciar Estructuras Administrativas
     if (memoria_core_init() != 0) {
-        log_error(MEMORIA_CTX.logger, "Error al iniciar estructuras core");
+        log_error(MEMORIA_CTX.logger, "Memoria: error iniciando core");
         return EXIT_FAILURE;
     }
 
     // 3. Iniciar Frames (Bitmaps)
     if (frames_init() != 0) {
-        log_error(MEMORIA_CTX.logger, "Error al iniciar frames");
+        log_error(MEMORIA_CTX.logger, "Memoria: error iniciando frames");
         return EXIT_FAILURE;
     }
 
     // 4. Iniciar Swap (Files)
     if (swap_init() != 0) {
-        log_error(MEMORIA_CTX.logger, "Error al iniciar swap");
+        log_error(MEMORIA_CTX.logger, "Memoria: error iniciando swap");
         return EXIT_FAILURE;
     }
 
@@ -72,7 +72,7 @@ int memoria_init(const char* path_config) {
 
     // 6. Iniciar Server
     if (server_init(MEMORIA_CTX.config->puerto_escucha) != 0) {
-        log_error(MEMORIA_CTX.logger, "Error al iniciar servidor");
+        log_error(MEMORIA_CTX.logger, "Memoria: error iniciando servidor");
         return EXIT_FAILURE;
     }
 
@@ -80,12 +80,12 @@ int memoria_init(const char* path_config) {
 }
 
 void memoria_run(void) {
-    log_info(MEMORIA_CTX.logger, "Memoria en ejecución (Listening)");
+    log_info(MEMORIA_CTX.logger, "Memoria: en ejecucion");
     server_listen_loop();
 }
 
 void memoria_shutdown(void) {
-    log_info(MEMORIA_CTX.logger, "Apagando memoria...");
+    log_info(MEMORIA_CTX.logger, "Memoria: apagando");
     server_shutdown();
     memoria_ram_destroy();
     frames_destroy();

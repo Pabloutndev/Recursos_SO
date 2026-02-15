@@ -8,19 +8,19 @@
 #include <core/io_main.h>
 
 void io_receiver_loop() {
-    log_info(IO_CTX.logger, "Iniciando bucle de recepcion de Kernel...");
+    log_info(IO_CTX.logger, "IO: escuchando Kernel");
     while (1) {
         t_paquete* paquete = recibir_paquete(IO_CTX.socket_kernel);
         if (paquete == NULL) {
-            log_error(IO_CTX.logger, "Kernel desconectado. Finalizando interfaz.");
+            log_error(IO_CTX.logger, "IO: Kernel desconectado");
             break;
         }
 
-        log_info(IO_CTX.logger, "Kernel mando OP_CODE: %d", paquete->codigo_operacion);
+        log_info(IO_CTX.logger, "IO: recibido op=%d", paquete->codigo_operacion);
 
         switch (paquete->codigo_operacion) {
             case OP_HANDSHAKE:
-                log_info(IO_CTX.logger, "Handshake recibido desde Kernel");
+                log_info(IO_CTX.logger, "IO: handshake Kernel");
                 handshake_servidor(IO_CTX.socket_kernel, OP_OK, IO_CTX.logger);
                 break;
 
@@ -57,7 +57,7 @@ void io_receiver_loop() {
                 break;
 
             default:
-                log_warning(IO_CTX.logger, "Operacion desconocida: %d", paquete->codigo_operacion);
+                log_warning(IO_CTX.logger, "IO: operacion desconocida op=%d", paquete->codigo_operacion);
                 enviar_respuesta_fail(IO_CTX.socket_kernel);
                 break;
         }

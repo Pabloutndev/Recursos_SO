@@ -20,7 +20,7 @@ extern t_log* loggerError;
 int cpu_memoria_adapter_init(int fd_mem) {
     fd_memoria = fd_mem;
     if (fd_memoria < 0) {
-        log_error(loggerError, "ADAPTER: Socket Memoria inválido");
+        log_error(loggerError, "Socket memoria invalido");
         return -1;
     }
     return 0;
@@ -76,14 +76,14 @@ char* cpu_fetch_instruccion(uint32_t pid, uint32_t pc)
     t_mem_fetch* req = cpu_a_mem_fetch(pid, pc);
 
     // Paso 2: Enviar a Memoria usando protocolo
-    log_info(logger, "ADAPTER: Enviando OP_MEM_FETCH_INSTRUCCION (PID=%u, PC=%u)",
+    log_info(logger, "PID: %u - Fetch instruccion PC=%u",
              pid, pc);
     enviar_fetch_instruccion(fd_memoria, req, OP_MEM_FETCH_INSTRUCCION);
 
     // Paso 3: Recibir respuesta (paquete con instrucción)
     t_paquete* resp = recibir_paquete(fd_memoria);
     if (!resp) {
-        log_error(loggerError, "ADAPTER: Error recibiendo respuesta FETCH");
+        log_error(loggerError, "PID: %u - Error recibiendo respuesta fetch", pid);
         free(req);
         return NULL;
     }
@@ -96,12 +96,12 @@ char* cpu_fetch_instruccion(uint32_t pid, uint32_t pc)
         instruccion = paquete_read_string(resp);
         if (!instruccion) {
             instruccion = strdup("EXIT");  // Fallback
-            log_warning(logger, "ADAPTER: Instrucción vacía de Memoria");
+            log_warning(logger, "PID: %u - Instruccion vacia de memoria", pid);
         }
-        log_info(logger, "ADAPTER: Fetch OK - Instrucción: %s", instruccion);
+        log_info(logger, "PID: %u - Fetch OK instruccion: %s", pid, instruccion);
     } else {
-        log_error(loggerError, "ADAPTER: Respuesta FETCH inesperada: %d",
-                 resp->codigo_operacion);
+        log_error(loggerError, "PID: %u - Respuesta fetch inesperada: %d",
+                 pid, resp->codigo_operacion);
         instruccion = strdup("EXIT");  // Fallback
     }
 
@@ -114,7 +114,7 @@ bool cpu_traducir_pagina(uint32_t pid, uint32_t pagina,
                                          uint32_t* marco)
 {
     if (!marco) {
-        log_error(loggerError, "ADAPTER: Marco NULL en traducción");
+        log_error(loggerError, "PID: %u - Marco NULL en traduccion", pid);
         return false;
     }
 
@@ -122,14 +122,14 @@ bool cpu_traducir_pagina(uint32_t pid, uint32_t pagina,
     t_mem_traducir* req = cpu_a_mem_traduccion(pid, pagina);
 
     // Paso 2: Enviar a Memoria
-    log_info(logger, "ADAPTER: Enviando OP_MEM_TRADUCIR_PAGINA (PID=%u, PAG=%u)",
+    log_info(logger, "PID: %u - Traducir pagina=%u",
              pid, pagina);
     enviar_traduccion_pagina(fd_memoria, req, OP_MEM_TRADUCIR_PAGINA);
 
     // Paso 3: Recibir respuesta
     t_paquete* resp = recibir_paquete(fd_memoria);
     if (!resp) {
-        log_error(loggerError, "ADAPTER: Error recibiendo respuesta traducción");
+        log_error(loggerError, "PID: %u - Error recibiendo respuesta traduccion", pid);
         free(req);
         return false;
     }
@@ -142,14 +142,14 @@ bool cpu_traducir_pagina(uint32_t pid, uint32_t pagina,
         if (datos && datos->ok) {
             *marco = datos->direccion_fisica;
             exito = true;
-            log_info(logger, "ADAPTER: Traducción OK - Marco: %u", *marco);
+            log_info(logger, "PID: %u - Traduccion OK marco=%u", pid, *marco);
         } else {
-            log_warning(logger, "ADAPTER: Traducción fallida (page fault?)");
+            log_warning(logger, "PID: %u - Traduccion fallida (page fault?)", pid);
         }
         if (datos) free(datos);
     } else {
-        log_error(loggerError, "ADAPTER: Respuesta traducción inesperada: %d",
-                 resp->codigo_operacion);
+        log_error(loggerError, "PID: %u - Respuesta traduccion inesperada: %d",
+                 pid, resp->codigo_operacion);
     }
 
     paquete_destroy(resp);
@@ -161,7 +161,7 @@ bool cpu_leer(uint32_t pid, uint32_t dir_fisica,
                                void* buffer, uint32_t size)
 {
     if (!buffer || size == 0) {
-        log_error(loggerError, "ADAPTER: Parámetros inválidos en lectura");
+        log_error(loggerError, "PID: %u - Parametros invalidos en lectura", pid);
         return false;
     }
 
@@ -169,14 +169,14 @@ bool cpu_leer(uint32_t pid, uint32_t dir_fisica,
     t_mem_read* req = cpu_a_mem_read(pid, dir_fisica, size);
 
     // Paso 2: Enviar a Memoria
-    log_info(logger, "ADAPTER: Enviando OP_MEM_LEER (PID=%u, DIR=%u, TAM=%u)",
+    log_info(logger, "PID: %u - Lectura memoria dir=%u tam=%u",
              pid, dir_fisica, size);
     enviar_lectura_memoria(fd_memoria, req, OP_MEM_LEER);
 
     // Paso 3: Recibir respuesta
     t_paquete* resp = recibir_paquete(fd_memoria);
     if (!resp) {
-        log_error(loggerError, "ADAPTER: Error recibiendo respuesta lectura");
+        log_error(loggerError, "PID: %u - Error recibiendo respuesta lectura", pid);
         free(req);
         return false;
     }
@@ -189,17 +189,17 @@ bool cpu_leer(uint32_t pid, uint32_t dir_fisica,
         if (data && data->ok && data->size == size && data->data) {
             memcpy(buffer, data->data, size);
             exito = true;
-            log_info(logger, "ADAPTER: Lectura OK - %u bytes", size);
+            log_info(logger, "PID: %u - Lectura OK %u bytes", pid, size);
         } else {
-            log_error(loggerError, "ADAPTER: Lectura fallida o tamaño inconsistente");
+            log_error(loggerError, "PID: %u - Lectura fallida o tamanio inconsistente", pid);
         }
         if (data) {
             if (data->data) free(data->data);
             free(data);
         }
     } else {
-        log_error(loggerError, "ADAPTER: Respuesta lectura inesperada: %d",
-                 resp->codigo_operacion);
+        log_error(loggerError, "PID: %u - Respuesta lectura inesperada: %d",
+                 pid, resp->codigo_operacion);
     }
 
     paquete_destroy(resp);
@@ -211,7 +211,7 @@ bool cpu_escribir(uint32_t pid, uint32_t dir_fisica,
                                    void* buffer, uint32_t size)
 {
     if (!buffer || size == 0) {
-        log_error(loggerError, "ADAPTER: Parámetros inválidos en escritura");
+        log_error(loggerError, "PID: %u - Parametros invalidos en escritura", pid);
         return false;
     }
 
@@ -225,7 +225,7 @@ bool cpu_escribir(uint32_t pid, uint32_t dir_fisica,
     };
 
     // Paso 2: Enviar a Memoria
-    log_info(logger, "ADAPTER: Enviando OP_MEM_ESCRIBIR (PID=%u, DIR=%u, TAM=%u)",
+    log_info(logger, "PID: %u - Escritura memoria dir=%u tam=%u",
              pid, dir_fisica, size);
     enviar_escritura_memoria(fd_memoria, &req, OP_MEM_ESCRIBIR);
 
@@ -233,16 +233,16 @@ bool cpu_escribir(uint32_t pid, uint32_t dir_fisica,
     t_paquete* resp = recibir_paquete(fd_memoria);
 
     if (!resp) {
-        log_error(loggerError, "ADAPTER: Error recibiendo respuesta escribir");
+        log_error(loggerError, "PID: %u - Error recibiendo respuesta escritura", pid);
         return false;
     }
 
     bool exito = recibir_respuesta(resp);
     
     if (exito) {
-        log_info(logger, "ADAPTER: Escritura OK");
+        log_info(logger, "PID: %u - Escritura OK %u bytes", pid, size);
     } else {
-        log_error(loggerError, "ADAPTER: Escritura fallida");
+        log_error(loggerError, "PID: %u - Escritura fallida dir=%u", pid, dir_fisica);
     }
 
     paquete_destroy(resp);

@@ -6,7 +6,7 @@
 
 /* ========================================
  * ADAPTADOR: CPU - Contexto Local
- * 
+ *
  * Responsabilidad:
  * - Cargar contexto recibido de Kernel en CPU
  * - Extraer contexto después de ejecución
@@ -18,25 +18,22 @@ void enviar_contexto_kernel(t_contexto_cpu* ctx, t_motivo_desalojo motivo);
 
 /**
  * cpu_contexto_adapter_cargar
- * 
+ *
  * Carga un contexto recibido de Kernel en el estado local de CPU.
  * CPU usará estos valores durante ejecución.
- * 
+ *
  * @param ctx: Contexto compartido recibido de Kernel
  */
 void cpu_contexto_adapter_cargar(t_contexto_cpu* ctx);
 
 /**
  * cpu_contexto_adapter_extraer
- * 
+ *
  * Extrae contexto actual de CPU para enviar de vuelta a Kernel.
  * Se llama después de ejecutar ciclo de instrucción.
- * 
+ *
  * @return Contexto actualizado (debe liberarse)
  */
 t_contexto_cpu* cpu_contexto_adapter_extraer(void);
-
-void cpu_handler_atender_ejecucion(int fd, t_paquete* p);
-void cpu_handler_atender_interrupcion(int fd, t_paquete* p);
 
 #endif

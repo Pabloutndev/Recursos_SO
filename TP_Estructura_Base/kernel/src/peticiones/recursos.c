@@ -26,7 +26,7 @@ void recursos_init(t_kernel_config* config) {
         
         dictionary_put(diccionario_recursos, rec->nombre, rec);
         
-        log_info(KERNEL_CTX.logger, "Recurso %s inicializado con %d instancias", rec->nombre, rec->instancias);
+        log_info(KERNEL_CTX.logger, "Recurso: %s inicializado instancias=%d", rec->nombre, rec->instancias);
         i++;
     }
 }
@@ -47,7 +47,7 @@ void recursos_destroy() {
 
 bool recurso_wait(t_pcb* pcb, char* nombre_recurso) {
     if (!dictionary_has_key(diccionario_recursos, nombre_recurso)) {
-        log_error(KERNEL_CTX.logger, "Process %d requested non-existent resource: %s", pcb->pid, nombre_recurso);
+        log_error(KERNEL_CTX.logger, "PID: %d - WAIT error: recurso inexistente %s", pcb->pid, nombre_recurso);
         // Treat as no-block but maybe abort process? For now, no block.
         return false; 
     }
@@ -57,11 +57,11 @@ bool recurso_wait(t_pcb* pcb, char* nombre_recurso) {
     pthread_mutex_lock(&r->mutex);
     if (r->instancias > 0) {
         r->instancias--;
-        log_info(KERNEL_CTX.logger, "WAIT: Recurso %s asignado a PID %d. Instancias restantes: %d", r->nombre, pcb->pid, r->instancias);
+        log_info(KERNEL_CTX.logger, "PID: %d - WAIT recurso %s asignado, instancias=%d", pcb->pid, r->nombre, r->instancias);
         pthread_mutex_unlock(&r->mutex);
         return false; // No bloquear
     } else {
-        log_info(KERNEL_CTX.logger, "WAIT: Recurso %s ocupado. PID %d bloqueado", r->nombre, pcb->pid);
+        log_info(KERNEL_CTX.logger, "PID: %d - WAIT recurso %s ocupado, bloqueado", pcb->pid, r->nombre);
         list_add(r->cola_bloqueados, pcb); // Add pointer. Ownership shared? Usually owned by Blocked Queue globally.
         // Wait, if we put it here, do we ALSO put it in global blocked queue? 
         // Yes, Kernel puts it in global Blocked to manage state, but resource keeps ref to unlock it specifically.
@@ -72,7 +72,7 @@ bool recurso_wait(t_pcb* pcb, char* nombre_recurso) {
 
 t_pcb* recurso_signal(char* nombre_recurso) {
     if (!dictionary_has_key(diccionario_recursos, nombre_recurso)) {
-        log_error(KERNEL_CTX.logger, "Signal on non-existent resource: %s", nombre_recurso);
+        log_error(KERNEL_CTX.logger, "SIGNAL error: recurso inexistente %s", nombre_recurso);
         return NULL;
     }
 
@@ -83,10 +83,10 @@ t_pcb* recurso_signal(char* nombre_recurso) {
     
     if (list_is_empty(r->cola_bloqueados)) {
         r->instancias++;
-        log_info(KERNEL_CTX.logger, "SIGNAL: Recurso %s liberado. Instancias disponibles: %d", r->nombre, r->instancias);
+        log_info(KERNEL_CTX.logger, "SIGNAL: recurso %s liberado, instancias=%d", r->nombre, r->instancias);
     } else {
         desbloqueado = list_remove(r->cola_bloqueados, 0);
-        log_info(KERNEL_CTX.logger, "SIGNAL: Recurso %s asignado a PID %d (estaba bloqueado)", r->nombre, desbloqueado->pid);
+        log_info(KERNEL_CTX.logger, "PID: %d - SIGNAL recurso %s asignado (desbloqueado)", desbloqueado->pid, r->nombre);
         // No incrementamos instancia porque se la pasa directo al desbloqueado
     }
     
@@ -111,7 +111,7 @@ void recursos_liberar_proceso(uint32_t pid) {
                 t_pcb* pcb = list_get(r->cola_bloqueados, j);
                 if (pcb && pcb->pid == pid) {
                     list_remove(r->cola_bloqueados, j);
-                    log_info(KERNEL_CTX.logger, "Proceso %d removido de cola bloqueados de recurso %s", pid, nombre);
+                    log_info(KERNEL_CTX.logger, "PID: %d - Removido de cola bloqueados recurso %s", pid, nombre);
                     break;
                 }
             }

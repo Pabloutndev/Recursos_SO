@@ -48,18 +48,18 @@ void cpu_init(const char* path_config)
     bool tlb_lru = (strcmp(CPU_CTX.config.tlb_algoritmo, "LRU") == 0);
     tlb_init(CPU_CTX.config.tlb_cant_ent, tlb_lru);
 
-    log_info(CPU_CTX.logger, "CPU inicializada correctamente");
+    log_info(CPU_CTX.logger, "CPU inicializada");
 }
 
 void cpu_run(void) {
-    log_info(CPU_CTX.logger, "CPU en modo espera de peticiones (Dispatch/Interrupt)...");
+    log_info(CPU_CTX.logger, "CPU esperando peticiones Dispatch/Interrupt");
     while(1) {
         sleep(10); 
     }
 }
 
 void cpu_shutdown(void) {
-    log_info(CPU_CTX.logger, "Apagando CPU...");
+    log_info(CPU_CTX.logger, "CPU apagando");
 
     cpu_conexiones_memoria_close();
 

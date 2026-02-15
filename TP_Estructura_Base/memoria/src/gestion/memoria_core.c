@@ -43,7 +43,7 @@ static char* construir_ruta_proceso_memoria(const char* nombre_proceso) {
 int memoria_core_init(void) {
     procesos = dictionary_create();
     if (!procesos) return -1;
-    log_info(logger, "MEMORIA: memoria_core inicializado");
+    log_info(logger, "Memoria: core inicializado");
     return 0;
 }
 
@@ -51,7 +51,7 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     char* key = pid_key(pid);
 
     if (dictionary_has_key(procesos, key)) {
-        log_warning(logger, "MEMORIA: Proceso %u ya existe", pid);
+        log_warning(logger, "PID: %u - Proceso ya existe", pid);
         free(key);
         return false;
     }
@@ -60,12 +60,12 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     // Memoria construye su propia ruta relativa
     char* ruta_memoria = construir_ruta_proceso_memoria(path);
     if (!ruta_memoria) {
-        log_error(loggerError, "MEMORIA: No se pudo construir ruta para proceso");
+        log_error(loggerError, "PID: %u - No se pudo construir ruta", pid);
         free(key);
         return false;
     }
 
-    log_info(logger, "MEMORIA: Leyendo instrucciones - Nombre: %s, Ruta local: %s, PID: %u", path, ruta_memoria, pid);
+    log_info(logger, "PID: %u - Leyendo instrucciones %s", pid, ruta_memoria);
 
     t_proceso_memoria* proc = malloc(sizeof(t_proceso_memoria));
     proc->pid = pid;
@@ -73,7 +73,7 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     free(ruta_memoria);
 
     if (!proc->instrucciones) {
-        log_error(loggerError, "MEMORIA: No se pudieron leer instrucciones de %s", path);
+        log_error(loggerError, "PID: %u - No se pudieron leer instrucciones de %s", pid, path);
         free(proc);
         free(key);
         return false;
@@ -84,7 +84,7 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     // Crear esquema de memoria con el tamanio correcto: cada instruccion ocupa 64 bytes
     uint32_t tamanio = proc->cantidad * 64;
     if (!esquema_crear_proceso(pid, tamanio)) {
-        log_error(loggerError, "MEMORIA: Fallo creando esquema memoria para PID %u (tamanio=%u)", pid, tamanio);
+        log_error(loggerError, "PID: %u - Fallo creando esquema memoria tam=%u", pid, tamanio);
         // Rollback: remover del diccionario
         dictionary_remove(procesos, key);
         for (uint32_t i = 0; i < proc->cantidad; i++) free(proc->instrucciones[i]);
@@ -95,7 +95,7 @@ bool memoria_crear_proceso(uint32_t pid, const char* path) {
     }
 
     // Cargar instrucciones en memoria (via esquema activo)
-    log_info(logger, "MEMORIA: Cargando %d instrucciones en RAM para PID %u", proc->cantidad, pid);
+    log_info(logger, "PID: %u - Cargando %d instrucciones en RAM", pid, proc->cantidad);
     for (int i = 0; i < proc->cantidad; i++) {
         uint32_t dir_logica = i * 64;
         esquema_escribir(pid, dir_logica, proc->instrucciones[i], strlen(proc->instrucciones[i]) + 1);
@@ -123,7 +123,7 @@ void memoria_destruir_proceso(uint32_t pid) {
     if (esquema_memoria_actual() == ESQUEMA_PAGINACION)
         swap_borrar_proceso(pid);
 
-    log_info(logger, "MEMORIA: Proceso %u destruido", pid);
+    log_info(logger, "PID: %u - Proceso destruido", pid);
 }
 
 char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
@@ -133,16 +133,16 @@ char* memoria_fetch_instruccion(uint32_t pid, uint32_t pc) {
     free(key);
 
     if (!proc) {
-        log_error(loggerError, "MEMORIA: FETCH proceso inexistente PID=%u", pid);
+        log_error(loggerError, "PID: %u - Fetch proceso inexistente", pid);
         return NULL;
     }
 
     /* UNIFICACIÓN: Usar el sistema de paginación para leer la instrucción */
-    log_info(logger, "MEMORIA: Fetch via esquema memoria PID=%u PC=%u", pid, pc);
+    log_info(logger, "PID: %u - Fetch PC=%u", pid, pc);
     char* instruccion_leida = esquema_leer_instruccion(pid, pc);
 
     if (instruccion_leida == NULL) {
-        log_error(loggerError, "MEMORIA: FETCH fallo para PID=%u PC=%u - instruccion no encontrada", pid, pc);
+        log_error(loggerError, "PID: %u - Fetch fallo PC=%u", pid, pc);
     }
     return instruccion_leida;
 }

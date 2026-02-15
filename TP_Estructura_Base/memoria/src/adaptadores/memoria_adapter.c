@@ -31,22 +31,22 @@ void memoria_adapter_atender_init_proceso(int fd, t_paquete* paquete)
 {
     t_mem_init_proceso* req = recibir_init_proceso(paquete);
     if (!req) {
-        log_error(loggerError, "ADAPTER: Init_proceso request NULL");
+        log_error(loggerError, "Init proceso request NULL");
         enviar_respuesta_fail(fd);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_INIT_PROCESO - PID=%u PATH=%s", req->pid, req->path);
+    log_info(logger, "PID: %u - Init proceso %s", req->pid, req->path);
 
     /* memoria_crear_proceso carga instrucciones, crea paginacion y escribe a paginas */
     if (!memoria_crear_proceso(req->pid, req->path)) {
-        log_error(loggerError, "ADAPTER: Fallo inicializando proceso PID=%u", req->pid);
+        log_error(loggerError, "PID: %u - Fallo init proceso", req->pid);
         enviar_respuesta_fail(fd);
         free(req);
         return;
     }
 
-    log_info(logger, "ADAPTER: Proceso %u inicializado correctamente", req->pid);
+    log_info(logger, "PID: %u - Proceso inicializado", req->pid);
     enviar_respuesta_ok(fd);
     free(req);
 }
@@ -55,17 +55,17 @@ void memoria_adapter_atender_fin_proceso(int fd, t_paquete* paquete)
 {
     t_mem_fin_proceso* req = recibir_fin_proceso(paquete);
     if (!req) {
-        log_error(loggerError, "ADAPTER: Fin_proceso request NULL");
+        log_error(loggerError, "Fin proceso request NULL");
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_FIN_PROCESO - PID=%u", req->pid);
+    log_info(logger, "PID: %u - Fin proceso", req->pid);
 
     /* Liberar estructuras de memoria */
     esquema_destruir_proceso(req->pid);
     memoria_destruir_proceso(req->pid);
 
-    log_info(logger, "ADAPTER: Proceso %u eliminado de Memoria", req->pid);
+    log_info(logger, "PID: %u - Proceso eliminado", req->pid);
     enviar_respuesta_ok(fd);
     free(req);
 }
@@ -76,17 +76,17 @@ void memoria_adapter_atender_traducir_pagina(int fd, t_paquete* paquete)
     t_mem_respuesta_traduccion resp = { .ok = false, .direccion_fisica = 0 };
 
     if (!req) {
-        log_error(loggerError, "ADAPTER: Traducir request NULL");
+        log_error(loggerError, "Traducir request NULL");
         enviar_respuesta_traduccion(fd, &resp);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_TRADUCIR PID=%u DIR_LOG=%u", req->pid, req->direccion_logica);
+    log_info(logger, "PID: %u - Traducir dir=%u", req->pid, req->direccion_logica);
 
     int64_t dir_fisica = esquema_traducir(req->pid, req->direccion_logica);
 
     if (dir_fisica < 0) {
-        log_error(loggerError, "ADAPTER: Traduccion fallo PID=%u DIR=%u", req->pid, req->direccion_logica);
+        log_error(loggerError, "PID: %u - Traduccion fallo dir=%u", req->pid, req->direccion_logica);
         enviar_respuesta_traduccion(fd, &resp);
         free(req);
         return;
@@ -101,19 +101,19 @@ void memoria_adapter_atender_traducir_pagina(int fd, t_paquete* paquete)
 void memoria_adapter_atender_fetch_instruccion(int fd, t_paquete* paquete) {
     t_mem_fetch* req = recibir_fetch(paquete);
     if (!req) {
-        log_error(loggerError, "ADAPTER: Fetch request NULL");
+        log_error(loggerError, "Fetch request NULL");
         enviar_respuesta_instruccion(fd, "EXIT");
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_FETCH_INSTRUCCION PID=%u PC=%u", req->pid, req->pc);
+    log_info(logger, "PID: %u - Fetch instruccion PC=%u", req->pid, req->pc);
 
     /* Retardo de respuesta configurado */
     if (memoria_config->retardo_respuesta > 0)
         usleep(memoria_config->retardo_respuesta * 1000);
 
     char* instruccion = memoria_fetch_instruccion(req->pid, req->pc);
-    log_info(logger, "ADAPTER: Instrucción enviada: %s", instruccion);
+    log_info(logger, "PID: %u - Instruccion: %s", req->pid, instruccion);
 
     enviar_respuesta_instruccion(fd, instruccion);
     free(instruccion);
@@ -126,16 +126,16 @@ void memoria_adapter_atender_leer(int fd, t_paquete* paquete)
     t_mem_respuesta_lectura resp = { .ok = false, .data = NULL, .size = 0 };
 
     if (!req) {
-        log_error(loggerError, "ADAPTER: Read request NULL");
+        log_error(loggerError, "Read request NULL");
         enviar_respuesta_lectura(fd, &resp);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_LEER PID=%u DIR_LOGICA=%u SIZE=%u", req->pid, req->direccion_logica, req->size);
+    log_info(logger, "PID: %u - Leer dir=%u size=%u", req->pid, req->direccion_logica, req->size);
 
     void* buffer = malloc(req->size);
     if (!buffer) {
-        log_error(loggerError, "ADAPTER: malloc failed para lectura de %u bytes", req->size);
+        log_error(loggerError, "PID: %u - malloc failed lectura %u bytes", req->pid, req->size);
         enviar_respuesta_lectura(fd, &resp);
         free(req);
         return;
@@ -156,12 +156,12 @@ void memoria_adapter_atender_escribir(int fd, t_paquete* paquete)
 {
     t_mem_write* req = recibir_escritura_memoria(paquete);
     if (!req) {
-        log_error(loggerError, "ADAPTER: Write request NULL");
+        log_error(loggerError, "Write request NULL");
         enviar_respuesta_fail(fd);
         return;
     }
 
-    log_info(logger, "ADAPTER: OP_MEM_ESCRIBIR PID=%u DIR_LOGICA=%u SIZE=%u", req->pid, req->direccion_logica, req->size);
+    log_info(logger, "PID: %u - Escribir dir=%u size=%u", req->pid, req->direccion_logica, req->size);
 
     if (esquema_escribir(req->pid, req->direccion_logica, req->buffer, req->size)) {
         enviar_respuesta_ok(fd);
@@ -179,13 +179,13 @@ void memoria_adapter_atender_resize(int fd, t_paquete* paquete)
     paquete_read_uint32(paquete, &pid);
     paquete_read_uint32(paquete, &nuevo_tam);
 
-    log_info(logger, "ADAPTER: OP_MEM_RESIZE PID=%u NUEVO_TAM=%u", pid, nuevo_tam);
+    log_info(logger, "PID: %u - Resize tam=%u", pid, nuevo_tam);
 
     if (esquema_resize(pid, nuevo_tam)) {
-        log_info(logger, "ADAPTER: Resize PID %u EXITOSO", pid);
+        log_info(logger, "PID: %u - Resize exitoso", pid);
         enviar_respuesta_ok(fd);
     } else {
-        log_error(loggerError, "ADAPTER: Resize PID %u FALLIDO (Sin espacio o error interno)", pid);
+        log_error(loggerError, "PID: %u - Resize fallido", pid);
         enviar_respuesta_fail(fd);
     }
 }

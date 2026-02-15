@@ -44,7 +44,7 @@ bool swap_escribir_pagina(uint32_t pid, int nro_pagina, void* contenido) {
     }
     close(fd);
     
-    log_debug(MEMORIA_CTX.logger, "SWAP OUT PID %u Pag %d", pid, nro_pagina);
+    log_debug(MEMORIA_CTX.logger, "PID: %u - Swap out pagina %d", pid, nro_pagina);
     return true;
 }
 
@@ -67,7 +67,7 @@ bool swap_leer_pagina(uint32_t pid, int nro_pagina, void* buffer) {
         return false;
     }
 
-    log_debug(MEMORIA_CTX.logger, "SWAP IN PID %u Pag %d", pid, nro_pagina);
+    log_debug(MEMORIA_CTX.logger, "PID: %u - Swap in pagina %d", pid, nro_pagina);
     return true;
 }
 

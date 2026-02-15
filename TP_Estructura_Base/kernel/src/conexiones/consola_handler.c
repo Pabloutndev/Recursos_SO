@@ -24,13 +24,13 @@ void* handler_consola_connection(void* arg)
     // Handshake: esperar OP_HANDSHAKE y responder OP_OK
     t_paquete* hs = recibir_paquete(fd);
     if (!hs) {
-        log_error(KERNEL_CTX.logger_error, "Consola: conexion cerrada antes del handshake (FD=%d)", fd);
+        log_error(KERNEL_CTX.logger_error, "Consola: conexion cerrada antes de handshake FD=%d", fd);
         close(fd);
         return NULL;
     }
 
     if (hs->codigo_operacion != OP_HANDSHAKE) {
-        log_error(KERNEL_CTX.logger_error, "Consola: handshake invalido, opcode=%d (FD=%d)", hs->codigo_operacion, fd);
+        log_error(KERNEL_CTX.logger_error, "Consola: handshake invalido opcode=%d FD=%d", hs->codigo_operacion, fd);
         paquete_destroy(hs);
         close(fd);
         return NULL;
@@ -39,13 +39,13 @@ void* handler_consola_connection(void* arg)
 
     // Enviar OK
     enviar_respuesta_ok(fd);
-    log_info(KERNEL_CTX.logger, "Consola remota conectada (FD=%d)", fd);
+    log_info(KERNEL_CTX.logger, "Consola: conectada FD=%d", fd);
 
     // Loop de atencion a comandos de la consola
     while (1) {
         t_paquete* msg = recibir_paquete(fd);
         if (!msg) {
-            log_info(KERNEL_CTX.logger, "Consola remota desconectada (FD=%d)", fd);
+            log_info(KERNEL_CTX.logger, "Consola: desconectada FD=%d", fd);
             break;
         }
 
@@ -58,7 +58,7 @@ void* handler_consola_connection(void* arg)
                     ejecutar_proceso(path);
                     free(path);
                 } else {
-                    log_error(KERNEL_CTX.logger_error, "Consola: RUN sin path");
+                    log_error(KERNEL_CTX.logger_error, "Consola: RUN sin argumento path");
                 }
                 break;
             }
@@ -139,12 +139,12 @@ void* handler_consola_connection(void* arg)
                     else if (strcmp(upper, "HRRN") == 0)
                         set_algoritmo(ALG_HRRN);
                     else
-                        log_error(KERNEL_CTX.logger_error, "Consola: Algoritmo no valido: %s", algo_str);
+                        log_error(KERNEL_CTX.logger_error, "Consola: algoritmo no valido %s", algo_str);
 
                     free(upper);
                     free(algo_str);
                 } else {
-                    log_error(KERNEL_CTX.logger_error, "Consola: ALGORITMO sin argumento");
+                    log_error(KERNEL_CTX.logger_error, "Consola: ALGORITMO sin argumento valor");
                 }
                 break;
             }
@@ -168,13 +168,13 @@ void* handler_consola_connection(void* arg)
             }
 
             case OP_CONSOLA_EXIT:
-                log_info(KERNEL_CTX.logger, "Consola remota solicito EXIT (FD=%d)", fd);
+                log_info(KERNEL_CTX.logger, "Consola: EXIT FD=%d", fd);
                 paquete_destroy(msg);
                 close(fd);
                 return NULL;
 
             default:
-                log_warning(KERNEL_CTX.logger, "Consola: mensaje desconocido opcode=%d", msg->codigo_operacion);
+                log_warning(KERNEL_CTX.logger, "Consola: opcode desconocido %d", msg->codigo_operacion);
                 break;
         }
 

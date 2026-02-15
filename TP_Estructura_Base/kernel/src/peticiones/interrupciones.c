@@ -23,7 +23,7 @@ extern void log_fin_proceso(int pid, const char* motivo);
 void desalojar_proceso(uint32_t pid)
 {
     pthread_mutex_lock(&mutex_exec);
-    
+
     t_pcb* pcb = NULL;
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* p = list_get(cola_exec, i);
@@ -32,37 +32,37 @@ void desalojar_proceso(uint32_t pid)
             break;
         }
     }
-    
+
     if (pcb) {
         // Enviar interrupción a CPU
         enviar_interrupt_cpu(pid);
         log_fin_quantum(pid);
-        
+
         // Cambiar estado a READY
         pcb->estado = READY;
         list_remove_element(cola_exec, pcb);
-        
+
         pthread_mutex_unlock(&mutex_exec);
-        
+
         // Reencolar en READY
         pthread_mutex_lock(&mutex_ready);
         list_add(cola_ready, pcb);
         temporal_resume(pcb->tiempo_ready);
         pthread_mutex_unlock(&mutex_ready);
-        
+
         sem_post(&sem_hay_ready);
     } else {
         pthread_mutex_unlock(&mutex_exec);
-        log_error(logger, "Proceso %u no está en ejecución", pid);
+        log_error(logger, "PID: %u - No esta en ejecucion", pid);
     }
 }
 
 void manejar_interrupcion(uint32_t pid, const char* motivo)
 {
-    log_info(logger, "Interrupción recibida - PID: %u, Motivo: %s", pid, motivo);
-    
+    log_info(logger, "PID: %u - Interrupcion: %s", pid, motivo);
+
     pthread_mutex_lock(&mutex_exec);
-    
+
     t_pcb* pcb = NULL;
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* p = list_get(cola_exec, i);
@@ -71,15 +71,15 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
             break;
         }
     }
-    
+
     if (!pcb) {
         pthread_mutex_unlock(&mutex_exec);
         return;
     }
-    
+
     list_remove_element(cola_exec, pcb);
     pthread_mutex_unlock(&mutex_exec);
-    
+
     if (strcmp(motivo, MOTIVO_QUANTUM) == 0) {
         // Desalojo por quantum - VRR: resetear quantum_restante al completo
         pcb->quantum_restante = pcb->quantum;
@@ -98,7 +98,7 @@ void manejar_interrupcion(uint32_t pid, const char* motivo)
             pcb->quantum_restante = (restante > 0) ? restante : 0;
             temporal_destroy(pcb->tiempo_inicio_exec);
             pcb->tiempo_inicio_exec = NULL;
-            log_info(logger, "VRR: PID=%u bloqueado, quantum_restante=%d ms", pid, pcb->quantum_restante);
+            log_info(logger, "PID: %u - VRR bloqueado, quantum_restante=%d ms", pid, pcb->quantum_restante);
         }
         pcb->estado = BLOCK;
         pthread_mutex_lock(&mutex_blocked);
@@ -120,137 +120,4 @@ void manejar_bloqueo_io(t_contexto_cpu* ctx) {
     // Logica basica: Mover a Block
     // TODO: Usar interfaz IO
     manejar_interrupcion(ctx->pid, MOTIVO_IO);
-}
-
-void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
-    if (!nombre_recurso) {
-        log_error(logger, "WAIT: nombre_recurso NULL para PID %d", ctx->pid);
-        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
-        return;
-    }
-
-    // 1. Buscar PCB en EXEC
-    t_pcb* pcb = NULL;
-    pthread_mutex_lock(&mutex_exec);
-    for(int i=0; i<list_size(cola_exec); i++) {
-        t_pcb* p = list_get(cola_exec, i);
-        if(p->pid == ctx->pid) {
-            pcb = p;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-
-    if (!pcb) {
-        log_error(logger, "WAIT: PCB no encontrado para PID %d", ctx->pid);
-        return;
-    }
-
-    // Actualizar Contexto en PCB
-    pcb->program_counter = ctx->pc;
-    pcb->registros = ctx->registros;
-
-    // 2. Intentar adquirir recurso
-    bool bloqueo = recurso_wait(pcb, (char*)nombre_recurso);
-
-    if (bloqueo) {
-        // Bloquear proceso
-        manejar_interrupcion(ctx->pid, MOTIVO_WAIT);
-    } else {
-        // No bloquea - recurso adquirido, volver a Ready
-        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
-    }
-}
-
-void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
-    if (!nombre_recurso) {
-        log_error(logger, "SIGNAL: nombre_recurso NULL para PID %d", ctx->pid);
-        manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
-        return;
-    }
-
-    t_pcb* desbloqueado = recurso_signal((char*)nombre_recurso);
-    
-    if (desbloqueado) {
-        // El proceso desbloqueado estaba en BLOCKED y en la cola del recurso.
-        // recurso_signal lo sacó de la cola del recurso.
-        // Ahora debemos sacarlo de BLOCKED global y pasarlo a READY.
-        
-        pthread_mutex_lock(&mutex_blocked);
-        // OJO: list_remove_element usa comparacion de punteros. 
-        // Si desbloqueado es el puntero real, funciona.
-        bool removed = list_remove_element(cola_blocked, desbloqueado);
-        pthread_mutex_unlock(&mutex_blocked);
-        
-        if (removed) {
-            desbloqueado->estado = READY;
-            desbloqueado->tiempo_ready = temporal_create(); // Reset wait time?
-            
-            pthread_mutex_lock(&mutex_ready);
-            list_add(cola_ready, desbloqueado);
-            pthread_mutex_unlock(&mutex_ready);
-            sem_post(&sem_hay_ready);
-            
-            log_cambio_estado(desbloqueado->pid, "BLOCKED", "READY");
-        } else {
-             // Podria no estar en Blocked global si hubo algun race o error.
-             log_error(logger, "PID %d desbloqueado por recurso pero no encontrado en BLOCKED global", desbloqueado->pid);
-        }
-    }
-    
-    // El proceso que hizo SIGNAL (ctx->pid) sigue ejecutando. 
-    // Como CPU devolvió control, lo mandamos a Ready para que siga compitiendo (o Dispatch directo).
-    // Simil Wait exitoso.
-    manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
-}
-
-void manejar_fin_quantum(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-    
-    log_info(logger, "CPU: Fin de Quantum para PID=%u, PC=%u", ctx->pid, ctx->pc);
-    
-    // ✅ PASO 1: Actualizar contexto en el PCB
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
-        if (pcb && pcb->pid == ctx->pid) {
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            log_info(logger, "Contexto actualizado para PID=%u (PC=%u)", pcb->pid, pcb->program_counter);
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-    
-    // ✅ PASO 2: Notificar a Memoria para actualizar su copia
-    // TODO: Implementar solicitud de actualización de contexto en Memoria si es necesario
-    
-    // ✅ PASO 3: Desalojar por quantum (pasar a READY)
-    manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
-}
-
-void manejar_fin_proceso(t_contexto_cpu* ctx)
-{
-    if (!ctx) return;
-    
-    log_info(logger, "CPU: Fin de Proceso PID=%u", ctx->pid);
-    
-    // ✅ PASO 1: Actualizar contexto en PCB
-    pthread_mutex_lock(&mutex_exec);
-    for (int i = 0; i < list_size(cola_exec); i++) {
-        t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
-        if (pcb && pcb->pid == ctx->pid) {
-            pcb->program_counter = ctx->pc;
-            pcb->registros = ctx->registros;
-            break;
-        }
-    }
-    pthread_mutex_unlock(&mutex_exec);
-    
-    // ✅ PASO 2: Finalizar proceso (mover a EXIT)
-    manejar_interrupcion(ctx->pid, MOTIVO_EXIT);
-    
-    // ✅ PASO 3: Liberar recursos en Memoria
-    solicitar_fin_proceso_memoria(ctx->pid);
 }

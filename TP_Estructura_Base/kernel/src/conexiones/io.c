@@ -32,7 +32,7 @@ void server_io_init(char* puerto) {
     // para evitar doble bind en el mismo puerto.
     lista_interfaces = list_create();
     pthread_mutex_init(&mutex_interfaces, NULL);
-    log_info(logger, "IO: Estructuras inicializadas, socket se crea en listen thread");
+    log_info(logger, "IO: estructuras inicializadas");
 }
 
 /* Closures para list_find / list_remove_and_destroy_by_condition */
@@ -64,12 +64,12 @@ int obtener_socket_interfaz(const char* nombre_interfaz)
     pthread_mutex_unlock(&mutex_interfaces);
 
     if (iface) {
-        log_info(logger, "Socket IO encontrado para: %s (FD=%d)",
+        log_info(logger, "IO: interfaz %s encontrada FD=%d",
                 nombre_interfaz, iface->socket);
         return iface->socket;
     }
 
-    log_warning(logger, "Interfaz IO no encontrada: %s", nombre_interfaz);
+    log_warning(logger, "IO: interfaz %s no encontrada", nombre_interfaz);
     return -1;
 }
 
@@ -86,7 +86,7 @@ void* handler_io_connection(void* arg) {
 
     if (p->codigo_operacion == OP_HANDSHAKE_IO) {
         char* nombre = paquete_read_string(p);
-        log_info(logger, "Nueva interfaz IO conectada: %s (FD: %d)", nombre, fd);
+        log_info(logger, "IO: interfaz conectada %s FD=%d", nombre, fd);
 
         t_interfaz_io* io = malloc(sizeof(t_interfaz_io));
         io->nombre = strdup(nombre);
@@ -97,7 +97,7 @@ void* handler_io_connection(void* arg) {
         pthread_mutex_unlock(&mutex_interfaces);
         free(nombre);
     } else {
-        log_warning(logger, "Handshake inválido de IO");
+        log_warning(logger, "IO: handshake invalido");
     }
     paquete_destroy(p);
 
@@ -114,7 +114,7 @@ void* handler_io_connection(void* arg) {
                 kernel_io_adapter_atender_fin_operacion(fd, msg);
                 break;
             default:
-                log_warning(logger, "Mensaje desconocido de IO: %d", msg->codigo_operacion);
+                log_warning(logger, "IO: mensaje desconocido opcode=%d", msg->codigo_operacion);
                 break;
         }
 
@@ -122,7 +122,7 @@ void* handler_io_connection(void* arg) {
     }
 
     // Limpieza: remover interfaz de la lista
-    log_info(logger, "Interfaz IO desconectada (FD=%d)", fd);
+    log_info(logger, "IO: interfaz desconectada FD=%d", fd);
 
     pthread_mutex_lock(&mutex_interfaces);
     _buscar_socket = fd;

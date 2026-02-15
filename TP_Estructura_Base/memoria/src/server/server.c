@@ -18,7 +18,7 @@ int server_init(char* port)
 {
     server_socket = iniciar_servidor(port);
     if (server_socket < 0) return -1;
-    log_info(logger, "Servidor Memoria iniciado en puerto %s", port);
+    log_info(logger, "Memoria: servidor iniciado puerto %s", port);
     return 0;
 }
 
@@ -37,16 +37,16 @@ void* memoria_client_handler(void* arg)
     int fd = *(int*)arg;
     free(arg);
 
-    log_info(logger, "Cliente conectado (FD=%d)", fd);
+    log_info(logger, "Memoria: cliente conectado fd=%d", fd);
 
     while (1) {
         t_paquete* paquete = recibir_paquete(fd);
         if (paquete == NULL) {
-            log_warning(logger, "Cliente FD %d desconectado", fd);
+            log_warning(logger, "Memoria: cliente fd=%d desconectado", fd);
             break;
         }
 
-        log_info(logger, "Servidor recibió: OP_CODE=%d", paquete->codigo_operacion);
+        log_info(logger, "Memoria: recibido op=%d", paquete->codigo_operacion);
 
         switch (paquete->codigo_operacion) {
 
@@ -54,7 +54,7 @@ void* memoria_client_handler(void* arg)
         // HANDSHAKE
         // ========================================
         case OP_HANDSHAKE: {
-            log_info(logger, "Handshake recibido de cliente (FD=%d)", fd);
+            log_info(logger, "Memoria: handshake fd=%d", fd);
             handshake_servidor(fd, OP_OK, logger);
             break;
         }
@@ -94,7 +94,7 @@ void* memoria_client_handler(void* arg)
                 break;
 
         default:
-            log_warning(logger, "Operacion desconocida: %d", 
+            log_warning(logger, "Memoria: operacion desconocida op=%d",
                        paquete->codigo_operacion);
             break;
         }

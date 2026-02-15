@@ -31,7 +31,7 @@ int frames_init(void) {
         bitarray_clean_bit(frames_bitmap, i);
     }
     
-    log_info(MEMORIA_CTX.logger, "Frames Manager: %d Frames gestionados.", cantidad_marcos);
+    log_info(MEMORIA_CTX.logger, "Memoria: %d frames disponibles", cantidad_marcos);
     return 0;
 }
 

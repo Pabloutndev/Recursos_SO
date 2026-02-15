@@ -1,5 +1,6 @@
 #include <mod_memoria.h>
 #include <gestion/paginas.h>
+#include <gestion/paginas_internal.h>
 #include <gestion/memoria_ram.h>
 #include <gestion/reemplazo.h>
 #include <frames/frames.h>
@@ -13,7 +14,7 @@
 /* Reimplementacion de paginas.c usando la nueva estructura de frames */
 t_dictionary* tablas_paginas = NULL;
 
-static pthread_mutex_t mutex_paginas = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t mutex_paginas = PTHREAD_MUTEX_INITIALIZER;
 
 static void check_init_diccionario() {
     if(!tablas_paginas) tablas_paginas = dictionary_create();
@@ -42,7 +43,7 @@ bool paginacion_crear_proceso(uint32_t pid, int tamanio_bytes) {
 
     t_list* tabla = list_create();
 
-    log_info(MEMORIA_CTX.logger, "PAGINACION: Recibido PID %u. Paginas requeridas: %d", pid, cant_paginas);
+    log_info(MEMORIA_CTX.logger, "PID: %u - Paginas asignadas: %d", pid, cant_paginas);
 
     for(int i=0; i<cant_paginas; i++) {
         t_pagina* pag = malloc(sizeof(t_pagina));
@@ -104,7 +105,7 @@ bool paginacion_resize(uint32_t pid, int nuevo_tamanio) {
     int paginas_nuevas = nuevo_tamanio / tam_pag;
     if (nuevo_tamanio % tam_pag != 0) paginas_nuevas++;
 
-    log_info(MEMORIA_CTX.logger, "RESIZE PID %u: %d paginas -> %d paginas", pid, paginas_actuales, paginas_nuevas);
+    log_info(MEMORIA_CTX.logger, "PID: %u - Resize %d -> %d paginas", pid, paginas_actuales, paginas_nuevas);
 
     if (paginas_nuevas > paginas_actuales) {
         /* Agregar paginas nuevas */
@@ -158,7 +159,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
     }
 
     /* ===== PAGE FAULT ===== */
-    log_info(MEMORIA_CTX.logger, "PAGE FAULT PID %u PAG %d", pid, nro_pagina);
+    log_info(MEMORIA_CTX.logger, "PID: %u - Page fault pagina %d", pid, nro_pagina);
 
     int frame = obtener_frame_libre();
 
@@ -168,7 +169,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
 
         frame = elegir_victima_clock(&pid_v, &pag_v);
         if (frame == -1) {
-            log_error(MEMORIA_CTX.logger, "MEMORIA Y SWAP LLENOS");
+            log_error(MEMORIA_CTX.logger, "Memoria: swap lleno");
             pthread_mutex_unlock(&mutex_paginas);
             return NULL;
         }
@@ -178,7 +179,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
         free(k);
 
         if (!tabla_v) {
-            log_error(MEMORIA_CTX.logger, "PAGINACION: Tabla victima PID %u no encontrada", pid_v);
+            log_error(MEMORIA_CTX.logger, "PID: %u - Tabla victima no encontrada", pid_v);
             pthread_mutex_unlock(&mutex_paginas);
             return NULL;
         }
@@ -189,7 +190,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
         if (victima->modificado) {
             void* buffer = malloc(tam_pag);
             if (!buffer) {
-                log_error(MEMORIA_CTX.logger, "PAGINACION: malloc failed para swap out");
+                log_error(MEMORIA_CTX.logger, "PID: %u - malloc failed swap out", pid_v);
                 pthread_mutex_unlock(&mutex_paginas);
                 return NULL;
             }
@@ -197,7 +198,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
 
             if (!swap_escribir_pagina(pid_v, pag_v, buffer)) {
                 free(buffer);
-                log_error(MEMORIA_CTX.logger, "SWAP LLENO - Abortando");
+                log_error(MEMORIA_CTX.logger, "Memoria: swap lleno, abortando");
                 pthread_mutex_unlock(&mutex_paginas);
                 return NULL;
             }
@@ -215,7 +216,7 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
     int tam_pag = MEMORIA_CTX.config->tam_pagina;
     void* buffer = malloc(tam_pag);
     if (!buffer) {
-        log_error(MEMORIA_CTX.logger, "PAGINACION: malloc failed para swap in");
+        log_error(MEMORIA_CTX.logger, "PID: %u - malloc failed swap in", pid);
         pthread_mutex_unlock(&mutex_paginas);
         return NULL;
     }
@@ -231,96 +232,8 @@ t_pagina* paginacion_obtener_entrada(uint32_t pid, int nro_pagina)
     pagina->uso = true;
     pagina->modificado = false;
 
-    log_info(MEMORIA_CTX.logger, "PAGINA CARGADA PID %u PAG %d -> FRAME %d", pid, nro_pagina, frame);
+    log_info(MEMORIA_CTX.logger, "PID: %u - Pagina %d -> Frame %d", pid, nro_pagina, frame);
 
     pthread_mutex_unlock(&mutex_paginas);
     return pagina;
-}
-
-bool paginacion_escribir(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t size) {
-    uint32_t tam_pag = MEMORIA_CTX.config->tam_pagina;
-    uint32_t bytes_escritos = 0;
-    while (bytes_escritos < size) {
-        uint32_t dir_actual = dir_logica + bytes_escritos;
-        uint32_t num_pagina = dir_actual / tam_pag;
-        uint32_t offset = dir_actual % tam_pag;
-        uint32_t a_escribir = (tam_pag - offset < size - bytes_escritos) ? (tam_pag - offset) : (size - bytes_escritos);
-
-        t_pagina* pag = paginacion_obtener_entrada(pid, num_pagina);
-        if (!pag || !pag->presente) return false;
-
-        pthread_mutex_lock(&mutex_paginas);
-        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
-        if (!pag->presente) {
-            pthread_mutex_unlock(&mutex_paginas);
-            continue; /* retry this chunk */
-        }
-        escribir_memoria_fisica(pag->frame * tam_pag + offset, (char*)buffer + bytes_escritos, a_escribir);
-        pag->uso = true;
-        pag->modificado = true;
-        pthread_mutex_unlock(&mutex_paginas);
-
-        bytes_escritos += a_escribir;
-    }
-    return true;
-}
-
-bool paginacion_leer(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t size) {
-    uint32_t tam_pag = MEMORIA_CTX.config->tam_pagina;
-    uint32_t bytes_leidos = 0;
-    while (bytes_leidos < size) {
-        uint32_t dir_actual = dir_logica + bytes_leidos;
-        uint32_t num_pagina = dir_actual / tam_pag;
-        uint32_t offset = dir_actual % tam_pag;
-        uint32_t a_leer = (tam_pag - offset < size - bytes_leidos) ? (tam_pag - offset) : (size - bytes_leidos);
-
-        t_pagina* pag = paginacion_obtener_entrada(pid, num_pagina);
-        if (!pag || !pag->presente) return false;
-
-        pthread_mutex_lock(&mutex_paginas);
-        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
-        if (!pag->presente) {
-            pthread_mutex_unlock(&mutex_paginas);
-            continue; /* retry this chunk */
-        }
-        leer_memoria_fisica(pag->frame * tam_pag + offset, (char*)buffer + bytes_leidos, a_leer);
-        pag->uso = true;
-        pthread_mutex_unlock(&mutex_paginas);
-
-        bytes_leidos += a_leer;
-    }
-    return true;
-}
-
-char* paginacion_leer_instruccion(uint32_t pid, uint32_t pc)
-{
-    int tam_pag = MEMORIA_CTX.config->tam_pagina; 
-    
-    // ✅ UNIFICACIÓN: El PC es un índice, lo convertimos a dirección lógica (byte offset)
-    uint32_t dir_logica = pc * 64;
-    
-    int pag_nro = dir_logica / tam_pag;
-    int offset  = dir_logica % tam_pag;
-    
-    t_pagina* pag = paginacion_obtener_entrada(pid, pag_nro);
-
-    if (pag && pag->presente && pag->frame != -1) {
-        pthread_mutex_lock(&mutex_paginas);
-        /* Re-validate: page could have been evicted between obtener_entrada unlock and this lock */
-        if (!pag->presente || pag->frame == -1) {
-            pthread_mutex_unlock(&mutex_paginas);
-            return NULL;
-        }
-        uint32_t dir_fisica = (pag->frame * tam_pag) + offset;
-
-        char buffer[256];
-        leer_memoria_fisica(dir_fisica, buffer, 255);
-        buffer[255] = '\0';
-        pag->uso = true;
-        pthread_mutex_unlock(&mutex_paginas);
-
-        return strdup(buffer);
-    }
-
-    return NULL; 
 }

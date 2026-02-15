@@ -37,7 +37,7 @@ static void seg_init_if_needed(void) {
     bloque->base = 0;
     bloque->tamanio = MEMORIA_CTX.config->tam_memoria;
     list_add(lista_libres, bloque);
-    log_info(logger, "SEGMENTACION: Inicializado - RAM libre: %d bytes", bloque->tamanio);
+    log_info(logger, "Memoria: segmentacion init, RAM libre: %d bytes", bloque->tamanio);
 }
 
 bool segmentacion_crear_proceso(uint32_t pid, int tamanio_bytes) {
@@ -46,7 +46,7 @@ bool segmentacion_crear_proceso(uint32_t pid, int tamanio_bytes) {
 
     char* key = seg_pid_key(pid);
     if (dictionary_has_key(tablas_segmentos, key)) {
-        log_warning(logger, "SEGMENTACION: Proceso %u ya existe", pid);
+        log_warning(logger, "PID: %u - Proceso ya existe", pid);
         free(key);
         pthread_mutex_unlock(&mutex_seg);
         return false;
@@ -54,7 +54,7 @@ bool segmentacion_crear_proceso(uint32_t pid, int tamanio_bytes) {
 
     t_bloque_libre* bloque = buscar_bloque_first_fit(tamanio_bytes);
     if (!bloque) {
-        log_error(loggerError, "SEGMENTACION: Sin espacio contiguo para PID=%u (necesita %d bytes)", pid, tamanio_bytes);
+        log_error(loggerError, "PID: %u - Sin espacio contiguo (%d bytes)", pid, tamanio_bytes);
         free(key);
         pthread_mutex_unlock(&mutex_seg);
         return false;
@@ -81,7 +81,7 @@ bool segmentacion_crear_proceso(uint32_t pid, int tamanio_bytes) {
     }
 
     dictionary_put(tablas_segmentos, key, seg);
-    log_info(logger, "SEGMENTACION: Proceso %u creado - Base=%u Limite=%u", pid, seg->base, seg->limite);
+    log_info(logger, "PID: %u - Creado base=%u limite=%u", pid, seg->base, seg->limite);
 
     pthread_mutex_unlock(&mutex_seg);
     return true;
@@ -98,7 +98,7 @@ void segmentacion_destruir_proceso(uint32_t pid) {
     if (seg) {
         devolver_bloque(seg->base, seg->limite);
         merge_bloques_adyacentes();
-        log_info(logger, "SEGMENTACION: Proceso %u destruido - Liberados %u bytes en base %u", pid, seg->limite, seg->base);
+        log_info(logger, "PID: %u - Destruido, liberados %u bytes base=%u", pid, seg->limite, seg->base);
         free(seg);
     }
 
@@ -126,7 +126,7 @@ bool segmentacion_resize(uint32_t pid, int nuevo_tamanio) {
         devolver_bloque(seg->base + nuevo_tamanio, diff);
         merge_bloques_adyacentes();
         seg->limite = nuevo_tamanio;
-        log_info(logger, "SEGMENTACION: PID=%u reducido a %d bytes", pid, nuevo_tamanio);
+        log_info(logger, "PID: %u - Reducido a %d bytes", pid, nuevo_tamanio);
         pthread_mutex_unlock(&mutex_seg);
         return true;
     }
@@ -158,7 +158,7 @@ bool segmentacion_resize(uint32_t pid, int nuevo_tamanio) {
         /* Need to relocate: allocate new block, copy data, free old */
         t_bloque_libre* nuevo = buscar_bloque_first_fit(nuevo_tamanio);
         if (!nuevo) {
-            log_error(loggerError, "SEGMENTACION: Sin espacio para resize PID=%u a %d bytes", pid, nuevo_tamanio);
+            log_error(loggerError, "PID: %u - Sin espacio para resize a %d bytes", pid, nuevo_tamanio);
             pthread_mutex_unlock(&mutex_seg);
             return false;
         }
@@ -191,7 +191,7 @@ bool segmentacion_resize(uint32_t pid, int nuevo_tamanio) {
         seg->limite = nuevo_tamanio;
     }
 
-    log_info(logger, "SEGMENTACION: PID=%u resized a %d bytes (base=%u)", pid, nuevo_tamanio, seg->base);
+    log_info(logger, "PID: %u - Resize a %d bytes base=%u", pid, nuevo_tamanio, seg->base);
     pthread_mutex_unlock(&mutex_seg);
     return true;
 }
@@ -207,7 +207,7 @@ uint32_t segmentacion_traducir(uint32_t pid, uint32_t dir_logica) {
     if (!seg) { pthread_mutex_unlock(&mutex_seg); return 0; }
 
     if (dir_logica >= seg->limite) {
-        log_error(loggerError, "SEGMENTATION FAULT: PID=%u dir_logica=%u >= limite=%u", pid, dir_logica, seg->limite);
+        log_error(loggerError, "PID: %u - Segfault dir=%u >= limite=%u", pid, dir_logica, seg->limite);
         pthread_mutex_unlock(&mutex_seg);
         return 0;
     }
@@ -227,7 +227,7 @@ bool segmentacion_escribir(uint32_t pid, uint32_t dir_logica, void* buffer, uint
 
     if (!seg) { pthread_mutex_unlock(&mutex_seg); return false; }
     if (dir_logica + size > seg->limite) {
-        log_error(loggerError, "SEGMENTATION FAULT (write): PID=%u dir=%u+size=%u > limite=%u", pid, dir_logica, size, seg->limite);
+        log_error(loggerError, "PID: %u - Segfault write dir=%u size=%u limite=%u", pid, dir_logica, size, seg->limite);
         pthread_mutex_unlock(&mutex_seg);
         return false;
     }
@@ -247,7 +247,7 @@ bool segmentacion_leer(uint32_t pid, uint32_t dir_logica, void* buffer, uint32_t
 
     if (!seg) { pthread_mutex_unlock(&mutex_seg); return false; }
     if (dir_logica + size > seg->limite) {
-        log_error(loggerError, "SEGMENTATION FAULT (read): PID=%u dir=%u+size=%u > limite=%u", pid, dir_logica, size, seg->limite);
+        log_error(loggerError, "PID: %u - Segfault read dir=%u size=%u limite=%u", pid, dir_logica, size, seg->limite);
         pthread_mutex_unlock(&mutex_seg);
         return false;
     }
