@@ -383,8 +383,7 @@ send_cmd "ALGORITMO PRIORIDAD"
 sleep 2
 
 # Warm-up: ejecutar un proceso simple para verificar que el scheduler esta
-# limpio despues del KILL de test 9 (la respuesta de CPU post-interrupt
-# necesita ser procesada por corto_plazo antes de continuar).
+# limpio despues del KILL de test 9.
 echo "  [warmup] Verificando scheduler con PRIORIDAD..."
 mark_log
 run_process "test1.txt"
@@ -395,47 +394,57 @@ else
 fi
 sleep 1
 
-send_cmd "PAUSE"
-sleep 2
-
 # --- Test 10: Prioridades ---
-# Estrategia: PAUSE para acumular procesos en NEW, luego START.
-# largo_plazo los mueve a READY secuencialmente; corto_plazo los ejecuta.
-# Verificamos que el proceso con prioridad 1 ejecuta ANTES que el de prioridad 10.
+# Estrategia: largo_plazo mueve procesos a READY uno por uno, y corto_plazo
+# agarra el primero inmediatamente. Para que el algoritmo compare prioridades,
+# necesitamos que ambos procesos esten en READY al mismo tiempo.
+# Solucion: lanzar un proceso bloqueante (infinito.txt) que ocupe la CPU.
+# Mientras la CPU esta ocupada, los dos procesos de prioridad se acumulan
+# en READY. Luego KILL al bloqueante libera la CPU y corto_plazo elige.
 DESC="Prioridades: proceso con prioridad 1 ejecuta antes que prioridad 10"
 begin_test "$DESC"
+
+# 1. Lanzar bloqueante que ocupe la CPU (prio=0, la mas alta)
+run_process "infinito.txt"
+if wait_for_log "READY -> EXEC" 10; then
+    PID_BLOCKER=$(new_log_lines | grep -oE 'PID: [0-9]+ - READY -> EXEC' | tail -1 | grep -oE '[0-9]+' | head -1)
+    echo "       Bloqueante en EXEC: PID=$PID_BLOCKER"
+else
+    fail "$DESC" "no se pudo lanzar proceso bloqueante"
+fi
+
+# 2. Lanzar ambos procesos de prioridad (la CPU esta ocupada, se acumulan en READY)
 run_process_with_priority "test_prioridad_baja.txt" 10
 sleep 1
-# Capturar PID del proceso de prioridad baja (durante PAUSE solo se logea "Encolado en NEW")
 PID_BAJA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Encolado en NEW' | tail -1 | grep -oE '[0-9]+' | head -1)
 run_process_with_priority "test_prioridad_alta.txt" 1
 sleep 1
-# Capturar PID del proceso de prioridad alta
 PID_ALTA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Encolado en NEW' | tail -1 | grep -oE '[0-9]+' | head -1)
 echo "       PID_BAJA(prio=10)=$PID_BAJA  PID_ALTA(prio=1)=$PID_ALTA"
+
+# 3. Esperar a que ambos lleguen a READY (3 total: bloqueante + 2 de prioridad)
+if ! wait_for_log_count "NEW -> READY" 3 15; then
+    readys=$(count_log "NEW -> READY")
+    fail "$DESC" "solo $readys de 3 procesos llegaron a READY (timeout)"
+fi
 sleep 1
-send_cmd "START"
-# Esperar a que ambos lleguen a READY (largo_plazo los procesa secuencialmente)
-if wait_for_log_count "NEW -> READY" 2 15; then
-    # Ahora esperar que ambos terminen
-    if wait_for_log_count "EXEC -> EXIT" 2 30; then
-        # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
-        FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
-        echo "       Primer EXIT: PID=$FIRST_EXIT_PID (esperado: $PID_ALTA)"
-        if [[ "$FIRST_EXIT_PID" == "$PID_ALTA" ]]; then
-            pass "$DESC"
-        else
-            fail "$DESC" "PID $FIRST_EXIT_PID termino primero pero PID $PID_ALTA (prio=1) debia ir primero"
-        fi
+
+# 4. KILL al bloqueante para liberar CPU. corto_plazo ahora elige entre los dos.
+send_cmd "KILL $PID_BLOCKER"
+
+# 5. Esperar que ambos terminen
+if wait_for_log_count "EXEC -> EXIT" 2 30; then
+    # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
+    FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
+    echo "       Primer EXIT: PID=$FIRST_EXIT_PID (esperado: $PID_ALTA)"
+    if [[ "$FIRST_EXIT_PID" == "$PID_ALTA" ]]; then
+        pass "$DESC"
     else
-        exits=$(count_log "EXEC -> EXIT")
-        readys=$(count_log "NEW -> READY")
-        fail "$DESC" "procesos en READY=$readys pero solo $exits llegaron a EXIT (timeout)"
+        fail "$DESC" "PID $FIRST_EXIT_PID termino primero pero PID $PID_ALTA (prio=1) debia ir primero"
     fi
 else
-    readys=$(count_log "NEW -> READY")
-    news=$(count_log "Encolado en NEW")
-    fail "$DESC" "procesos creados=$news, en READY=$readys de 2 esperados (timeout largo_plazo)"
+    exits=$(count_log "EXEC -> EXIT")
+    fail "$DESC" "solo $exits de 2 procesos llegaron a EXIT (timeout)"
 fi
 
 # ==========================================================
