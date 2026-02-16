@@ -138,23 +138,28 @@ void manejar_fin_quantum(t_contexto_cpu* ctx)
 
     log_info(logger, "PID: %u - Quantum recibido PC=%u", ctx->pid, ctx->pc);
 
-    // PASO 1: Actualizar contexto en el PCB
+    // PASO 1: Verificar que el proceso sigue en EXEC y actualizar contexto
+    bool en_exec = false;
     pthread_mutex_lock(&mutex_exec);
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
         if (pcb && pcb->pid == ctx->pid) {
             pcb->program_counter = ctx->pc;
             pcb->registros = ctx->registros;
+            en_exec = true;
             log_info(logger, "PID: %u - Contexto actualizado PC=%u", pcb->pid, pcb->program_counter);
             break;
         }
     }
     pthread_mutex_unlock(&mutex_exec);
 
-    // PASO 2: Notificar a Memoria para actualizar su copia
-    // TODO: Implementar solicitud de actualización de contexto en Memoria si es necesario
+    if (!en_exec) {
+        // Proceso ya fue removido (e.g., por KILL). No reencolear.
+        log_info(logger, "PID: %u - Quantum ignorado (ya removido por KILL)", ctx->pid);
+        return;
+    }
 
-    // PASO 3: Desalojar por quantum (pasar a READY)
+    // PASO 2: Desalojar por quantum (pasar a READY)
     manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
 }
 
@@ -164,17 +169,25 @@ void manejar_fin_proceso(t_contexto_cpu* ctx)
 
     log_info(logger, "PID: %u - Fin de proceso", ctx->pid);
 
-    // PASO 1: Actualizar contexto en PCB
+    // PASO 1: Verificar que el proceso sigue en EXEC (puede haber sido KILLado)
+    bool en_exec = false;
     pthread_mutex_lock(&mutex_exec);
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
         if (pcb && pcb->pid == ctx->pid) {
             pcb->program_counter = ctx->pc;
             pcb->registros = ctx->registros;
+            en_exec = true;
             break;
         }
     }
     pthread_mutex_unlock(&mutex_exec);
+
+    if (!en_exec) {
+        // Proceso ya fue removido (e.g., por KILL). No hacer nada.
+        log_info(logger, "PID: %u - Fin proceso ignorado (ya removido por KILL)", ctx->pid);
+        return;
+    }
 
     // PASO 2: Finalizar proceso (mover a EXIT)
     manejar_interrupcion(ctx->pid, MOTIVO_EXIT);

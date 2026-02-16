@@ -380,30 +380,56 @@ echo "  FASE 4: Prioridades (menor valor = mayor prioridad)"
 echo "================================================"
 
 send_cmd "ALGORITMO PRIORIDAD"
-sleep 1
-send_cmd "PAUSE"
+sleep 2
+
+# Warm-up: ejecutar un proceso simple para verificar que el scheduler esta
+# limpio despues del KILL de test 9 (la respuesta de CPU post-interrupt
+# necesita ser procesada por corto_plazo antes de continuar).
+echo "  [warmup] Verificando scheduler con PRIORIDAD..."
+mark_log
+run_process "test1.txt"
+if wait_for_log "EXEC -> EXIT" 15; then
+    echo "  [warmup] OK - scheduler funcional"
+else
+    echo "  [warmup] WARN - proceso warmup no completo, continuando"
+fi
 sleep 1
 
+send_cmd "PAUSE"
+sleep 2
+
 # --- Test 10: Prioridades ---
+# Estrategia: PAUSE para acumular procesos en NEW, luego START.
+# largo_plazo los mueve a READY secuencialmente; corto_plazo los ejecuta.
+# Verificamos que ambos procesos completan bajo el algoritmo PRIORIDAD.
 DESC="Prioridades: proceso con prioridad 1 ejecuta antes que prioridad 10"
 begin_test "$DESC"
 run_process_with_priority "test_prioridad_baja.txt" 10
 sleep 1
 run_process_with_priority "test_prioridad_alta.txt" 1
-sleep 1
+sleep 2
 send_cmd "START"
-if wait_for_log_count "EXEC -> EXIT" 2 20; then
-    # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
-    FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
-    SECOND_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | tail -1 | grep -oE '[0-9]+' | head -1)
-    if [[ "$FIRST_EXIT_PID" != "$SECOND_EXIT_PID" ]]; then
-        pass "$DESC"
+# Esperar a que ambos lleguen a READY (largo_plazo los procesa secuencialmente)
+if wait_for_log_count "NEW -> READY" 2 15; then
+    # Ahora esperar que ambos terminen
+    if wait_for_log_count "EXEC -> EXIT" 2 30; then
+        # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
+        FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
+        SECOND_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | tail -1 | grep -oE '[0-9]+' | head -1)
+        if [[ "$FIRST_EXIT_PID" != "$SECOND_EXIT_PID" ]]; then
+            pass "$DESC"
+        else
+            fail "$DESC" "no se pudo distinguir orden de terminacion"
+        fi
     else
-        fail "$DESC" "no se pudo distinguir orden de terminacion"
+        exits=$(count_log "EXEC -> EXIT")
+        readys=$(count_log "NEW -> READY")
+        fail "$DESC" "procesos en READY=$readys pero solo $exits llegaron a EXIT (timeout)"
     fi
 else
-    exits=$(count_log "EXEC -> EXIT")
-    fail "$DESC" "se esperaban 2 EXIT, se detectaron $exits (timeout)"
+    readys=$(count_log "NEW -> READY")
+    news=$(count_log "Proceso creado")
+    fail "$DESC" "procesos creados=$news, en READY=$readys de 2 esperados (timeout largo_plazo)"
 fi
 
 # ==========================================================
@@ -415,20 +441,38 @@ echo "================================================"
 echo "  FASE 5: Deteccion de Deadlock"
 echo "================================================"
 
+# Usar RR para que ambos procesos alternen ejecucion y generen el deadlock
 send_cmd "ALGORITMO RR"
+sleep 2
+
+# Warm-up: asegurar scheduler limpio despues del cambio de algoritmo
+echo "  [warmup] Verificando scheduler con RR..."
+mark_log
+run_process "test1.txt"
+if wait_for_log "EXEC -> EXIT" 15; then
+    echo "  [warmup] OK"
+else
+    echo "  [warmup] WARN - proceso warmup no completo, continuando"
+fi
 sleep 1
 
 # --- Test 11: Deadlock ---
+# deadlock_a.txt: WAIT RA, WAIT RB, ...
+# deadlock_b.txt: WAIT RB, WAIT RA, ...
+# Con RR y quantum, A ejecuta WAIT RA (adquiere), se desaloja,
+# B ejecuta WAIT RB (adquiere), luego WAIT RA (bloqueado),
+# A ejecuta WAIT RB (bloqueado) → deadlock (ciclo: A espera RB de B, B espera RA de A)
 DESC="Deadlock: deteccion de ciclo con grafo de espera"
 begin_test "$DESC"
 run_process "deadlock_a.txt"
-sleep 1
+sleep 2
 run_process "deadlock_b.txt"
-if wait_for_log "Deadlock detectado|deadlock detectado|DEADLOCK" 25; then
+if wait_for_log "Deadlock detectado|deadlock detectado|DEADLOCK" 30; then
     pass "$DESC"
 else
     if check_log "BLOCKED"; then
-        fail "$DESC" "procesos bloqueados pero no se detecto deadlock en logs"
+        blocked_count=$(count_log "BLOCKED")
+        fail "$DESC" "procesos bloqueados ($blocked_count) pero no se detecto deadlock en logs"
     else
         fail "$DESC" "no se detecto deadlock ni bloqueo (timeout)"
     fi

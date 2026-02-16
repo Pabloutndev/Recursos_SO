@@ -24,11 +24,15 @@ Nucleo del sistema. Administra procesos, planificacion y recursos.
 - Crea y destruye procesos (PCB con pid, pc, registros, estado, quantum)
 - Planificacion de largo plazo: mueve procesos de NEW a READY respetando el grado de multiprogramacion (`sem_mp`)
 - Planificacion de corto plazo: selecciona el proximo proceso a ejecutar segun el algoritmo configurado
-- Algoritmos soportados: FIFO, RR (Round Robin), VRR (Virtual Round Robin), HRRN
+- Algoritmos soportados: FIFO, RR (Round Robin), VRR (Virtual Round Robin), HRRN, **PRIORIDAD** (no preemptive, menor valor = mayor prioridad)
 - Envia procesos a CPU via socket dispatch y recibe el contexto actualizado
 - Envia interrupciones a CPU via socket interrupt (ej: fin de quantum)
 - Administra recursos con WAIT/SIGNAL
+- Tracking de recursos adquiridos por proceso (`recursos_adquiridos` en PCB)
 - Maneja bloqueo por I/O: envia solicitudes a las interfaces de Entrada/Salida
+- **Deteccion de deadlock**: se ejecuta automaticamente al bloquear un proceso por recurso
+  - **Grafo de Espera**: construye un grafo dirigido (proceso_bloqueado → proceso_que_tiene_recurso) y detecta ciclos con DFS
+  - **Algoritmo del Banquero**: verifica si el sistema esta en estado seguro simulando la liberacion secuencial de recursos
 
 **Config:** `kernel.config` (puertos, algoritmo, quantum, recursos, grado multiprogramacion)
 
@@ -163,12 +167,12 @@ Cliente remoto que se conecta al Kernel para enviar comandos interactivamente.
 
 | Comando | Formato | Descripcion |
 |---------|---------|-------------|
-| RUN | `RUN <archivo>` | Ejecuta un proceso a partir de un archivo de instrucciones |
+| RUN | `RUN <archivo> [prioridad]` | Ejecuta un proceso (prioridad opcional, default 0, menor = mayor) |
 | KILL | `KILL <pid>` | Mata un proceso por su PID |
 | PS | `PS` | Muestra el estado de todos los procesos (NEW, READY, EXEC, BLOCKED, EXIT) |
 | START | `START` | Inicia o reanuda la planificacion |
 | PAUSE | `PAUSE` | Pausa la planificacion (los procesos en EXEC siguen hasta el proximo evento) |
-| ALGORITMO | `ALGORITMO <alg>` | Cambia el algoritmo de planificacion (FIFO, RR, VRR, HRRN) |
+| ALGORITMO | `ALGORITMO <alg>` | Cambia el algoritmo de planificacion (FIFO, RR, VRR, HRRN, PRIORIDAD) |
 | DESALOJAR | `DESALOJAR <pid>` | Fuerza el desalojo de un proceso en ejecucion |
 | HELP | `HELP` | Muestra la lista de comandos disponibles |
 | EXIT | `EXIT` | Cierra la consola |
