@@ -8,6 +8,7 @@
 #include <configs/memoria_config.h>
 #include <gestion/memoria_core.h>
 #include <gestion/esquema_memoria.h>
+#include <gestion/paginas.h>
 #include <frames/frames.h>
 #include <gestion/memoria_ram.h>
 #include <protocolo/mensajes.h>
@@ -81,19 +82,21 @@ void memoria_adapter_atender_traducir_pagina(int fd, t_paquete* paquete)
         return;
     }
 
-    log_info(logger, "PID: %u - Traducir dir=%u", req->pid, req->direccion_logica);
+    // CPU envia el NUMERO DE PAGINA (no direccion logica)
+    uint32_t pagina = req->direccion_logica;
+    log_info(logger, "PID: %u - Traducir pagina=%u", req->pid, pagina);
 
-    int64_t dir_fisica = esquema_traducir(req->pid, req->direccion_logica);
+    // Obtener entrada de pagina (maneja page fault internamente)
+    t_pagina* pag = paginacion_obtener_entrada(req->pid, pagina);
 
-    if (dir_fisica < 0) {
-        log_error(loggerError, "PID: %u - Traduccion fallo dir=%u", req->pid, req->direccion_logica);
-        enviar_respuesta_traduccion(fd, &resp);
-        free(req);
-        return;
+    if (pag && pag->presente) {
+        resp.ok = true;
+        resp.direccion_fisica = pag->frame; // Devolver FRAME NUMBER, no direccion fisica
+        log_info(logger, "PID: %u - Pagina %u -> Frame %u", req->pid, pagina, pag->frame);
+    } else {
+        log_error(loggerError, "PID: %u - Traduccion fallo pagina=%u", req->pid, pagina);
     }
 
-    resp.ok = true;
-    resp.direccion_fisica = (uint32_t)dir_fisica;
     enviar_respuesta_traduccion(fd, &resp);
     free(req);
 }

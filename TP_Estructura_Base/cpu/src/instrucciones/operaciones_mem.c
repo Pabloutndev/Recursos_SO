@@ -15,14 +15,16 @@ t_motivo_desalojo ejecutar_mov_in(instruccion_t* i, t_contexto_cpu* ctx)
 {
     uint32_t dir_logica = registros_leer(&ctx->registros, i->r2);
     uint32_t size = registros_size(i->r1);
-    uint32_t dir_fisica = mmu_traducir(dir_logica, false);
 
+    // MMU traduce para validar acceso (detectar segfault/page fault)
+    uint32_t dir_fisica = mmu_traducir(dir_logica, false);
     if (dir_fisica == TRADUCCION_ERROR) {
         return MOTIVO_SEGFAULT;
     }
 
+    // Enviar dir LOGICA a Memoria (Memoria hace su propia traduccion)
     uint32_t valor_leido = 0;
-    if (!memoria_leer(ctx->pid, dir_fisica, &valor_leido, size)) {
+    if (!memoria_leer(ctx->pid, dir_logica, &valor_leido, size)) {
         return MOTIVO_SEGFAULT;
     }
 
@@ -38,13 +40,14 @@ t_motivo_desalojo ejecutar_mov_out(instruccion_t* i, t_contexto_cpu* ctx)
     uint32_t size = registros_size(i->r2);
     uint32_t valor_escribir = registros_leer(&ctx->registros, i->r2);
 
+    // MMU traduce para validar acceso (detectar segfault/page fault)
     uint32_t dir_fisica = mmu_traducir(dir_logica_val, true);
-
     if (dir_fisica == TRADUCCION_ERROR) {
         return MOTIVO_SEGFAULT;
     }
 
-    if (!memoria_escribir(ctx->pid, dir_fisica, &valor_escribir, size)) {
+    // Enviar dir LOGICA a Memoria (Memoria hace su propia traduccion)
+    if (!memoria_escribir(ctx->pid, dir_logica_val, &valor_escribir, size)) {
         return MOTIVO_SEGFAULT;
     }
 
@@ -86,28 +89,26 @@ t_motivo_desalojo ejecutar_copy_string(instruccion_t* i, t_contexto_cpu* ctx)
     log_info(logger, "PID: %u - COPY_STRING %u bytes de %u a %u",
              ctx->pid, tamanio, dir_origen, dir_destino);
 
-    // Traducir origen
-    uint32_t df_origen = mmu_traducir(dir_origen, false);
-    if (df_origen == TRADUCCION_ERROR) return MOTIVO_SEGFAULT;
+    // Validar acceso origen (MMU detecta segfault/page fault)
+    if (mmu_traducir(dir_origen, false) == TRADUCCION_ERROR) return MOTIVO_SEGFAULT;
 
-    // Leer datos de origen
+    // Leer datos de origen (enviar dir logica, Memoria traduce)
     void* buffer = malloc(tamanio);
     if (!buffer) return MOTIVO_SEGFAULT;
 
-    if (!memoria_leer(ctx->pid, df_origen, buffer, tamanio)) {
+    if (!memoria_leer(ctx->pid, dir_origen, buffer, tamanio)) {
         free(buffer);
         return MOTIVO_SEGFAULT;
     }
 
-    // Traducir destino
-    uint32_t df_destino = mmu_traducir(dir_destino, true);
-    if (df_destino == TRADUCCION_ERROR) {
+    // Validar acceso destino
+    if (mmu_traducir(dir_destino, true) == TRADUCCION_ERROR) {
         free(buffer);
         return MOTIVO_SEGFAULT;
     }
 
-    // Escribir datos en destino
-    if (!memoria_escribir(ctx->pid, df_destino, buffer, tamanio)) {
+    // Escribir datos en destino (enviar dir logica, Memoria traduce)
+    if (!memoria_escribir(ctx->pid, dir_destino, buffer, tamanio)) {
         free(buffer);
         return MOTIVO_SEGFAULT;
     }
