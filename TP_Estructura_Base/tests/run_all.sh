@@ -345,8 +345,10 @@ sleep 1
 DESC="KILL: terminar proceso en ejecucion forzadamente"
 begin_test "$DESC"
 run_process "infinito.txt"
-# Esperar a que el proceso aparezca en los logs (ya esta en ejecucion)
-if wait_for_log "PID:.*NEW|Proceso creado" 10; then
+# Esperar a que el proceso este en EXEC (no solo NEW, ya que largo_plazo
+# saca de NEW y llama a Memoria antes de encolar en READY; si KILL llega
+# durante esa ventana, el PCB no esta en ninguna cola).
+if wait_for_log "READY -> EXEC" 10; then
     PID=$(new_log_lines | grep -oE 'PID: [0-9]+' | tail -1 | grep -oE '[0-9]+')
     if [[ -n "$PID" ]]; then
         send_cmd "KILL $PID"
