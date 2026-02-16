@@ -43,11 +43,6 @@ void enviar_interrupcion_a_cpu(int pid, int motivo) {
     enviar_interrupcion_cpu(socket_interrupt);
 }
 
-t_contexto_cpu* recibir_contexto_de_cpu(void) {
-    // Funcion no utilizada en modelo asincrono con hilo dedicado
-    return NULL;
-}
-
 void conectar_cpu(char* ip, char* puerto_dispatch, char* puerto_interrupt)
 {
     // 1. Dispatch

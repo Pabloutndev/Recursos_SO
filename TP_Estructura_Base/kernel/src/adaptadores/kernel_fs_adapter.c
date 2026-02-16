@@ -56,21 +56,12 @@ void kernel_fs_operation(t_pcb* pcb,
         log_info(logger, "PID: %u - FS_DELETE %s -> %s",
                  pcb->pid, path, interfaz_io);
 
-        enviar_respuesta(socket_io, OP_IO_FS_DELETE); // O implementar enviar_io_fs_delete
-        // Por consistencia implementamos enviar_io_fs_create con el opcode correcto
         t_paquete* p = serializar_io_fs_create(req);
         p->codigo_operacion = OP_IO_FS_DELETE;
         enviar_paquete(socket_io, p);
         paquete_destroy(p);
 
         free(req);
-    }
-    else if (strcmp(tipo_operacion, "READ") == 0) {
-        log_info(logger, "PID: %u - FS_READ %s -> %s",
-                 pcb->pid, path, interfaz_io);
-
-        // TODO: Implementar estructura y protocolo para READ
-        log_warning(logger, "PID: %u - FS_READ no completamente implementado", pcb->pid);
     }
     else if (strcmp(tipo_operacion, "WRITE") == 0) {
         t_io_fs_write* req = malloc(sizeof(t_io_fs_write));

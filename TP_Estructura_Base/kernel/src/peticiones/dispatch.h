@@ -18,12 +18,4 @@ int enviar_proceso_a_cpu(t_pcb* pcb);
  */
 int enviar_interrupt_cpu(uint32_t pid);
 
-/**
- * @brief Recibe el contexto actualizado desde CPU
- * @param sock Socket de conexión
- * @param pcb PCB a actualizar
- * @return int 0 si éxito, -1 si error
- */
-int recibir_contexto_actualizado(int sock, t_pcb* pcb);
-
 #endif /* DISPATCH_H */

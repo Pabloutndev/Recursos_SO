@@ -27,31 +27,6 @@ t_contexto_cpu* deserializar_contexto_cpu(t_paquete* p) {
     return ctx;
 }
 
-/*
-t_paquete* serializar_process(t_process* proc) {
-    t_paquete* p = paquete_create(OP_PROCESO_EXEC);
-    paquete_write_int(p, proc->pid);
-    paquete_write_int(p, proc->pc);
-    serializar_registros(&p, &(proc->registros));
-    return p;
-}
-
-t_process* deserializar_process(t_paquete* p) {
-    t_process* proc = malloc(sizeof(t_process));
-    paquete_read_int(p, &proc->pid);
-    paquete_read_int(p, &proc->pc);
-    deserializar_registros(p, &proc->registros);
-    return proc;
-}
-
-t_paquete* serializar_fin_quatum(t_process* proc) {
-    t_paquete* p = paquete_create(OP_FIN_DE_QUANTUM);
-    paquete_write_int(p, proc->pid);
-    paquete_write_int(p, proc->pc);
-    serializar_registros(p, &proc->registros);
-    return p;
-}
-*/
 /// ##### AUXILIAR SERIALIZACION/DESERIALIZACION DE REGISTROS
 
 void serializar_registros(t_paquete* p, registros_t* r) {
@@ -68,7 +43,6 @@ void serializar_registros(t_paquete* p, registros_t* r) {
     paquete_write_uint32(p, r->EDX);
     paquete_write_uint32(p, r->SI);
     paquete_write_uint32(p, r->DI);
-    //paquete_write_uint32(p, r->PC);
 }
 
 void deserializar_registros(t_paquete* p, registros_t* r) {
@@ -85,7 +59,6 @@ void deserializar_registros(t_paquete* p, registros_t* r) {
     paquete_read_uint32(p, &r->EDX);
     paquete_read_uint32(p, &r->SI);
     paquete_read_uint32(p, &r->DI);
-    //paquete_read_uint32(p, &r->PC);
 }
 
 /// ===========

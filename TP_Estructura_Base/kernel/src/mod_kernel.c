@@ -1,6 +1,6 @@
 // mod_kernel.c
 #include <mod_kernel.h>
-#include <consola/consola.h>
+
 #include <config/kernel_config.h>
 #include <planificacion/planificacion.h>
 #include <conexiones/cpu.h>
@@ -77,8 +77,8 @@ int kernel_init(const char* config_path)
     kernel_server_consola_listen(KERNEL_CTX.config.puerto_consola);
     log_info(KERNEL_CTX.logger, "Kernel: listo, consola en puerto %s", KERNEL_CTX.config.puerto_consola);
 
-    // Consola local como fallback (bloquea el hilo main)
-    iniciar_consola();
+    // Bloquear hilo main (toda la logica es via consola remota y threads)
+    while(1) pause();
 
     return EXIT_SUCCESS;
 }

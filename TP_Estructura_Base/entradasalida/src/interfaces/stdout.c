@@ -1,2 +1,0 @@
-
-#include <interfaces/stdin.h>

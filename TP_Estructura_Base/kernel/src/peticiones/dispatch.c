@@ -28,7 +28,3 @@ int enviar_interrupt_cpu(uint32_t pid) {
     enviar_interrupcion_a_cpu(pid, 0); // Motivo 0 genérico
     return 1;
 }
-
-int recibir_contexto_actualizado(int sock, t_pcb* pcb) {
-    return 0;
-}

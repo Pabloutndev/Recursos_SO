@@ -84,11 +84,6 @@ t_paquete* recibir_paquete(int fd)
     return p;
 }
 
-op_code devolver_operacion(t_paquete* p)
-{
-    return p->codigo_operacion;
-}
-
 /// NOTE: SERIALIZACION / DESERIALIZACION
 bool paquete_write_string(t_paquete* p, const char* s)
 {
@@ -158,16 +153,6 @@ bool paquete_write_int(t_paquete* p, int v)
 bool paquete_read_int(t_paquete* p, int* v)
 {
     return buffer_read(p->buffer, v, sizeof(int));
-}
-
-bool paquete_write_float(t_paquete* p, float v)
-{
-    return buffer_write(p->buffer, &v, sizeof(float));
-}
-
-bool paquete_read_float(t_paquete* p, float* v)
-{
-    return buffer_read(p->buffer, v, sizeof(float));
 }
 
 bool paquete_write_bool(t_paquete* p, bool v)

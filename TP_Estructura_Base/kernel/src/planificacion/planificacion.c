@@ -272,17 +272,4 @@ void planificacion_finalizar_proceso(uint32_t pid)
     }
     
     pcb_search_pid = 0;
-} 
-// Wrappers legacy
-void planificacion_matar_proceso(t_pcb* pcb) {
-    if(pcb) planificacion_finalizar_proceso(pcb->pid);
-}
-
-/* Dump estado de proceso */
-void planificacion_dump_estado(t_pcb* pcb)
-{
-    if (!pcb) return;
-    
-    log_info(KERNEL_CTX.logger, "PID: %u - Dump: estado=%d PC=%u quantum=%d prioridad=%d est_rafaga=%.2f tam=%u",
-             pcb->pid, pcb->estado, pcb->program_counter, pcb->quantum, pcb->prioridad, pcb->estimacion_rafaga, pcb->tam_proceso);
 }

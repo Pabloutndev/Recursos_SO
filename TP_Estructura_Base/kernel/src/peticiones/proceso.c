@@ -90,10 +90,3 @@ void matar_proceso(int pid)
     planificacion_finalizar_proceso(pid);
 }
 
-/* ===============================
- * PS (mostrar estados)
- * =============================== */
-void mostrar_procesos(void)
-{
-    listar_procesos_por_estado();
-}

@@ -40,8 +40,6 @@ void paquete_destroy(t_paquete* p);
 /// NOTE: SEND / RECV
 bool enviar_paquete(int fd, t_paquete* p);
 t_paquete* recibir_paquete(int fd);
-op_code recibir_operacion(t_paquete* p);
-op_code devolver_operacion(t_paquete* p);
 
 /// NOTE: SERIALIZACION / DESERIALIZACION
 bool paquete_write_buffer(t_paquete*, const void*, uint32_t);
@@ -59,9 +57,6 @@ bool paquete_read_uint32(t_paquete*, uint32_t*);
 
 bool paquete_write_int(t_paquete*, int);
 bool paquete_read_int(t_paquete*, int*);
-
-bool paquete_write_float(t_paquete*, float);
-bool paquete_read_float(t_paquete*, float*);
 
 bool paquete_write_bool(t_paquete*, bool);
 bool paquete_read_bool(t_paquete*, bool*);
