@@ -138,6 +138,12 @@ run_process() {
     (cd "$BASE_DIR/consola" && printf 'RUN %s\n' "$1" | ./bin/consola) > /dev/null 2>&1
 }
 
+run_process_with_priority() {
+    local name="$1"
+    local prio="$2"
+    (cd "$BASE_DIR/consola" && printf 'RUN %s %s\n' "$name" "$prio" | ./bin/consola) > /dev/null 2>&1
+}
+
 # Tracking de resultados
 TOTAL=0; PASSED=0; FAILED=0
 RESULTS=""
@@ -362,6 +368,70 @@ if wait_for_log "READY -> EXEC" 10; then
     fi
 else
     fail "$DESC" "no se detecto creacion del proceso en logs (timeout)"
+fi
+
+# ==========================================================
+#  FASE 4: PLANIFICACION CON PRIORIDADES
+# ==========================================================
+
+echo ""
+echo "================================================"
+echo "  FASE 4: Prioridades (menor valor = mayor prioridad)"
+echo "================================================"
+
+send_cmd "ALGORITMO PRIORIDAD"
+sleep 1
+send_cmd "PAUSE"
+sleep 1
+
+# --- Test 10: Prioridades ---
+DESC="Prioridades: proceso con prioridad 1 ejecuta antes que prioridad 10"
+begin_test "$DESC"
+run_process_with_priority "test_prioridad_baja.txt" 10
+sleep 1
+run_process_with_priority "test_prioridad_alta.txt" 1
+sleep 1
+send_cmd "START"
+if wait_for_log_count "EXEC -> EXIT" 2 20; then
+    # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
+    FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
+    SECOND_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | tail -1 | grep -oE '[0-9]+' | head -1)
+    if [[ "$FIRST_EXIT_PID" != "$SECOND_EXIT_PID" ]]; then
+        pass "$DESC"
+    else
+        fail "$DESC" "no se pudo distinguir orden de terminacion"
+    fi
+else
+    exits=$(count_log "EXEC -> EXIT")
+    fail "$DESC" "se esperaban 2 EXIT, se detectaron $exits (timeout)"
+fi
+
+# ==========================================================
+#  FASE 5: DETECCION DE DEADLOCK
+# ==========================================================
+
+echo ""
+echo "================================================"
+echo "  FASE 5: Deteccion de Deadlock"
+echo "================================================"
+
+send_cmd "ALGORITMO RR"
+sleep 1
+
+# --- Test 11: Deadlock ---
+DESC="Deadlock: deteccion de ciclo con grafo de espera"
+begin_test "$DESC"
+run_process "deadlock_a.txt"
+sleep 1
+run_process "deadlock_b.txt"
+if wait_for_log "Deadlock detectado|deadlock detectado|DEADLOCK" 25; then
+    pass "$DESC"
+else
+    if check_log "BLOCKED"; then
+        fail "$DESC" "procesos bloqueados pero no se detecto deadlock en logs"
+    else
+        fail "$DESC" "no se detecto deadlock ni bloqueo (timeout)"
+    fi
 fi
 
 # ==========================================================

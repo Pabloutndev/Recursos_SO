@@ -46,8 +46,10 @@ static bool procesar_linea(char* linea)
 
         case CMD_RUN:
             if (tokens[1]) {
-                enviar_comando_string(socket_kernel, OP_CONSOLA_RUN, tokens[1]);
-                log_info(logger_consola, "Enviado RUN: %s", tokens[1]);
+                uint32_t prioridad = 0;
+                if (tokens[2]) prioridad = (uint32_t)atoi(tokens[2]);
+                enviar_comando_run(socket_kernel, tokens[1], prioridad);
+                log_info(logger_consola, "Enviado RUN: %s (prioridad=%u)", tokens[1], prioridad);
             } else {
                 log_error(logger_consola, "RUN requiere un path");
             }

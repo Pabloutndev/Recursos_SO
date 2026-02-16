@@ -34,7 +34,7 @@ extern t_list* cola_new;
  * 4. Señalizar planificador largo plazo
  * 5. El planificador largo plazo se encarga de hablar con Memoria
  * =============================== */
-void ejecutar_proceso(char* nombre_archivo)
+void ejecutar_proceso(char* nombre_archivo, int prioridad)
 {
     if (!nombre_archivo || strlen(nombre_archivo) == 0) {
         log_error(KERNEL_CTX.logger_error, "Proceso: nombre de archivo invalido");
@@ -55,8 +55,8 @@ void ejecutar_proceso(char* nombre_archivo)
         return;
     }
 
-    log_info(KERNEL_CTX.logger, "Proceso: creacion solicitada %s", nombre_proceso);
-    
+    log_info(KERNEL_CTX.logger, "Proceso: creacion solicitada %s (prioridad=%d)", nombre_proceso, prioridad);
+
     // ✅ PASO 1: Crear PCB (genera PID, estado NEW)
     t_pcb* pcb = pcb_crear();
     if (!pcb) {
@@ -64,7 +64,10 @@ void ejecutar_proceso(char* nombre_archivo)
         free(nombre_proceso);
         return;
     }
-    
+
+    // ✅ PASO 1.5: Asignar prioridad
+    pcb->prioridad = prioridad;
+
     // ✅ PASO 2: Asignar nombre del proceso (Memoria lo usará para construir su propia ruta)
     pcb->path = nombre_proceso;  // Es el NOMBRE, no la ruta completa
     

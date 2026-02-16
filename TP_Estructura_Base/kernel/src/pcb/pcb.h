@@ -33,6 +33,9 @@ typedef struct {
     // archivos abiertos: lista de (nombre, offset) del proceso
     t_list* tabla_archivos;
     
+    // Recursos adquiridos (para deteccion de deadlock)
+    t_list* recursos_adquiridos; // lista de char* (nombres de recursos asignados)
+
     // Estadistica (EXTRAS AL KERNEL)
     int prioridad;              // (0 = mayor prioridad)
     double estimacion_rafaga;   // Algoritmo HRRN - SJF

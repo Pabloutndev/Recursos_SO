@@ -21,7 +21,10 @@ void recursos_destroy();
 bool recurso_wait(t_pcb* pcb, char* nombre_recurso);
 
 /* Retorna un PCB desbloqueado si lo hubo, o NULL */
-t_pcb* recurso_signal(char* nombre_recurso);
+t_pcb* recurso_signal(char* nombre_recurso, t_pcb* pcb_signaler);
+
+/* Obtener diccionario de recursos (para deteccion de deadlock) */
+t_dictionary* recursos_obtener_diccionario(void);
 
 /* Libera recursos bloqueados por un proceso al finalizar */
 void recursos_liberar_proceso(uint32_t pid);

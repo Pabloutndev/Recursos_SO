@@ -42,6 +42,7 @@ extern t_pcb* algoritmo_obtener_fifo(void);
 extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
 extern t_pcb* algoritmo_obtener_vrr(void);
+extern t_pcb* algoritmo_obtener_prioridad(void);
 
 /* Hilos */
 static pthread_t hilo_largo, hilo_corto;
@@ -89,6 +90,7 @@ void planificacion_init(void)
     if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "RR") == 0) algoritmo_actual = ALG_RR;
     else if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "VRR") == 0) algoritmo_actual = ALG_VRR;
     else if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "HRRN") == 0) algoritmo_actual = ALG_HRRN;
+    else if (strcmp(KERNEL_CTX.config.algoritmo_planificacion, "PRIORIDAD") == 0) algoritmo_actual = ALG_PRIORIDAD;
     else algoritmo_actual = ALG_FIFO;
 
     set_algoritmo(algoritmo_actual);
@@ -141,8 +143,9 @@ void set_algoritmo(algoritmo_t a)
         case ALG_FIFO: proximoAEjecutar = algoritmo_obtener_fifo; nombre = "FIFO"; break;
         case ALG_RR:   proximoAEjecutar = algoritmo_obtener_rr;   nombre = "RR";   break;
         case ALG_VRR:  proximoAEjecutar = algoritmo_obtener_vrr;  nombre = "VRR";  break;
-        case ALG_HRRN: proximoAEjecutar = algoritmo_obtener_hrrn; nombre = "HRRN"; break;
-        default:       proximoAEjecutar = algoritmo_obtener_fifo; nombre = "FIFO"; break;
+        case ALG_HRRN:      proximoAEjecutar = algoritmo_obtener_hrrn;      nombre = "HRRN";      break;
+        case ALG_PRIORIDAD: proximoAEjecutar = algoritmo_obtener_prioridad; nombre = "PRIORIDAD"; break;
+        default:            proximoAEjecutar = algoritmo_obtener_fifo;      nombre = "FIFO";      break;
     }
     // Actualizar string de config para que timer_quantum y otros lo vean
     free(KERNEL_CTX.config.algoritmo_planificacion);

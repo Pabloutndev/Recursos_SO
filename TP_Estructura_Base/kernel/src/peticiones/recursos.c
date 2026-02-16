@@ -57,6 +57,7 @@ bool recurso_wait(t_pcb* pcb, char* nombre_recurso) {
     pthread_mutex_lock(&r->mutex);
     if (r->instancias > 0) {
         r->instancias--;
+        list_add(pcb->recursos_adquiridos, strdup(nombre_recurso));
         log_info(KERNEL_CTX.logger, "PID: %d - WAIT recurso %s asignado, instancias=%d", pcb->pid, r->nombre, r->instancias);
         pthread_mutex_unlock(&r->mutex);
         return false; // No bloquear
@@ -70,7 +71,7 @@ bool recurso_wait(t_pcb* pcb, char* nombre_recurso) {
     }
 }
 
-t_pcb* recurso_signal(char* nombre_recurso) {
+t_pcb* recurso_signal(char* nombre_recurso, t_pcb* pcb_signaler) {
     if (!dictionary_has_key(diccionario_recursos, nombre_recurso)) {
         log_error(KERNEL_CTX.logger, "SIGNAL error: recurso inexistente %s", nombre_recurso);
         return NULL;
@@ -79,19 +80,36 @@ t_pcb* recurso_signal(char* nombre_recurso) {
     t_recurso* r = dictionary_get(diccionario_recursos, nombre_recurso);
     t_pcb* desbloqueado = NULL;
 
+    // Remover recurso de la lista del proceso que hace signal
+    if (pcb_signaler && pcb_signaler->recursos_adquiridos) {
+        for (int i = 0; i < list_size(pcb_signaler->recursos_adquiridos); i++) {
+            char* res = list_get(pcb_signaler->recursos_adquiridos, i);
+            if (strcmp(res, nombre_recurso) == 0) {
+                list_remove(pcb_signaler->recursos_adquiridos, i);
+                free(res);
+                break;
+            }
+        }
+    }
+
     pthread_mutex_lock(&r->mutex);
-    
+
     if (list_is_empty(r->cola_bloqueados)) {
         r->instancias++;
         log_info(KERNEL_CTX.logger, "SIGNAL: recurso %s liberado, instancias=%d", r->nombre, r->instancias);
     } else {
         desbloqueado = list_remove(r->cola_bloqueados, 0);
+        // El recurso se transfiere al desbloqueado
+        list_add(desbloqueado->recursos_adquiridos, strdup(nombre_recurso));
         log_info(KERNEL_CTX.logger, "PID: %d - SIGNAL recurso %s asignado (desbloqueado)", desbloqueado->pid, r->nombre);
-        // No incrementamos instancia porque se la pasa directo al desbloqueado
     }
-    
+
     pthread_mutex_unlock(&r->mutex);
     return desbloqueado;
+}
+
+t_dictionary* recursos_obtener_diccionario(void) {
+    return diccionario_recursos;
 }
 
 void recursos_liberar_proceso(uint32_t pid) {

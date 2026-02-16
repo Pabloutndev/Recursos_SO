@@ -6,6 +6,8 @@
 #include <pcb/pcb.h>
 #include <loggers/logger.h>
 #include <mod_kernel.h>
+#include <deteccion_deadlock/banquero.h>
+#include <deteccion_deadlock/grafo_espera.h>
 #include <pthread.h>
 #include <commons/collections/list.h>
 #include <commons/temporal.h>
@@ -50,6 +52,16 @@ void manejar_wait_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
     if (bloqueo) {
         // Bloquear proceso
         manejar_interrupcion(ctx->pid, MOTIVO_WAIT);
+
+        // Deteccion de deadlock despues de bloquear
+        bool ciclo = grafo_espera_detectar_deadlock();
+        bool seguro = banquero_estado_seguro();
+        if (ciclo) {
+            log_info(logger, "DEADLOCK: Grafo de espera detecto ciclo");
+        }
+        if (!seguro) {
+            log_info(logger, "DEADLOCK: Banquero indica estado inseguro");
+        }
     } else {
         // No bloquea - recurso adquirido, volver a Ready
         manejar_interrupcion(ctx->pid, MOTIVO_QUANTUM);
@@ -63,7 +75,19 @@ void manejar_signal_recurso(t_contexto_cpu* ctx, const char* nombre_recurso) {
         return;
     }
 
-    t_pcb* desbloqueado = recurso_signal((char*)nombre_recurso);
+    // Buscar el PCB del proceso que hace signal para actualizar sus recursos_adquiridos
+    t_pcb* pcb_signaler = NULL;
+    pthread_mutex_lock(&mutex_exec);
+    for (int i = 0; i < list_size(cola_exec); i++) {
+        t_pcb* p = list_get(cola_exec, i);
+        if (p->pid == ctx->pid) {
+            pcb_signaler = p;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&mutex_exec);
+
+    t_pcb* desbloqueado = recurso_signal((char*)nombre_recurso, pcb_signaler);
 
     if (desbloqueado) {
         // El proceso desbloqueado estaba en BLOCKED y en la cola del recurso.

@@ -64,3 +64,26 @@ t_pcb* algoritmo_obtener_hrrn(void)
     pthread_mutex_unlock(&mutex_ready);
     return elegido;
 }
+
+t_pcb* algoritmo_obtener_prioridad(void)
+{
+    pthread_mutex_lock(&mutex_ready);
+    if (list_is_empty(cola_ready)) {
+        pthread_mutex_unlock(&mutex_ready);
+        return NULL;
+    }
+
+    int idx = 0;
+    int min_prio = ((t_pcb*)list_get(cola_ready, 0))->prioridad;
+    for (int i = 1; i < list_size(cola_ready); ++i) {
+        t_pcb* p = list_get(cola_ready, i);
+        if (p->prioridad < min_prio) {
+            min_prio = p->prioridad;
+            idx = i;
+        }
+    }
+
+    t_pcb* elegido = list_remove(cola_ready, idx);
+    pthread_mutex_unlock(&mutex_ready);
+    return elegido;
+}

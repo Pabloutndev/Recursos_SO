@@ -49,6 +49,7 @@ extern t_pcb* algoritmo_obtener_fifo(void);
 extern t_pcb* algoritmo_obtener_rr(void);
 extern t_pcb* algoritmo_obtener_hrrn(void);
 extern t_pcb* algoritmo_obtener_vrr(void);
+extern t_pcb* algoritmo_obtener_prioridad(void);
 
 /* Hilos */
 //static pthread_t hilo_largo;

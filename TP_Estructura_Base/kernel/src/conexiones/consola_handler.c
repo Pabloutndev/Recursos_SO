@@ -54,8 +54,10 @@ void* handler_consola_connection(void* arg)
             case OP_CONSOLA_RUN: {
                 char* path = paquete_read_string(msg);
                 if (path) {
-                    log_info(KERNEL_CTX.logger, "Consola: RUN %s", path);
-                    ejecutar_proceso(path);
+                    uint32_t prioridad = 0;
+                    paquete_read_uint32(msg, &prioridad); // 0 si no viene
+                    log_info(KERNEL_CTX.logger, "Consola: RUN %s (prioridad=%u)", path, prioridad);
+                    ejecutar_proceso(path, (int)prioridad);
                     free(path);
                 } else {
                     log_error(KERNEL_CTX.logger_error, "Consola: RUN sin argumento path");
@@ -138,6 +140,8 @@ void* handler_consola_connection(void* arg)
                         set_algoritmo(ALG_VRR);
                     else if (strcmp(upper, "HRRN") == 0)
                         set_algoritmo(ALG_HRRN);
+                    else if (strcmp(upper, "PRIORIDAD") == 0)
+                        set_algoritmo(ALG_PRIORIDAD);
                     else
                         log_error(KERNEL_CTX.logger_error, "Consola: algoritmo no valido %s", algo_str);
 

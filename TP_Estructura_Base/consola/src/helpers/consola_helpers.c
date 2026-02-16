@@ -57,10 +57,10 @@ void mensaje_inicial(void)
 {
     printf("=== Consola Remota del Kernel ===\n");
     printf("Comandos disponibles:\n");
-    printf("  RUN <nombre>             - Crear y ejecutar proceso\n");
+    printf("  RUN <nombre> [prioridad] - Crear y ejecutar proceso (prioridad: 0=max, default=0)\n");
     printf("  KILL <pid>               - Terminar proceso\n");
     printf("  PS                       - Listar procesos por estado\n");
-    printf("  ALGORITMO <FIFO|RR|VRR|HRRN> - Cambiar algoritmo de planificacion\n");
+    printf("  ALGORITMO <FIFO|RR|VRR|HRRN|PRIORIDAD> - Cambiar algoritmo de planificacion\n");
     printf("  START                    - Iniciar planificacion\n");
     printf("  PAUSE                    - Pausar planificacion\n");
     printf("  DESALOJAR <pid>          - Desalojar proceso en ejecucion\n");

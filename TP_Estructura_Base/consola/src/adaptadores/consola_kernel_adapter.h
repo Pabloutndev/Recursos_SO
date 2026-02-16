@@ -7,5 +7,6 @@
 void enviar_comando_string(int socket, op_code code, const char* str);
 void enviar_comando_uint32(int socket, op_code code, uint32_t val);
 void enviar_comando_simple(int socket, op_code code);
+void enviar_comando_run(int socket, const char* path, uint32_t prioridad);
 
 #endif

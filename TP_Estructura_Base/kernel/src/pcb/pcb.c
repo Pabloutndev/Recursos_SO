@@ -29,6 +29,7 @@ t_pcb* pcb_crear(void)
     pcb->tabla_segmentos = list_create();
     pcb->tam_proceso = 0;
     pcb->tabla_archivos = list_create();
+    pcb->recursos_adquiridos = list_create();
 
     pcb->prioridad = 0;
     pcb->estimacion_rafaga = 0.0;
@@ -52,6 +53,7 @@ void pcb_destruir(t_pcb* pcb)
     
     if (pcb->tabla_segmentos) list_destroy(pcb->tabla_segmentos);
     if (pcb->tabla_archivos) list_destroy(pcb->tabla_archivos);
+    if (pcb->recursos_adquiridos) list_destroy_and_destroy_elements(pcb->recursos_adquiridos, free);
 
     if (pcb->tiempo_ready) {
         temporal_destroy(pcb->tiempo_ready);
