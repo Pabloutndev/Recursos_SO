@@ -7,7 +7,7 @@
 #include <commons/bitarray.h>
 #include <sys/mman.h>
 #include <fcntl.h>
-#include <configs/io_config.h>
+#include <config/io_config.h>
 #include <paquete/paquete.h>
 #include <stdbool.h>
 

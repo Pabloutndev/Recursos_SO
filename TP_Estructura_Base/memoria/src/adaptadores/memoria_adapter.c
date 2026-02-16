@@ -5,7 +5,7 @@
 #include <commons/string.h>
 
 #include <mod_memoria.h>
-#include <configs/memoria_config.h>
+#include <config/memoria_config.h>
 #include <gestion/memoria_core.h>
 #include <gestion/esquema_memoria.h>
 #include <gestion/paginas.h>

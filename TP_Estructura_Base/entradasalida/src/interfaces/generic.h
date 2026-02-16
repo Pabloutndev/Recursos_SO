@@ -5,6 +5,6 @@
 #include <commons/collections/list.h>
 #include <commons/log.h>
 #include <unistd.h>
-#include "../configs/io_config.h"
+#include <config/io_config.h>
 
 #endif

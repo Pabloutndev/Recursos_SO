@@ -1,4 +1,4 @@
-#include <configs/memoria_config.h>
+#include <config/memoria_config.h>
 #include <string.h>
 
 t_memoria_config* memoria_cargar_config(const char* path) {

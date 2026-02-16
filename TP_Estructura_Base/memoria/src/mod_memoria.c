@@ -2,7 +2,7 @@
 #include <gestion/memoria_ram.h>
 #include <gestion/esquema_memoria.h>
 #include <frames/frames.h>
-#include <configs/memoria_config.h>
+#include <config/memoria_config.h>
 #include <swap/swap.h>
 #include <server/server_mem.h>
 #include <unistd.h>

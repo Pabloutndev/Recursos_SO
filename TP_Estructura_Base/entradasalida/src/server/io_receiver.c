@@ -5,7 +5,7 @@
 #include <protocolo/mensajes.h>
 #include <conexion/conexion.h>
 #include <adaptadores/io_adapter.h>
-#include <core/io_main.h>
+#include <io_main.h>
 
 void io_receiver_loop() {
     log_info(IO_CTX.logger, "IO: escuchando Kernel");

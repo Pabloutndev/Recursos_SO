@@ -1,7 +1,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
-#include "core/io_main.h"
+#include "io_main.h"
 
 int main(int argc, char** argv) {
     if(argc < 3) {

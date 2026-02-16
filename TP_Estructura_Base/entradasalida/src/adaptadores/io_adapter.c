@@ -6,7 +6,7 @@
 #include <stdio.h>
 #include <commons/log.h>
 #include <readline/readline.h>
-#include <core/io_main.h>
+#include <io_main.h>
 #include <interfaces/dialfs.h>
 
 void io_adapter_atender_sleep(int fd, t_paquete* p) {

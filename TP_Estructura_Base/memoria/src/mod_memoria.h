@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <commons/log.h>
-#include "configs/memoria_config.h"
+#include "config/memoria_config.h"
 
 /* Variables Globales */
 typedef struct {
