@@ -29,4 +29,8 @@ t_dictionary* recursos_obtener_diccionario(void);
 /* Libera recursos bloqueados por un proceso al finalizar */
 void recursos_liberar_proceso(uint32_t pid);
 
+/* Libera recursos adquiridos por un proceso y desbloquea procesos en espera.
+ * Retorna una lista de t_pcb* desbloqueados (el caller debe moverlos de BLOCKED a READY). */
+t_list* recursos_liberar_adquiridos(t_pcb* pcb);
+
 #endif

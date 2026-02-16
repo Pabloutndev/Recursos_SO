@@ -170,21 +170,20 @@ void manejar_fin_proceso(t_contexto_cpu* ctx)
     log_info(logger, "PID: %u - Fin de proceso", ctx->pid);
 
     // PASO 1: Verificar que el proceso sigue en EXEC (puede haber sido KILLado)
-    bool en_exec = false;
+    t_pcb* pcb_encontrado = NULL;
     pthread_mutex_lock(&mutex_exec);
     for (int i = 0; i < list_size(cola_exec); i++) {
         t_pcb* pcb = (t_pcb*) list_get(cola_exec, i);
         if (pcb && pcb->pid == ctx->pid) {
             pcb->program_counter = ctx->pc;
             pcb->registros = ctx->registros;
-            en_exec = true;
+            pcb_encontrado = pcb;
             break;
         }
     }
     pthread_mutex_unlock(&mutex_exec);
 
-    if (!en_exec) {
-        // Proceso ya fue removido (e.g., por KILL). No hacer nada.
+    if (!pcb_encontrado) {
         log_info(logger, "PID: %u - Fin proceso ignorado (ya removido por KILL)", ctx->pid);
         return;
     }
@@ -192,6 +191,24 @@ void manejar_fin_proceso(t_contexto_cpu* ctx)
     // PASO 2: Finalizar proceso (mover a EXIT)
     manejar_interrupcion(ctx->pid, MOTIVO_EXIT);
 
-    // PASO 3: Liberar recursos en Memoria
+    // PASO 3: Liberar recursos adquiridos (pueden desbloquear otros procesos)
+    t_list* desbloqueados = recursos_liberar_adquiridos(pcb_encontrado);
+    for (int i = 0; i < list_size(desbloqueados); i++) {
+        t_pcb* desb = list_get(desbloqueados, i);
+        pthread_mutex_lock(&mutex_blocked);
+        list_remove_element(cola_blocked, desb);
+        pthread_mutex_unlock(&mutex_blocked);
+
+        desb->estado = READY;
+        desb->tiempo_ready = temporal_create();
+        pthread_mutex_lock(&mutex_ready);
+        list_add(cola_ready, desb);
+        pthread_mutex_unlock(&mutex_ready);
+        sem_post(&sem_hay_ready);
+        log_cambio_estado(desb->pid, "BLOCKED", "READY");
+    }
+    list_destroy(desbloqueados);
+
+    // PASO 4: Liberar recursos en Memoria
     solicitar_fin_proceso_memoria(ctx->pid);
 }

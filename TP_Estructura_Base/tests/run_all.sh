@@ -401,13 +401,19 @@ sleep 2
 # --- Test 10: Prioridades ---
 # Estrategia: PAUSE para acumular procesos en NEW, luego START.
 # largo_plazo los mueve a READY secuencialmente; corto_plazo los ejecuta.
-# Verificamos que ambos procesos completan bajo el algoritmo PRIORIDAD.
+# Verificamos que el proceso con prioridad 1 ejecuta ANTES que el de prioridad 10.
 DESC="Prioridades: proceso con prioridad 1 ejecuta antes que prioridad 10"
 begin_test "$DESC"
 run_process_with_priority "test_prioridad_baja.txt" 10
 sleep 1
+# Capturar PID del proceso de prioridad baja
+PID_BAJA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Proceso creado' | tail -1 | grep -oE '[0-9]+' | head -1)
 run_process_with_priority "test_prioridad_alta.txt" 1
-sleep 2
+sleep 1
+# Capturar PID del proceso de prioridad alta
+PID_ALTA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Proceso creado' | tail -1 | grep -oE '[0-9]+' | head -1)
+echo "       PID_BAJA(prio=10)=$PID_BAJA  PID_ALTA(prio=1)=$PID_ALTA"
+sleep 1
 send_cmd "START"
 # Esperar a que ambos lleguen a READY (largo_plazo los procesa secuencialmente)
 if wait_for_log_count "NEW -> READY" 2 15; then
@@ -415,11 +421,11 @@ if wait_for_log_count "NEW -> READY" 2 15; then
     if wait_for_log_count "EXEC -> EXIT" 2 30; then
         # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
         FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
-        SECOND_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | tail -1 | grep -oE '[0-9]+' | head -1)
-        if [[ "$FIRST_EXIT_PID" != "$SECOND_EXIT_PID" ]]; then
+        echo "       Primer EXIT: PID=$FIRST_EXIT_PID (esperado: $PID_ALTA)"
+        if [[ "$FIRST_EXIT_PID" == "$PID_ALTA" ]]; then
             pass "$DESC"
         else
-            fail "$DESC" "no se pudo distinguir orden de terminacion"
+            fail "$DESC" "PID $FIRST_EXIT_PID termino primero pero PID $PID_ALTA (prio=1) debia ir primero"
         fi
     else
         exits=$(count_log "EXEC -> EXIT")
@@ -457,16 +463,21 @@ fi
 sleep 1
 
 # --- Test 11: Deadlock ---
-# deadlock_a.txt: WAIT RA, WAIT RB, ...
-# deadlock_b.txt: WAIT RB, WAIT RA, ...
+# deadlock_a.txt: WAIT RA, WAIT RC, ...  (RA=1 inst, RC=1 inst)
+# deadlock_b.txt: WAIT RC, WAIT RA, ...
 # Con RR y quantum, A ejecuta WAIT RA (adquiere), se desaloja,
-# B ejecuta WAIT RB (adquiere), luego WAIT RA (bloqueado),
-# A ejecuta WAIT RB (bloqueado) → deadlock (ciclo: A espera RB de B, B espera RA de A)
+# B ejecuta WAIT RC (adquiere), luego WAIT RA (bloqueado),
+# A ejecuta WAIT RC (bloqueado) → deadlock (ciclo: A espera RC de B, B espera RA de A)
 DESC="Deadlock: deteccion de ciclo con grafo de espera"
 begin_test "$DESC"
+# PAUSE para acumular ambos procesos antes de que se ejecuten
+send_cmd "PAUSE"
+sleep 1
 run_process "deadlock_a.txt"
-sleep 2
+sleep 1
 run_process "deadlock_b.txt"
+sleep 2
+send_cmd "START"
 if wait_for_log "Deadlock detectado|deadlock detectado|DEADLOCK" 30; then
     pass "$DESC"
 else

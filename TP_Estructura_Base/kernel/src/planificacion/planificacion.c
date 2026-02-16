@@ -268,6 +268,25 @@ void planificacion_finalizar_proceso(uint32_t pid)
             // Solo notificar a memoria y liberar slot si el proceso fue inicializado
             solicitar_fin_proceso_memoria(pid);
             recursos_liberar_proceso(pid);
+
+            // Liberar recursos adquiridos (devolver instancias, desbloquear en espera)
+            t_list* desbloqueados = recursos_liberar_adquiridos(encontrado);
+            for (int d = 0; d < list_size(desbloqueados); d++) {
+                t_pcb* desb = list_get(desbloqueados, d);
+                pthread_mutex_lock(&mutex_blocked);
+                list_remove_element(cola_blocked, desb);
+                pthread_mutex_unlock(&mutex_blocked);
+
+                desb->estado = READY;
+                desb->tiempo_ready = temporal_create();
+                pthread_mutex_lock(&mutex_ready);
+                list_add(cola_ready, desb);
+                pthread_mutex_unlock(&mutex_ready);
+                sem_post(&sem_hay_ready);
+                log_cambio_estado(desb->pid, "BLOCKED", "READY");
+            }
+            list_destroy(desbloqueados);
+
             sem_post(&sem_mp);
         }
     } else {

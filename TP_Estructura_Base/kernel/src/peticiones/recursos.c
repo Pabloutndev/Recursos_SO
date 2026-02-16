@@ -114,16 +114,16 @@ t_dictionary* recursos_obtener_diccionario(void) {
 
 void recursos_liberar_proceso(uint32_t pid) {
     if (!diccionario_recursos) return;
-    
+
     t_list* resource_names = dictionary_keys(diccionario_recursos);
-    
+
     for(int i=0; i<list_size(resource_names); i++) {
         char* nombre = list_get(resource_names, i);
         t_recurso* r = dictionary_get(diccionario_recursos, nombre);
-        
+
         if (r) {
             pthread_mutex_lock(&r->mutex);
-            
+
             // Remove from blocked queue if present
             for(int j=0; j<list_size(r->cola_bloqueados); j++) {
                 t_pcb* pcb = list_get(r->cola_bloqueados, j);
@@ -133,10 +133,42 @@ void recursos_liberar_proceso(uint32_t pid) {
                     break;
                 }
             }
-            
+
             pthread_mutex_unlock(&r->mutex);
         }
     }
-    
+
     list_destroy(resource_names);
+}
+
+t_list* recursos_liberar_adquiridos(t_pcb* pcb) {
+    t_list* desbloqueados = list_create();
+    if (!pcb || !pcb->recursos_adquiridos || !diccionario_recursos) return desbloqueados;
+
+    while (!list_is_empty(pcb->recursos_adquiridos)) {
+        char* nombre = list_remove(pcb->recursos_adquiridos, 0);
+
+        if (!dictionary_has_key(diccionario_recursos, nombre)) {
+            free(nombre);
+            continue;
+        }
+
+        t_recurso* r = dictionary_get(diccionario_recursos, nombre);
+
+        pthread_mutex_lock(&r->mutex);
+        if (!list_is_empty(r->cola_bloqueados)) {
+            t_pcb* desb = list_remove(r->cola_bloqueados, 0);
+            list_add(desb->recursos_adquiridos, strdup(nombre));
+            list_add(desbloqueados, desb);
+            log_info(KERNEL_CTX.logger, "PID: %d - Recurso %s transferido a PID: %d", pcb->pid, nombre, desb->pid);
+        } else {
+            r->instancias++;
+            log_info(KERNEL_CTX.logger, "PID: %d - Recurso %s liberado, instancias=%d", pcb->pid, nombre, r->instancias);
+        }
+        pthread_mutex_unlock(&r->mutex);
+
+        free(nombre);
+    }
+
+    return desbloqueados;
 }
