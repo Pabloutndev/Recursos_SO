@@ -24,7 +24,9 @@ Algo fundamental: cada módulo se configura con un archivo .config. Ahí definí
 
 Otro pilar del proyecto es el logging. Cada módulo genera logs detallados de todo lo que hace: creación de procesos, cambios de estado, traducciones de memoria, operaciones de I/O. Estos logs son tu herramienta principal de debugging. Cuando algo falla, no vas a estar poniendo breakpoints en 4 procesos a la vez, vas a leer los logs.
 
-Ahora les muestro cómo compilar y ejecutar el proyecto. Tenemos un Makefile para cada módulo, podemos hacer 'make all' para compilar todo, y luego levantamos cada módulo con su archivo de configuración correspondiente."
+Para compilar usamos las so-commons-library de la UTN que nos dan utilidades probadas: t_config para leer archivos de configuración, t_log para logging, t_list y t_dictionary para estructuras de datos, t_bitarray para bitmaps. No reinventamos la rueda.
+
+Ahora les muestro cómo compilar y ejecutar el proyecto. Tenemos un Makefile para cada módulo, podemos hacer 'make all' para compilar todo. El orden para levantar es importante: primero Memoria, después CPU, después las interfaces de I/O, después Kernel, y por último la Consola. Cada uno con su archivo .config correspondiente. Memoria tiene que estar lista antes que la CPU le pida instrucciones, y el Kernel tiene que estar esperando para aceptar las conexiones de todos los demás."
 
 **Cierre:**
 "En el próximo video vamos a profundizar en cómo se comunican estos módulos entre sí, viendo el protocolo de comunicación basado en sockets TCP y serialización de datos."
@@ -43,11 +45,15 @@ El problema con enviar datos por red es que no podés mandar directamente una es
 
 Nuestro protocolo funciona así: primero definimos opcodes, que son números que identifican qué tipo de mensaje es. Por ejemplo, el opcode 1 puede ser un handshake, el 100 puede ser un fetch de instrucción de la CPU, el 200 una creación de proceso en Memoria. Tenemos rangos asignados por módulo para mantener el orden.
 
-Cada paquete que enviamos tiene tres partes: el opcode que dice qué es, el tamaño de los datos, y los datos en sí. La biblioteca utils que armamos encapsula toda esta complejidad. Tenemos funciones como crear_paquete, escribir_int32, escribir_string, enviar_paquete, y del otro lado recibir y leer.
+Cada paquete que enviamos tiene tres partes: el opcode que son 4 bytes que dicen qué tipo de mensaje es, el tamaño del payload que son otros 4 bytes, y los datos en sí que es un buffer de tamaño variable. Es como un sobre: la etiqueta dice qué es, cuánto pesa, y adentro va el contenido.
 
-Les muestro un ejemplo concreto: cuando la Consola envía el comando RUN, crea un paquete con el opcode RUN_PROCESO, escribe el path del archivo como string, y lo envía al Kernel. El Kernel recibe la operación, lee el string, y ejecuta la lógica correspondiente.
+La biblioteca utils que armamos encapsula toda esta complejidad. El buffer crece dinámicamente con realloc. Tenemos funciones como paquete_create, paquete_write_uint32, paquete_write_string, enviar_paquete, y del otro lado recibir_paquete que usa recv con MSG_WAITALL para garantizar que lee todos los bytes. Es importante ese flag porque TCP puede fragmentar los envíos.
 
-El handshake es la primera comunicación. Cuando un cliente se conecta, envía su nombre de módulo, y el servidor responde OK si acepta la conexión. Así sabemos que estamos hablando con quien creemos."
+Les muestro un ejemplo concreto: cuando la Consola envía el comando RUN, crea un paquete con el opcode OP_CONSOLA_RUN, escribe el path del archivo como string con su longitud, escribe la prioridad como uint32, y lo envía al Kernel. El Kernel recibe la operación, lee el string, lee la prioridad, y ejecuta la lógica correspondiente.
+
+El handshake es la primera comunicación. Cada módulo al conectarse envía un paquete con OP_HANDSHAKE y su nombre, y el servidor responde OP_OK si acepta la conexión. Esto nos permite verificar que estamos hablando con quien creemos y que el protocolo es compatible.
+
+Algo importante: los servidores crean un hilo nuevo por cada conexión usando pthread_create con detach. Así pueden atender múltiples clientes en paralelo. El Kernel por ejemplo atiende conexiones de CPU, Memoria, I/O y Consola, cada una en su propio hilo."
 
 **Cierre:**
 "En el próximo video vamos a ver la Consola en detalle, cómo funciona el loop de lectura de comandos y qué comandos tenemos disponibles para controlar el sistema."
@@ -68,7 +74,9 @@ Los comandos disponibles son: RUN para crear un proceso nuevo, y opcionalmente p
 
 Internamente, la Consola es súper simple. Cuando escribís RUN test.txt, lo único que hace es armar un paquete con el opcode correspondiente, escribir el path como string y la prioridad como entero, y mandarlo al Kernel por el socket. No tiene lógica de negocio, es solo un traductor de comandos humanos a paquetes de red.
 
-Lo interesante es que la Consola es totalmente desacoplada del resto. Podés cerrarla y abrirla de nuevo sin afectar al Kernel ni a los procesos que están corriendo."
+Lo interesante es que la Consola es totalmente desacoplada del resto. Podés cerrarla y abrirla de nuevo sin afectar al Kernel ni a los procesos que están corriendo.
+
+Un tip para testing: con PAUSE podés crear varios procesos que se acumulan en NEW, ver el estado con PS, y luego hacer START para que arranquen todos juntos. Es muy útil para probar algoritmos de planificación porque controlás exactamente cuándo entran los procesos."
 
 **Cierre:**
 "Ahora que sabemos cómo enviarle órdenes al sistema, en el próximo video vamos a ver qué pasa dentro del Kernel cuando llega un comando RUN. Vamos a conocer la estructura de datos fundamental: el PCB o Process Control Block."
@@ -156,9 +164,9 @@ Si Memoria rechaza la creación porque no hay espacio, el planificador devuelve 
 
 El planificador es otro hilo que hace este loop: espera en el semáforo de READY, llama a la función proximoAEjecutar que es un function pointer al algoritmo activo, marca el PCB como EXEC y guarda su PID globalmente, si el algoritmo es preemptivo lanza un hilo timer, despacha el proceso a la CPU, y cuando la CPU devuelve el control, atiende el resultado.
 
-El dispatch es bloqueante. El hilo del planificador se queda esperando hasta que la CPU termine o sea interrumpida. Esto es importante: mientras un proceso está en la CPU, el planificador no puede seleccionar a otro. Es estrictamente secuencial.
+El dispatch es bloqueante. El hilo del planificador llama a enviar_proceso_a_cpu y luego a atender_dispatch_cpu, que se queda esperando la respuesta de la CPU. Mientras un proceso está en la CPU, el planificador no puede seleccionar a otro. Es estrictamente secuencial, un dispatch a la vez.
 
-El timer de quantum es un hilo separado que duerme por los milisegundos del quantum usando usleep, despierta, verifica si el proceso sigue en EXEC, y si está, envía una interrupción QUANTUM a la CPU por el socket de interrupciones.
+El timer de quantum es un hilo separado, creado con pthread_create y pthread_detach. Duerme por los milisegundos del quantum usando usleep, despierta, verifica si el proceso sigue en cola_exec buscando su PID, y si está, envía una interrupción QUANTUM a la CPU por el socket de interrupciones. Si mientras dormía el algoritmo cambió a uno sin quantum como FIFO, simplemente se da cuenta y no hace nada. Es un hilo efímero: nace, duerme, dispara o no, y muere.
 
 La función proximoAEjecutar es un puntero a función. Permite cambiar el algoritmo de scheduling en runtime sin recompilar. Al inicio apunta al algoritmo configurado en el .config, pero con el comando ALGORITMO RR se cambia a algoritmo_obtener_rr. Tenemos 5 algoritmos: FIFO, RR, VRR, HRRN y PRIORIDAD.
 
@@ -187,6 +195,8 @@ Una regla empírica: el quantum debería ser mucho mayor que el tiempo de contex
 
 Round Robin es justo. En el peor caso, si tenés N procesos y quantum Q, sabés que tu proceso va a ejecutar cada N*Q milisegundos como máximo. Es predecible.
 
+Un detalle de implementación interesante: FIFO y RR usan exactamente la misma función de selección. Ambos sacan el primer elemento de la cola ready. La única diferencia es que RR lanza el hilo timer de quantum. Sin timer, se comporta como FIFO. Es elegante porque la complejidad de preemption está encapsulada en el timer, no en el algoritmo de selección.
+
 Veamos métricas. El waiting time con FIFO puede ser enorme para procesos que llegan tarde. Con RR, el waiting time promedio baja drásticamente. Pero RR hace más context switches, entonces el overhead es mayor. Es un trade-off."
 
 **Cierre:**
@@ -202,9 +212,9 @@ Veamos métricas. El waiting time con FIFO puede ser enorme para procesos que ll
 **Desarrollo:**
 "Virtual Round Robin es una extensión de RR que reconoce que no todos los procesos son iguales. Los procesos que hacen mucho I/O tienden a ser interactivos, como editores de texto o navegadores. Los que hacen puro CPU tienden a ser batch, como compilar o comprimir.
 
-VRR premia a los procesos que vienen de I/O dándoles un quantum bonus. Entonces si el quantum normal es 100ms y el bonus es 50ms, un proceso que vuelve de I/O recibe 150ms. La idea es que esos procesos interactivos terminen rápido y vuelvan a bloquearse en I/O, mejorando la percepción de responsiveness.
+VRR premia a los procesos que vienen de I/O dándoles crédito. Cada PCB tiene un campo quantum_restante. Si un proceso es desalojado por quantum y le sobraban milisegundos, al volver de I/O se le respeta ese quantum restante en lugar de darle uno nuevo completo. Así los procesos I/O-bound no pierden su tiempo de CPU. La idea es que esos procesos interactivos terminen rápido y vuelvan a bloquearse en I/O, mejorando la percepción de responsiveness.
 
-HRRN es Highest Response Ratio Next. Calcula un ratio para cada proceso: (tiempo_espera + tiempo_servicio) / tiempo_servicio. El proceso con mayor ratio ejecuta. Esto combina lo mejor de SJF (Shortest Job First) con aging para evitar starvation. Un proceso largo eventualmente tendrá un ratio alto por haber esperado mucho.
+HRRN es Highest Response Ratio Next. Calcula un ratio para cada proceso: (tiempo_espera + estimacion_rafaga) / estimacion_rafaga. Usamos temporal_gettime del campo tiempo_ready del PCB que mide cuánto tiempo lleva esperando en la cola READY. El proceso con mayor ratio ejecuta. Esto combina lo mejor de SJF (Shortest Job First) con aging para evitar starvation. Un proceso largo eventualmente tendrá un ratio alto por haber esperado mucho.
 
 Prioridades es directo: cada proceso tiene un número de prioridad, menor es más prioritario. Cuando creás un proceso con 'RUN test.txt 1', le asignás prioridad 1. Si creás otro con 'RUN test2.txt 10', el de prioridad 1 ejecuta primero. Siempre ejecuta el proceso de mayor prioridad disponible. No es preemptivo en nuestra implementación, es decir, una vez que un proceso está en CPU no se lo saca por otro de mayor prioridad.
 
@@ -229,9 +239,11 @@ El costo típico de un context switch en hardware real es 1 a 10 microsegundos d
 
 En nuestro TP, el context switch es más costoso porque involucra serializar el contexto, enviarlo por red, y deserializarlo del otro lado. Pero el concepto es el mismo.
 
-Cuando el Kernel despacha un proceso, serializa el PID, el PC, y todos los registros en un paquete y lo envía a la CPU. La CPU deserializa y carga esos valores en su estructura de contexto local. Cuando termina o es interrumpida, la CPU serializa el contexto actualizado y lo devuelve.
+Cuando el Kernel despacha un proceso, serializa el PID, el Program Counter, y los 10 registros: los 4 de 8 bits (AX, BX, CX, DX) y los 6 de 32 bits (EAX, EBX, ECX, EDX, SI, DI). Son en total 4+4+4+4+24 = 40 bytes de estado de CPU, más el PID y el PC. Todo va en un paquete y se envía a la CPU por el socket de dispatch. La CPU deserializa y carga esos valores en su t_contexto_cpu local. Cuando termina o es interrumpida, la CPU serializa el contexto actualizado con los mismos campos y lo devuelve.
 
 Lo crítico es que el cambio debe ser atómico desde el punto de vista del proceso. El proceso no puede darse cuenta de que fue suspendido. Cuando se reanuda, debe continuar exactamente donde quedó, como si nada hubiera pasado. Por eso es vital guardar TODOS los registros.
+
+Otro detalle: cuando la CPU detecta que el PID cambió respecto al anterior, la MMU hace un TLB flush del proceso viejo. Esto es parte del context switch y ocurre automáticamente en mmu_set_contexto. Si no limpiás la TLB, el nuevo proceso podría acceder a frames del proceso anterior.
 
 Hay otra consecuencia: al cambiar de proceso, la cache de CPU se invalida parcialmente. El nuevo proceso va a traer sus datos a cache, desplazando los del proceso anterior. Esto se llama cache pollution y es otro costo oculto del context switch.
 
@@ -252,7 +264,7 @@ En sistemas multicore, las cosas se complican aún más con cache coherence, per
 
 El Program Counter o PC es clave. Es un registro especial que siempre apunta a la próxima instrucción a ejecutar. Empieza en 0 y se va incrementando automáticamente. Algunas instrucciones como saltos pueden modificarlo directamente.
 
-En la fase de Fetch, la CPU le pide a Memoria la instrucción en la posición PC para el proceso actual. Memoria busca en su lista de instrucciones y devuelve un string, por ejemplo 'SET AX 10'. Esta comunicación es por socket y es bloqueante.
+En la fase de Fetch, la CPU envía al módulo Memoria un pedido con el PID y el valor del PC. Memoria busca en su lista de instrucciones del proceso y devuelve un string, por ejemplo 'SET AX 10'. Importante: Memoria tiene un retardo configurable (RETARDO_RESPUESTA en el .config) que simula la latencia real de acceder a RAM. En hardware real cada acceso a memoria tarda nanosegundos, acá lo simulamos con usleep.
 
 En Decode, la CPU parsea ese string. Lo parte por espacios, el primer token es el nombre de la instrucción, los siguientes son parámetros. Arma una estructura con el tipo de instrucción y sus operandos. Esto es análogo a lo que hace un CPU real con los bits del opcode.
 
@@ -283,6 +295,8 @@ I/O: IO_GEN_SLEEP duerme milisegundos, IO_STDIN_READ lee del teclado, IO_STDOUT_
 
 WAIT y SIGNAL son especiales porque la CPU no los resuelve. Cuando encuentra WAIT RA, simplemente devuelve el control al Kernel con motivo WAIT y el nombre del recurso. El Kernel es quien decide si bloquea el proceso o no. Esto es delegación de responsabilidades. La CPU ejecuta, el Kernel coordina.
 
+Algo elegante de la implementación: las funciones registros_leer y registros_escribir manejan el tamaño automáticamente. Si escribís un valor de 32 bits en AX que es de 8 bits, lo trunca. Si leés AX, te devuelve un uint32 pero con solo 8 bits significativos. Así el código de ejecución no necesita preocuparse por tamaños.
+
 Nuestra ISA es custom y simplificada, pero tiene todos los elementos conceptuales de una ISA real: cómputo, memoria, control de flujo, I/O, sincronización. Es didácticamente completa."
 
 **Cierre:**
@@ -298,7 +312,7 @@ Nuestra ISA es custom y simplificada, pero tiene todos los elementos conceptuale
 **Desarrollo:**
 "Una interrupción es una señal que rompe el flujo normal de ejecución. En hardware real, las interrupciones pueden venir del timer, del teclado, de la red, del disco. En nuestro TP, las interrupciones vienen del Kernel y van a la CPU por un socket separado.
 
-Tenemos un flag compartido entre hilos llamado hay_interrupcion. Es volatile para evitar que el compilador lo cachee en un registro. Hay un hilo separado en la CPU escuchando en el socket de interrupciones. Cuando recibe un mensaje del Kernel con INTERRUPCION_QUANTUM, setea el flag a true y guarda el tipo.
+Tenemos un flag compartido entre hilos: una variable static volatile bool flag_interrupcion. El volatile es clave: le dice al compilador que no optimice leyendo de un registro, que siempre lea de memoria porque otro hilo puede modificarla en cualquier momento. En x86 un bool es atómico, así que no necesitamos mutex para esto. Hay un hilo separado en la CPU escuchando permanentemente en el socket de interrupciones. Cuando recibe un mensaje del Kernel con OP_INTERRUPCION_CPU, setea el flag a true.
 
 El ciclo de instrucción chequea este flag ANTES de cada Fetch. Si está en true, inmediatamente termina el ciclo y devuelve el control al Kernel con el motivo correspondiente. No completa la instrucción actual ni nada, es inmediato.
 
@@ -327,9 +341,9 @@ Hay dos espacios de direcciones: el lógico que ve el proceso, y el físico que 
 
 Nuestro módulo Memoria mantiene dos tipos de datos: las instrucciones de cada proceso, y los datos que esos procesos escriben con MOV_OUT. Las instrucciones están en una lista cargada del archivo. Los datos están en un array de bytes que simula la RAM.
 
-La RAM se inicializa con malloc de N bytes según la configuración. Es un bloque contiguo de memoria que representa toda la RAM física. Luego se divide en frames de tamaño fijo.
+La RAM se inicializa con un malloc de TAM_MEMORIA bytes, un valor definido en memoria.config. Por ejemplo, si configurás 16384 bytes tenés 16KB de RAM virtual simulada. Ese bloque se inicializa a cero con memset y se divide en frames de TAM_PAGINA bytes. Las funciones leer_memoria_fisica y escribir_memoria_fisica operan sobre ese bloque con bounds checking: si intentás acceder fuera de rango, te da Segmentation Fault.
 
-Tenemos una capa de abstracción: el esquema de memoria. Puede ser PAGINACION o SEGMENTACION, configurado en el archivo. Esta capa expone function pointers: traducir, crear_proceso, destruir_proceso, resize. Según el esquema, apuntan a funciones diferentes. Es polimorfismo.
+Tenemos una capa de abstracción: el esquema de memoria. Puede ser PAGINACION o SEGMENTACION, configurado en el archivo. Al inicializar, el módulo chequea el string del config y llama a esquema_memoria_init con el esquema correcto. Esta capa expone function pointers: traducir, crear_proceso, destruir_proceso, resize. Según el esquema, apuntan a funciones diferentes. Es polimorfismo en C con punteros a función.
 
 Cuando la CPU pide leer dirección lógica 100, Memoria llama a esquema->traducir para obtener la dirección física, y luego lee de la RAM en esa posición. La CPU no sabe si está usando paginación o segmentación, es transparente."
 
@@ -354,7 +368,9 @@ La traducción funciona así: tomás la dirección lógica y la dividís por el 
 
 Luego buscás en la tabla de páginas del proceso qué frame tiene asignada la página 3. Supongamos que es el frame 10. La dirección física es frame * tamaño + offset = 10 * 256 + 232 = 2792.
 
-La tabla de páginas es una lista de entradas, una por cada página del proceso. Cada entrada tiene el número de frame asignado, y metadatos: bit de presente que indica si está en RAM o en swap, bit de dirty que indica si fue modificada, bit de use para el algoritmo de reemplazo Clock.
+La tabla de páginas es una lista de entradas de tipo t_pagina, una por cada página del proceso. Cada entrada tiene: el número de frame asignado (o -1 si no tiene), un bit de presente que indica si está en RAM o en swap, un bit de modificado (dirty) que indica si fue escrita desde que se cargó, y un bit de uso para el algoritmo de reemplazo Clock.
+
+Detalle clave: cuando se crea un proceso, TODAS sus páginas empiezan con frame=-1 y presente=false. No se les asigna frame hasta que alguien accede. Esto es conceptualmente similar a demand paging: las páginas se cargan bajo demanda. La primera vez que se accede a una página, se genera un page fault, se busca un frame libre, se lee de swap (o se llena con ceros si es nueva), y se actualiza la entrada.
 
 Cuando un proceso hace RESIZE para agrandar, Memoria calcula cuántas páginas más necesita, busca frames libres en el bitmap, crea entradas nuevas en la tabla, y marca esos frames como ocupados. Para achicar, libera las páginas del final.
 
@@ -383,9 +399,9 @@ Si no está en la TLB, es un TLB miss. Ahí sí consulta a Memoria, obtiene el f
 
 El hit ratio de la TLB en programas reales es típicamente 90-99%. Es alta por localidad espacial: los programas tienden a acceder direcciones cercanas en un corto tiempo, que probablemente están en la misma página.
 
-La TLB es pequeña, por ejemplo 16 entradas en nuestro TP. Cuando se llena, hay que reemplazar. Tenemos dos algoritmos: FIFO que reemplaza la entrada más antigua, y LRU que reemplaza la menos usada recientemente. LRU es mejor pero requiere mantener timestamps.
+La TLB es pequeña, configurable en el .config. Cada entrada guarda cuatro campos: PID, número de página, número de frame, y un timestamp last_use para LRU. Cuando se llena, hay que reemplazar. Tenemos dos algoritmos: FIFO que usa un puntero circular fifo_ptr que avanza con cada reemplazo, y LRU que busca la entrada con menor last_use. Cada lookup exitoso incrementa un contador clock_lru global y lo guarda en la entrada, así sabemos cuál se usó hace más tiempo.
 
-Cuando hay un context switch, la TLB se invalida para el proceso saliente. Si no lo hacés, el nuevo proceso podría usar traducciones del proceso anterior, accediendo memoria ajena. Esto es un bug de seguridad grave. Entonces al cambiar de proceso, la CPU limpia las entradas de TLB de ese PID."
+Cuando hay un context switch, la CPU detecta que el PID cambió en mmu_set_contexto y llama a tlb_clear_pid que recorre todas las entradas y limpia las del proceso saliente. Si no lo hacés, el nuevo proceso podría usar traducciones del proceso anterior, accediendo frames ajenos. Esto en un SO real sería una vulnerabilidad de seguridad crítica. Intel agregó PCID (Process Context ID) en procesadores modernos para evitar flushear toda la TLB en cada context switch, nosotros lo hacemos por PID que es similar."
 
 **Cierre:**
 "En el próximo video vamos a ver qué pasa cuando la RAM se llena: algoritmo de reemplazo de páginas Clock y swap."
@@ -408,9 +424,11 @@ Clock funciona así: el puntero avanza buscando un frame con use=0. Si encuentra
 
 Antes de reemplazar, se chequea el bit dirty. Si es true, la página fue modificada y hay que escribirla a swap para no perder datos. Si es false, simplemente se descarta porque hay una copia idéntica en swap o es una página de solo lectura.
 
-El swap es un archivo en disco, por ejemplo proceso_1.swap. Se divide en bloques del tamaño de página. Para escribir la página 3 del proceso 1, se hace fseek a offset 3*tamaño_pagina y fwrite.
+El swap usa un archivo por proceso en una carpeta swap_files. El archivo del proceso con PID 5 es swap_files/5.swap. Se divide en bloques del tamaño de página. Para escribir la página 3, se abre el archivo, se usa ftruncate para asegurar que tenga espacio, se hace lseek a offset 3*tamaño_pagina, y write. Si la página es nueva y nunca fue a swap, se escribe ceros.
 
-Traer de swap es lo inverso: fseek y fread. Es lento comparado con RAM, típicamente 1000x más. Por eso hacer muchos page faults (thrashing) mata el performance.
+Traer de swap es lo inverso: open, lseek, y read. Es lento comparado con RAM, típicamente 1000x más. Por eso hacer muchos page faults se llama thrashing y mata el performance. Cuando un proceso termina, unlink borra su archivo .swap.
+
+En Clock, cuando la víctima tiene el bit modificado (dirty), se escribe a swap antes de reutilizar su frame. Si no está modificada, se descarta directamente porque ya hay copia en swap. Esta optimización reduce a la mitad las escrituras a disco en muchos casos.
 
 En sistemas reales, cuando el thrashing es severo, el SO mata procesos para liberar memoria. Es drástico pero necesario para mantener el sistema funcional."
 
@@ -487,11 +505,13 @@ El grafo de espera es un grafo dirigido donde los nodos son procesos y hay una a
 
 Para construir el grafo, iteramos sobre cada recurso. Para cada proceso bloqueado esperando ese recurso, buscamos quién tiene instancias de ese recurso adquiridas. Dibujamos una arista del bloqueado al dueño.
 
-Para detectar ciclos, usamos DFS con un conjunto en_stack que rastrea el camino actual. Si durante el DFS encontramos un nodo que ya está en_stack, hay ciclo. Reconstruimos el camino para loguear el ciclo exacto.
+Para detectar ciclos, usamos DFS con un array de estados de 3 valores: 0 sin visitar, 1 en el stack actual, y 2 completamente explorado. Si durante el DFS encontramos un nodo con estado 1, es decir que ya está en el camino actual, hay ciclo. Usamos un array padre para reconstruir el camino exacto del ciclo y logueamos qué PID tiene qué recurso y espera cuál.
 
-¿Cuándo ejecutar la detección? Después de cada WAIT que bloquea, porque es cuando el grafo cambia. También podés ejecutarlo periódicamente cada N segundos como un hilo de fondo.
+El grafo se construye fresco cada vez. No mantenemos un grafo persistente. Recorremos todos los procesos de todas las colas (READY, EXEC, BLOCKED), y para cada proceso bloqueado buscamos en qué cola de recurso está esperando. Luego buscamos quién tiene instancias de ese recurso mirando la lista recursos_adquiridos de todos los procesos. Así armamos las aristas.
 
-¿Qué hacer si detectás deadlock? Opciones: matar uno de los procesos del ciclo, forzar SIGNAL de uno de los recursos, rollback. Todas tienen consecuencias negativas. Lo ideal es prevenir, no detectar."
+¿Cuándo ejecutar la detección? En nuestro TP, después de cada WAIT que bloquea un proceso, porque es el momento donde el grafo cambia y podría formarse un ciclo nuevo.
+
+¿Qué hacer si detectás deadlock? Opciones: matar uno de los procesos del ciclo, forzar SIGNAL de uno de los recursos, rollback. Todas tienen consecuencias negativas. Nosotros solo logueamos el deadlock detectado. En producción, Linux por ejemplo mata procesos con el OOM killer cuando hay situaciones irrecoverables."
 
 **Cierre:**
 "En el próximo video vamos a ver el algoritmo del Banquero, que previene deadlock rechazando pedidos que llevan a estados inseguros."
@@ -514,9 +534,11 @@ Si al final todos pudieron terminar, el estado es seguro. Hay al menos una secue
 
 El Banquero se ejecuta antes de otorgar un recurso. Simula otorgarlo, corre el algoritmo, y si el estado resultante es seguro, lo otorga. Si es inseguro, rechaza el pedido bloqueando al proceso hasta que sea seguro.
 
-El problema es que requiere saber de antemano cuántos recursos necesita cada proceso en total. En la práctica, esto es difícil de estimar. Por eso el Banquero es más académico que práctico.
+En nuestra implementación simplificamos un poco. Como no sabemos de antemano el max claim de cada proceso, la matriz Need se construye así: si un proceso está bloqueado en un recurso, su Need para ese recurso es 1, para el resto es 0. Si un proceso no está bloqueado, su Need es 0 para todo porque asumimos que podría terminar. Es una aproximación práctica que funciona bien para nuestro caso.
 
-Comparando con el grafo: el grafo detecta deadlock actual, trabaja sobre la realidad. El Banquero detecta estados inseguros, trabaja sobre lo que podría pasar. El grafo es reactivo, el Banquero es proactivo.
+El problema del Banquero clásico es que requiere saber de antemano cuántos recursos necesita cada proceso en total. En la práctica, esto es difícil de estimar. Por eso el Banquero es más académico que práctico, pero conceptualmente es brillante.
+
+Comparando con el grafo: el grafo detecta deadlock actual, trabaja sobre la realidad. El Banquero detecta estados inseguros, trabaja sobre lo que podría pasar. El grafo es reactivo, el Banquero es proactivo. Nosotros ejecutamos ambos después de cada WAIT que bloquea, así tenemos las dos perspectivas.
 
 Linux no usa el Banquero. Usa detección y recovery matando procesos si es necesario. Es más pragmático aunque menos elegante."
 
@@ -535,13 +557,13 @@ Linux no usa el Banquero. Usa detección y recovery matando procesos si es neces
 
 La solución es blocking I/O. Cuando un proceso pide I/O, se bloquea inmediatamente. El Kernel encola la operación en el dispositivo y pone el proceso en BLOCKED. Luego el planificador selecciona otro proceso. Cuando el dispositivo termina, notifica al Kernel, y el proceso vuelve a READY.
 
-En nuestro TP, cada dispositivo de I/O es un proceso separado del módulo EntradaSalida. Cada uno se registra en el Kernel al iniciar, indicando su nombre y tipo: GENERICA, STDIN, STDOUT, o DIALFS.
+En nuestro TP, cada dispositivo de I/O es un proceso separado del módulo EntradaSalida. Al iniciar, se conecta al Kernel para registrarse con un handshake que incluye su nombre y tipo: GENERICA, STDIN, STDOUT, o DIALFS. Un detalle importante: las interfaces que necesitan acceder a la memoria del proceso (STDIN, STDOUT, DIALFS) también se conectan al módulo Memoria con un segundo socket. La GENERICA no necesita Memoria porque solo hace sleep.
 
-IO_GEN_SLEEP es la más simple. Recibe milisegundos, usa usleep para dormir, y cuando despierta notifica al Kernel. Simula un dispositivo que tarda cierto tiempo.
+IO_GEN_SLEEP es la más simple. Recibe milisegundos, usa usleep para dormir, y cuando despierta notifica al Kernel con un paquete IO_FIN. Simula un dispositivo que tarda cierto tiempo. Tiene un TIEMPO_UNIDAD_TRABAJO configurable que se suma como overhead.
 
-IO_STDIN_READ lee del teclado real. Usa fgets para bloquear esperando input del usuario. Los datos leídos se escriben en la Memoria del proceso en la dirección lógica especificada. Luego notifica.
+IO_STDIN_READ lee del teclado real. Usa readline para bloquear esperando input del usuario con un prompt. Los datos leídos se envían al módulo Memoria para que los escriba en la dirección lógica del proceso, y Memoria traduce la dirección lógica a física usando paginación. Luego notifica al Kernel.
 
-IO_STDOUT_WRITE hace lo inverso. Lee de la Memoria del proceso y lo imprime con printf. Útil para debugging, ver qué valores tiene el proceso en memoria.
+IO_STDOUT_WRITE hace lo inverso. Le pide a Memoria que lea los bytes en la dirección lógica del proceso, Memoria se los devuelve, y el I/O los imprime con printf. Es la forma de ver qué valores tiene el proceso en su espacio de direcciones.
 
 El flujo es: la CPU ejecuta IO_STDOUT_WRITE, devuelve al Kernel con motivo IO y los parámetros (interfaz, dirección, tamaño). El Kernel bloquea el proceso y le manda un paquete al proceso de I/O correspondiente. El I/O ejecuta la operación, que incluye comunicarse con Memoria para leer/escribir. Al terminar, el I/O notifica al Kernel. El Kernel desbloquea el proceso.
 
@@ -560,7 +582,7 @@ Es asíncrono de punta a punta. El proceso que pidió I/O no está activamente e
 **Desarrollo:**
 "Un filesystem organiza datos en archivos y directorios en disco. Necesita resolver: cómo almacenar los datos, cómo rastrear qué bloques usa cada archivo, cómo saber qué bloques están libres.
 
-DialFS divide el disco en bloques de tamaño fijo, por ejemplo 64 bytes. Un bitmap rastrea qué bloques están ocupados. Cada archivo tiene un FCB, File Control Block, que es metadata: nombre, bloque de inicio, tamaño en bytes.
+DialFS divide el disco en bloques de tamaño fijo, configurable en el .config de la interfaz. Un bitmap rastrea qué bloques están ocupados. Tanto el archivo de bloques (bloques.dat) como el bitmap (bitmap.dat) están mapeados en memoria con mmap para acceso rápido. Cada archivo tiene un FCB, File Control Block, que es metadata almacenada en un archivo separado con extensión .fcb: nombre de hasta 256 caracteres, bloque de inicio, y tamaño en bytes.
 
 CREATE crea un archivo. Inicializa un FCB con tamaño cero y bloque_inicio indefinido por ahora. Guarda el FCB en un archivo separado, por ejemplo archivo.txt.fcb.
 
@@ -572,9 +594,11 @@ DELETE libera los bloques en el bitmap y borra el archivo .fcb.
 
 TRUNCATE cambia el tamaño. Si achica, libera bloques del final. Si agranda, asigna más bloques.
 
-La complejidad acá es que los bloques deben ser contiguos para simplificar. En filesystems reales como ext4, los bloques pueden estar dispersos y se usa una lista de punteros (inodos) o un árbol (B-tree).
+La complejidad acá es que los bloques deben ser contiguos para simplificar el acceso. Pero ¿qué pasa si no hay bloques contiguos suficientes? DialFS tiene una función compactar que mueve todos los archivos para juntarlos, similar a desfragmentar un disco. Es costosa pero necesaria cuando hay fragmentación.
 
-DialFS no tiene directorios, todos los archivos están en un solo nivel. No tiene permisos. No tiene journaling para recuperación ante crashes. Es una versión ultra simplificada didáctica."
+En filesystems reales como ext4, los bloques pueden estar dispersos y se usa una lista de punteros (inodos) o un árbol (B-tree) para rastrearlos. No necesitan compactación porque toleran fragmentación.
+
+DialFS no tiene directorios, todos los archivos están en un solo nivel plano. No tiene permisos. No tiene journaling para recuperación ante crashes. No tiene links simbólicos ni hard links. Es una versión ultra simplificada didáctica, pero implementa las operaciones fundamentales que todo filesystem necesita: CREATE, DELETE, TRUNCATE, READ y WRITE."
 
 **Cierre:**
 "En el próximo video vamos a ver cómo verificar que todo funciona correctamente con una suite automatizada de tests."
@@ -591,15 +615,17 @@ DialFS no tiene directorios, todos los archivos están en un solo nivel. No tien
 
 Generamos logs detallados de cada acción. Luego verificamos que ciertos patrones aparecen en el orden correcto. Por ejemplo, para el Test 1 de ciclo básico, verificamos que aparezca 'Proceso creado: PID=1', luego 'Proceso PID=1 creado' en Memoria, luego 'Ejecutando EXIT' en CPU, y finalmente 'Proceso PID=1 finalizó' en Kernel.
 
-Los scripts de test usan Bash con funciones helper. wait_for_log busca un patrón en un archivo de log con timeout. Si no aparece en N segundos, el test falla. wait_for_log_count espera que un patrón aparezca N veces, útil para verificar que algo se repitió.
+Los scripts de test usan Bash con funciones helper. wait_for_log busca un patrón en un archivo de log con timeout usando grep. Si no aparece en N segundos, el test falla. wait_for_log_count espera que un patrón aparezca N veces. mark_log y new_log_lines permiten acotar la búsqueda solo a las líneas nuevas desde la última marca, así evitás falsos positivos de tests anteriores.
 
-Tenemos 11 tests que cubren: Test 1 ciclo básico de NEW a EXIT. Test 2 I/O bloqueante con sleep. Test 3 I/O múltiple con STDIN y STDOUT. Test 4 desalojo por quantum con Round Robin. Test 5 sincronización con recursos compartidos. Test 6 acceso a memoria con MOV_IN y MOV_OUT. Test 10 prioridades con PAUSE/START. Test 11 detección de deadlock.
+Los tests se organizan en fases con el algoritmo correspondiente. Fase 1 con Round Robin: test 1 ciclo básico de NEW a EXIT, test 2 I/O bloqueante con sleep, test 3 I/O múltiple, test 4 desalojo por quantum verificando que aparezca 'Quantum vencido', test 5 recursos compartidos con WAIT y SIGNAL, test 6 operaciones de memoria con MOV_IN y MOV_OUT, test 7 concurrencia con 3 procesos simultáneos. Fase 2 con FIFO: test 8 que verifica que NO haya desalojo por quantum. Fase 3 casos especiales: test 9 que hace KILL a un proceso y verifica terminación forzosa. Fase 4 con Prioridades: test 10 que usa un proceso bloqueante para acumular procesos en READY y verifica que el de mayor prioridad ejecuta primero. Fase 5 deadlock: test 11 que lanza dos procesos que se traban mutuamente con RA y RC.
 
-Cada test tiene su archivo de instrucciones en memoria/procesos/. Por ejemplo, test1.txt tiene instrucciones simples, deadlock_a.txt y deadlock_b.txt están diseñados para generar abrazo mortal.
+Un truco que aprendimos: para testear prioridades, no alcanza con lanzar dos procesos y esperar. El planificador de largo plazo los mueve a READY secuencialmente, y el de corto plazo agarra al primero inmediatamente. Solución: lanzar un proceso 'bloqueante' que ocupe la CPU, acumular los procesos de prueba en READY, y luego matar al bloqueante. Así cuando la CPU queda libre, la cola READY tiene ambos procesos y el algoritmo puede comparar prioridades.
 
-Para ejecutar todos los tests, corremos run_all.sh. Este script levanta todos los módulos, corre cada test verificando logs, y reporta cuántos pasaron. Si alguno falla, muestra qué patrón no se encontró.
+Cada test tiene su archivo de instrucciones en memoria/procesos/. Por ejemplo, test1.txt tiene instrucciones simples (SET, SUM, EXIT), deadlock_a.txt y deadlock_b.txt están diseñados para generar abrazo mortal con WAIT cruzado de RA y RC.
 
-La automatización es clave. Si no tenés tests, cada cambio requiere testeo manual que es tedioso y propenso a errores. Con la suite, corrés un script y en 5 minutos sabés si rompiste algo."
+Para ejecutar, corrés ./tests/run_all.sh y te muestra una tabla con PASS/FAIL de cada test. El script tiene trap cleanup EXIT que mata todos los módulos al terminar, incluso si un test falla.
+
+La automatización es clave. Si no tenés tests, cada cambio requiere testeo manual que es tedioso y propenso a errores. Con la suite, corrés un script y sabés si rompiste algo."
 
 **Cierre:**
 "Y llegamos al último video. Vamos a hacer una recapitulación completa del sistema, viendo cómo encajan todas las piezas."
