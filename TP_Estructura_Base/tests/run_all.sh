@@ -406,12 +406,12 @@ DESC="Prioridades: proceso con prioridad 1 ejecuta antes que prioridad 10"
 begin_test "$DESC"
 run_process_with_priority "test_prioridad_baja.txt" 10
 sleep 1
-# Capturar PID del proceso de prioridad baja
-PID_BAJA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Proceso creado' | tail -1 | grep -oE '[0-9]+' | head -1)
+# Capturar PID del proceso de prioridad baja (durante PAUSE solo se logea "Encolado en NEW")
+PID_BAJA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Encolado en NEW' | tail -1 | grep -oE '[0-9]+' | head -1)
 run_process_with_priority "test_prioridad_alta.txt" 1
 sleep 1
 # Capturar PID del proceso de prioridad alta
-PID_ALTA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Proceso creado' | tail -1 | grep -oE '[0-9]+' | head -1)
+PID_ALTA=$(new_log_lines | grep -oE 'PID: [0-9]+ - Encolado en NEW' | tail -1 | grep -oE '[0-9]+' | head -1)
 echo "       PID_BAJA(prio=10)=$PID_BAJA  PID_ALTA(prio=1)=$PID_ALTA"
 sleep 1
 send_cmd "START"
@@ -434,7 +434,7 @@ if wait_for_log_count "NEW -> READY" 2 15; then
     fi
 else
     readys=$(count_log "NEW -> READY")
-    news=$(count_log "Proceso creado")
+    news=$(count_log "Encolado en NEW")
     fail "$DESC" "procesos creados=$news, en READY=$readys de 2 esperados (timeout largo_plazo)"
 fi
 
