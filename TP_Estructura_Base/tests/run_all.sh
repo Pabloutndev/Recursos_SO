@@ -432,10 +432,9 @@ sleep 1
 # 4. KILL al bloqueante para liberar CPU. corto_plazo ahora elige entre los dos.
 send_cmd "KILL $PID_BLOCKER"
 
-# 5. Esperar que ambos terminen
-if wait_for_log_count "EXEC -> EXIT" 2 30; then
-    # Verificar orden: el de prioridad alta (1) debe hacer EXEC -> EXIT primero
-    FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT' | head -1 | grep -oE '[0-9]+' | head -1)
+# 5. Esperar que ambos terminen (filtrar SUCCESS, ignorar KILL/EXIT del bloqueante)
+if wait_for_log_count "EXEC -> EXIT .SUCCESS" 2 30; then
+    FIRST_EXIT_PID=$(new_log_lines | grep -oE 'PID: [0-9]+ - EXEC -> EXIT \(SUCCESS\)' | head -1 | grep -oE '[0-9]+' | head -1)
     echo "       Primer EXIT: PID=$FIRST_EXIT_PID (esperado: $PID_ALTA)"
     if [[ "$FIRST_EXIT_PID" == "$PID_ALTA" ]]; then
         pass "$DESC"
@@ -443,8 +442,8 @@ if wait_for_log_count "EXEC -> EXIT" 2 30; then
         fail "$DESC" "PID $FIRST_EXIT_PID termino primero pero PID $PID_ALTA (prio=1) debia ir primero"
     fi
 else
-    exits=$(count_log "EXEC -> EXIT")
-    fail "$DESC" "solo $exits de 2 procesos llegaron a EXIT (timeout)"
+    exits=$(count_log "EXEC -> EXIT .SUCCESS")
+    fail "$DESC" "solo $exits de 2 procesos completaron con SUCCESS (timeout)"
 fi
 
 # ==========================================================
